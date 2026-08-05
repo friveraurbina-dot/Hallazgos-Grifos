@@ -1946,7 +1946,11 @@ function construirReporteHallazgosHTML(soloIds){
     });
   }
 
-  function bloqueGrifo(grupo){
+  /* Cada "informe" es un bloque por grifo: título, código + detalle
+     (dirección/comuna/localidad/coordenadas/datos técnicos), el mapa de
+     ese punto, y luego — por cada hallazgo de ese grifo — su hallazgo y,
+     solo si ya tiene avance registrado, su solución. */
+  function bloqueInforme(grupo){
     const registros = grupo.registros.slice().sort((a,b)=>{
       const fa = a.fecha_creacion && a.fecha_creacion.seconds ? a.fecha_creacion.seconds : (new Date(a.fecha_creacion||0).getTime()/1000)||0;
       const fb = b.fecha_creacion && b.fecha_creacion.seconds ? b.fecha_creacion.seconds : (new Date(b.fecha_creacion||0).getTime()/1000)||0;
@@ -1961,6 +1965,7 @@ function construirReporteHallazgosHTML(soloIds){
     const primero = registros[0];
     const direccion = primero.direccion || '—';
     const titulo = grupo.codigo ? grupo.codigo : `Sin código de grifo (registro ${primero.id})`;
+    const coordenadas = (typeof primero.lat==='number' && typeof primero.lng==='number') ? `${primero.lat.toFixed(6)}, ${primero.lng.toFixed(6)}` : '—';
     const datosGrifo = [
       primero.modelo_grifo ? `Modelo: <strong>${primero.modelo_grifo}</strong>` : null,
       primero.diametro_conexion ? `Diámetro: <strong>Ø${primero.diametro_conexion}mm</strong>` : null,
@@ -1978,6 +1983,7 @@ function construirReporteHallazgosHTML(soloIds){
 
     const tarjetasHtml = filas.map((f,i)=>{
       const crit = criticidadDeDetalle(f.d, f.h);
+      const tieneSolucion = f.h.estado==='en_proceso' || f.h.estado==='resuelto';
       return `<div class="hallazgo-card">
         <div class="hc-head">
           <span class="mono">#${i+1}</span>
@@ -1987,23 +1993,24 @@ function construirReporteHallazgosHTML(soloIds){
           <span class="hc-meta">${fmtDate(f.h.fecha_creacion)} · ${f.h.creado_por || '—'}</span>
         </div>
         <div class="hc-section hc-encontrado">
-          <h5>① Hallazgo detectado en terreno</h5>
+          <h5>① Hallazgo</h5>
           ${f.h.descripcion ? `<p class="hc-desc">${f.h.descripcion}</p>` : ''}
           ${galeriaFotos(fotosHallazgoIniciales(f.h))}
         </div>
-        <div class="hc-section hc-solucion">
-          <h5>② Proceso de solución</h5>
+        ${tieneSolucion ? `<div class="hc-section hc-solucion">
+          <h5>② Solución</h5>
           ${bloqueProcesoSolucion(f.h)}
-        </div>
+        </div>` : ''}
       </div>`;}).join('');
 
     return `<div class="grifo-block">
       <h4>Grifo <span class="mono">${titulo}</span> <span class="contador">(${filas.length} hallazgo${filas.length===1?'':'s'})</span></h4>
       <div class="grifo-info-grid">
         <div><span class="gi-label">Código</span><span class="gi-val">${titulo}</span></div>
+        <div><span class="gi-label">Dirección</span><span class="gi-val">${direccion}</span></div>
         <div><span class="gi-label">Comuna</span><span class="gi-val">${primero.comuna || '—'}</span></div>
         <div><span class="gi-label">Localidad</span><span class="gi-val">${primero.localidad || '—'}</span></div>
-        <div><span class="gi-label">Dirección</span><span class="gi-val">${direccion}</span></div>
+        <div><span class="gi-label">Coordenadas</span><span class="gi-val mono">${coordenadas}</span></div>
         ${datosGrifo ? `<div><span class="gi-label">Datos técnicos</span><span class="gi-val">${datosGrifo}</span></div>` : ''}
       </div>
       ${mapaPuntoHtml}
@@ -2011,30 +2018,14 @@ function construirReporteHallazgosHTML(soloIds){
     </div>`;
   }
 
-  function bloqueZona(nombre, items){
-    if(items.length===0) return `<h3>${nombre} <span class="mono" style="font-size:12px;color:var(--text-soft);font-weight:400;">(0 hallazgos)</span></h3><p style="font-size:13px;color:var(--text-soft);">Sin registros en esta zona.</p>`;
-    const grupos = agruparPorGrifo(items);
-    const nHallazgos = items.reduce((acc,h)=>acc + Math.max(obtenerDetalleHallazgos(h).length,1), 0);
-    return `<h3>${nombre} <span class="mono" style="font-size:12px;color:var(--text-soft);font-weight:400;">(${grupos.length} grifo${grupos.length===1?'':'s'} · ${nHallazgos} hallazgo${nHallazgos===1?'':'s'})</span></h3>
-      ${grupos.map(bloqueGrifo).join('')}`;
-  }
-
-  const lampa = conHallazgoRep.filter(h=>zonaDeHallazgo(h)==='lampa');
-  const metro = conHallazgoRep.filter(h=>zonaDeHallazgo(h)==='metropolitana');
-  const sinZona = conHallazgoRep.filter(h=>zonaDeHallazgo(h)==='sin_zona');
-
-  // Mapas individuales "del punto" que bloqueGrifo va llenando a medida que
-  // se arma el HTML de cada grifo (uno por grifo con coordenadas válidas).
+  // Mapas individuales "del punto" que bloqueInforme va llenando a medida
+  // que se arma el HTML de cada grifo (uno por grifo con coordenadas válidas).
   const puntosMapData = [];
 
-  // Datos livianos para el mapa general del informe (un punto por registro)
-  const mapData = conHallazgoRep
-    .filter(h=>typeof h.lat==='number' && typeof h.lng==='number')
-    .map(h=>({lat:h.lat, lng:h.lng, direccion:h.direccion||'Sin dirección', codigo:h.codigo_grifo||null, criticidad:criticidadDeRegistro(h), estado:h.estado}));
-  const mapDataJson = JSON.stringify(mapData).replace(/</g,'\\u003c');
+  const grupos = agruparPorGrifo(conHallazgoRep);
 
   return `<!DOCTYPE html>
-<html lang="es"><head><meta charset="UTF-8"><title>Reporte de Hallazgos en Grifos — ${fechaReporte}</title>
+<html lang="es"><head><meta charset="UTF-8"><title>Informe de Hallazgos en Grifos — ${fechaReporte}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"><\/script>
@@ -2060,10 +2051,6 @@ th{font-family:'IBM Plex Mono',monospace;font-size:9.5px;text-transform:uppercas
 .badge.pendiente{background:#f1eee6;color:#7a7263;}
 .badge.en_proceso{background:#eaf1ec;color:#3f6e46;}
 .badge.resuelto{background:#e3f0e4;color:var(--musgo);}
-#repMapHallazgos{height:380px;border-radius:8px;border:1px solid var(--line);}
-.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:var(--text-soft);}
-.legend span{display:inline-flex;align-items:center;gap:6px;}
-.legend i{width:10px;height:10px;border-radius:50%;display:inline-block;}
 .grifo-block{border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:14px;background:var(--concrete-2);}
 .grifo-block h4{font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:13.5px;margin:0 0 4px;letter-spacing:.01em;color:var(--ink);}
 .grifo-block h4 .mono{color:var(--hidrante);}
@@ -2100,48 +2087,16 @@ footer{text-align:center;font-size:11px;color:var(--text-soft);font-family:'IBM 
 </style></head>
 <body>
 <header>
-  <h1>Reporte de Hallazgos en Grifos</h1>
-  <p>Emitido el ${fechaReporte} · ${totalRegistros} registro${totalRegistros===1?'':'s'} · ${totalHallazgos} hallazgo${totalHallazgos===1?'':'s'} en total · Singemelec / Sacyr Aguas</p>
+  <h1>Informe de Hallazgo${totalRegistros===1?'':'s'} en Grifos</h1>
+  <p>Emitido el ${fechaReporte} · ${totalRegistros} informe${totalRegistros===1?'':'s'} · ${totalHallazgos} hallazgo${totalHallazgos===1?'':'s'} en total · Singemelec / Sacyr Aguas</p>
 </header>
 <div class="wrap">
-  <div class="panel">
-    <h3 style="margin-top:0;">Mapa de hallazgos</h3>
-    <div id="repMapHallazgos"></div>
-    <div class="legend">
-      <span><i style="background:#C8334D"></i>Operatividad directa</span>
-      <span><i style="background:#E2A33D"></i>Operatividad indirecta/mec.</span>
-      <span><i style="background:#3B6E8F"></i>Señalética/visibilidad</span>
-    </div>
-  </div>
-  <div class="panel">
-    ${bloqueZona('Zona Lampa', lampa)}
-    ${bloqueZona('Zona Metropolitana', metro)}
-    ${sinZona.length ? bloqueZona('Sin zona asignada (sin código de grifo del catastro)', sinZona) : ''}
-  </div>
+  ${grupos.length ? grupos.map(bloqueInforme).join('') : '<p style="font-size:13px;color:var(--text-soft);">Sin hallazgos para mostrar.</p>'}
 </div>
-<footer>Reporte completo generado desde el catastro de grifos Singemelec / Sacyr Aguas — no se actualiza automáticamente. Vuelve a generarlo para reflejar el estado más reciente.</footer>
+<footer>Informe generado desde el catastro de grifos Singemelec / Sacyr Aguas — no se actualiza automáticamente. Vuelve a generarlo para reflejar el estado más reciente.</footer>
 <script>
-const MAPDATA = ${mapDataJson};
 const PUNTOS = ${JSON.stringify(puntosMapData).replace(/</g,'\\u003c')};
-const PRIORIDAD_COLOR_MAP = {directa:'#C8334D', indirecta:'#E2A33D', senaletica:'#3B6E8F', inmediato:'#C8334D', corto:'#E2A33D', mediano:'#3B6E8F'};
-const ESTADO_LABEL_MAP = {pendiente:'Pendiente', en_proceso:'En proceso', resuelto:'Resuelto'};
-if(MAPDATA.length){
-  const map = L.map('repMapHallazgos');
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
-  const marcadores = MAPDATA.map(d=>{
-    const c = PRIORIDAD_COLOR_MAP[d.criticidad] || '#999';
-    return L.circleMarker([d.lat, d.lng], {radius:8, color:'#fff', weight:2, fillColor:c, fillOpacity:1}).addTo(map)
-      .bindPopup('<strong>'+(d.codigo ? ('Grifo '+d.codigo+' · ') : '')+d.direccion+'</strong><br>'+(ESTADO_LABEL_MAP[d.estado]||''));
-  });
-  if(MAPDATA.length===1){
-    map.setView([MAPDATA[0].lat, MAPDATA[0].lng], 16);
-  } else {
-    map.fitBounds(L.featureGroup(marcadores).getBounds(), {padding:[24,24]});
-  }
-} else {
-  document.getElementById('repMapHallazgos').outerHTML = '<p style="font-size:12.5px;color:var(--text-soft);">Sin coordenadas para mostrar en el mapa.</p>';
-}
-// Mapas individuales "del punto" — uno por grifo, en el encabezado de cada bloque.
+// Mapa individual "del punto" — uno por grifo, en el encabezado de cada informe.
 PUNTOS.forEach(p=>{
   const el = document.getElementById(p.id);
   if(!el) return;
