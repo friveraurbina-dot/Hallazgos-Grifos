@@ -288,6 +288,7 @@ if(sessionStorage.getItem('grifos_access_ok')==='1'){
   <div class="body-grid">
     <nav class="rail">
       <button class="navbtn active" data-page="dashboard" onclick="goPage('dashboard')">Tablero ejecutivo</button>
+      <button class="navbtn" data-page="inspecciones" onclick="goPage('inspecciones')">Inspecciones</button>
       <button class="navbtn" data-page="nuevo" id="navNuevo" onclick="goPage('nuevo')">Nuevo hallazgo</button>
       <button class="navbtn" data-page="lista" onclick="goPage('lista')">Hallazgos</button>
       <div class="rail-foot" id="railFoot">v1.0 · datos compartidos<br>entre ambas empresas</div>
@@ -396,6 +397,17 @@ function criticidadDeDetalle(d, h){
   if(info) return info.criticidad;
   return criticidadDeRegistro(h);
 }
+
+// Un registro puede venir del flujo de "Inspecciones" (chequeo diario, con o
+// sin hallazgo) o del flujo directo de "Nuevo hallazgo" (siempre con
+// hallazgo). Ambos se guardan en la misma colección `hallazgos`, con el
+// mismo esquema — así toda la información del grifo queda en un solo lugar.
+function esInspeccion(h){ return h.origen === 'inspeccion'; }
+// Un registro "cuenta" como hallazgo real (para el tablero, el tablero
+// ejecutivo, los reportes y el Excel) solo si trae al menos un hallazgo
+// categorizado — descarta las inspecciones sin hallazgo, que no necesitan
+// seguimiento de resolución.
+function tieneHallazgoReal(h){ return obtenerDetalleHallazgos(h).length > 0; }
 
 function uid(){ return 'H-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2,6).toUpperCase(); }
 function fmtDate(d){ const dt=new Date(d); return dt.toLocaleString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
@@ -559,15 +571,18 @@ function render(){
   if(currentPage==='dashboard') renderDashboard();
   else if(currentPage==='nuevo') renderNuevo();
   else if(currentPage==='lista') renderLista();
+  else if(currentPage==='inspecciones') renderInspecciones();
 }
 
 /* ================= DASHBOARD ================= */
 function renderDashboard(){
   const main = document.getElementById('main');
-  const total = HALLAZGOS.length;
+  const conHallazgo = HALLAZGOS.filter(tieneHallazgoReal);
+  const total = conHallazgo.length;
+  const totalInspecciones = HALLAZGOS.filter(esInspeccion).length;
   const counts = {directa:0, indirecta:0, senaletica:0};
   const estados = {pendiente:0, en_proceso:0, resuelto:0};
-  HALLAZGOS.forEach(h=>{ const c=criticidadDeRegistro(h); counts[c]=(counts[c]||0)+1; estados[h.estado]=(estados[h.estado]||0)+1; });
+  conHallazgo.forEach(h=>{ const c=criticidadDeRegistro(h); counts[c]=(counts[c]||0)+1; estados[h.estado]=(estados[h.estado]||0)+1; });
 
   main.innerHTML = `
   <div class="page">
@@ -590,6 +605,7 @@ function renderDashboard(){
       <div class="kpi"><div class="tab" style="background:var(--senal)"></div><div class="num">${counts.indirecta||0}</div><div class="lbl">Operatividad indirecta/mec.</div></div>
       <div class="kpi"><div class="tab" style="background:var(--tuberia)"></div><div class="num">${counts.senaletica||0}</div><div class="lbl">Señalética/visibilidad</div></div>
       <div class="kpi"><div class="tab" style="background:var(--musgo)"></div><div class="num">${estados.resuelto||0}</div><div class="lbl">Resueltos</div></div>
+      <div class="kpi"><div class="tab" style="background:var(--acero,#5a7d9a)"></div><div class="num">${totalInspecciones}</div><div class="lbl">Inspecciones registradas</div></div>
     </div>
 
     <div class="grid-2">
@@ -617,13 +633,13 @@ function renderDashboard(){
 
   // Map
   if(dashMapInstance){ dashMapInstance.remove(); dashMapInstance=null; }
-  const center = HALLAZGOS.length ? [HALLAZGOS[0].lat, HALLAZGOS[0].lng] : [-33.0245, -71.5518]; // Viña del Mar default
-  dashMapInstance = L.map('dashMap').setView(center, HALLAZGOS.length?12:13);
+  const center = conHallazgo.length ? [conHallazgo[0].lat, conHallazgo[0].lng] : [-33.0245, -71.5518]; // Viña del Mar default
+  dashMapInstance = L.map('dashMap').setView(center, conHallazgo.length?12:13);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(dashMapInstance);
-  HALLAZGOS.forEach(h=>{
+  conHallazgo.forEach(h=>{
     const color = PRIORIDAD_COLOR[h.prioridad] || '#999';
     const marker = L.circleMarker([h.lat,h.lng],{radius:9,color:'#fff',weight:2,fillColor:color,fillOpacity:1}).addTo(dashMapInstance);
-    marker.bindPopup(`<strong>${h.direccion||'Sin dirección'}</strong><br>${PRIORIDAD_LABEL[h.prioridad]} · ${ESTADO_LABEL[h.estado]}<br><span style="font-family:monospace;font-size:11px">${h.id}</span>`);
+    marker.bindPopup(`<strong>${h.direccion||'Sin dirección'}</strong><br>${PRIORIDAD_LABEL[h.prioridad]||'Sin criticidad'} · ${ESTADO_LABEL[h.estado]||'Sin estado'}<br><span style="font-family:monospace;font-size:11px">${h.id}</span>`);
   });
 
   // Charts
@@ -733,7 +749,17 @@ function renderNuevo(){
     </div>
   </div>`;
 
-  pendingFotos = {grifo:null, hallazgo:null};
+  inicializarFormularioGrifo({grifo:null, hallazgo:null});
+}
+
+/* Wiring compartido entre "Nuevo hallazgo" e "Inspecciones": ambas páginas
+   usan los mismos IDs (#formMiniMap, #fDireccion, #addrSuggestions,
+   #fCodigoGrifo, #listaHallazgosAgregados…) porque nunca están montadas al
+   mismo tiempo — solo una ocupa #main a la vez — así que reutilizar el mismo
+   wiring (mapa, autocompletado de dirección, catastro de grifos) es seguro y
+   evita mantener dos copias del mismo código. */
+function inicializarFormularioGrifo(fotosIniciales){
+  pendingFotos = fotosIniciales;
   formMarkerActual = null; formMarkerIdeal = null;
   catalogoMatchActual = null;
   hallazgosAgregados = [];
@@ -815,6 +841,256 @@ function renderListaHallazgosAgregados(){
     const peor = criticidadMasSevera(hallazgosAgregados);
     info.innerHTML = `Criticidad de este registro (automática): <span class="badge ${peor}">${PRIORIDAD_LABEL[peor]}</span>`;
   }
+}
+
+/* ================= INSPECCIONES ================= */
+/* Flujo diario de terreno: se selecciona el grifo, se registran fecha/hora
+   de ejecución y presión, y se indica si hubo hallazgo o no. Si lo hubo, se
+   usa exactamente el mismo bloque de categorización que "Nuevo hallazgo"
+   (mismo <select>, mismos hallazgos, misma criticidad automática) y todo
+   queda guardado en el MISMO documento de la colección `hallazgos` — no es
+   un formulario ni una colección aparte, es el mismo esquema con más campos,
+   para que toda la información del grifo (inspección + hallazgo + traza de
+   resolución) viva en un solo lugar. */
+function renderInspecciones(){
+  const main = document.getElementById('main');
+  const inspecciones = HALLAZGOS.filter(esInspeccion).slice().sort((a,b)=> new Date(b.fecha_creacion||0) - new Date(a.fecha_creacion||0));
+  const hoy = new Date().toISOString().slice(0,10);
+  const ahora = new Date().toTimeString().slice(0,5);
+
+  const formHtml = ROLE==='singemelec' ? `
+    <div class="panel">
+      <form id="formInspeccion" onsubmit="return false;">
+        <div class="field">
+          <label>Código de grifo (catastro Sacyr)</label>
+          <input type="text" id="fCodigoGrifo" list="listaCodigosGrifo" placeholder="Ej: LAM001" autocomplete="off" style="text-transform:uppercase;max-width:260px;">
+          <datalist id="listaCodigosGrifo">${Object.keys(CATALOGO_GRIFOS).sort().map(c=>`<option value="${c}">`).join('')}</datalist>
+          <small id="catalogoInfo">${catalogoGrifosListo ? `Si el código está en el catastro (${Object.keys(CATALOGO_GRIFOS).length} grifos cargados), se completan automáticamente dirección y ubicación.` : 'Catastro de grifos no disponible sin conexión: puedes completar los datos manualmente.'}</small>
+        </div>
+        <div class="field">
+          <label>Dirección</label>
+          <input type="text" id="fDireccion" placeholder="Escribe para buscar dirección…" autocomplete="off">
+          <div id="addrSuggestions" style="position:relative;"></div>
+          <small>Autocompletado vía OpenStreetMap. También puedes hacer clic directo en el mapa, o ingresar el código de grifo arriba.</small>
+        </div>
+
+        <div class="form-grid">
+          <div class="field">
+            <label>Fecha de ejecución</label>
+            <input type="date" id="fFechaEjecucion" value="${hoy}">
+          </div>
+          <div class="field">
+            <label>Horario de ejecución</label>
+            <input type="time" id="fHorarioEjecucion" value="${ahora}">
+          </div>
+        </div>
+        <div class="field">
+          <label>Presión del grifo (bar)</label>
+          <input type="number" id="fPresionGrifo" placeholder="Ej: 3.2" step="0.1" min="0" style="max-width:160px;">
+        </div>
+
+        <div class="field">
+          <label>¿La inspección detectó algún hallazgo?</label>
+          <select id="fTieneHallazgo" onchange="toggleBloqueHallazgoInsp()" style="max-width:200px;">
+            <option value="no" selected>No — grifo operativo, sin novedad</option>
+            <option value="si">Sí — hay un hallazgo que registrar</option>
+          </select>
+        </div>
+
+        <div id="bloqueHallazgoInsp" style="display:none;">
+          <div class="field">
+            <label>Hallazgo</label>
+            <select id="fTipoHallazgo">
+              ${CATEGORIAS_CRITICIDAD.map(cat=>`<optgroup label="${cat.titulo}">${CATALOGO_HALLAZGOS.filter(x=>x.criticidad===cat.clave).map(x=>`<option value="${x.nombre}">${x.nombre}</option>`).join('')}</optgroup>`).join('')}
+            </select>
+            <small>La criticidad se calcula automáticamente según lo que elijas acá.</small>
+          </div>
+          <div class="field">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="agregarHallazgoDetalle()">+ Agregar hallazgo a este registro</button>
+            <small>La inspección puede tener más de un hallazgo — agrega cada uno.</small>
+          </div>
+          <div class="field">
+            <label>Hallazgos agregados a esta inspección</label>
+            <div id="listaHallazgosAgregados" class="chips-list"></div>
+            <div class="criticidad-auto" id="criticidadAutoInfo"></div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Ubicación del grifo (real) y ubicación ideal</label>
+          <small>Clic normal = ubicación real del grifo · Clic con tecla Shift = ubicación ideal sugerida · Botón GPS usa la ubicación del dispositivo</small>
+          <div style="display:flex;gap:8px;margin:6px 0;">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="useGPS()">📍 Usar mi ubicación GPS</button>
+            <span class="mono" id="coordsInfo" style="font-size:11.5px;color:var(--text-soft);align-self:center;"></span>
+          </div>
+          <div id="formMiniMap" class="geo-map-mini"></div>
+          <div class="legend">
+            <span><i style="background:#C8334D"></i>Grifo (ubicación real)</span>
+            <span><i style="background:#3B6E8F"></i>Ubicación ideal</span>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <div class="field">
+            <label>Fotografía del grifo</label>
+            <div class="photo-box" id="boxGrifo" onclick="document.getElementById('inputGrifo').click()"><span>Toca para tomar / subir foto</span></div>
+            <input type="file" id="inputGrifo" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(event,'grifo')">
+          </div>
+          <div class="field">
+            <label>Fotografía de grifo operativo</label>
+            <div class="photo-box" id="boxOperativo" onclick="document.getElementById('inputOperativo').click()"><span>Toca para tomar / subir foto</span></div>
+            <input type="file" id="inputOperativo" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(event,'operativo')">
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="field">
+            <label>Fotografía de presión de grifo</label>
+            <div class="photo-box" id="boxPresion" onclick="document.getElementById('inputPresion').click()"><span>Toca para tomar / subir foto</span></div>
+            <input type="file" id="inputPresion" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(event,'presion')">
+          </div>
+          <div class="field">
+            <label>Fotografía de cámara</label>
+            <div class="photo-box" id="boxCamara" onclick="document.getElementById('inputCamara').click()"><span>Toca para tomar / subir foto</span></div>
+            <input type="file" id="inputCamara" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(event,'camara')">
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Descripción / observaciones adicionales</label>
+          <textarea id="fDescripcion" placeholder="Detalle adicional lo observado en terreno (opcional)…"></textarea>
+        </div>
+
+        <div class="field revision-box">
+          <label>
+            <input type="checkbox" id="fRevisionOkInsp" onchange="document.getElementById('btnGuardarInspeccion').disabled = !this.checked;">
+            Revisé y verifiqué la información cargada
+          </label>
+        </div>
+
+        <button class="btn btn-primary" id="btnGuardarInspeccion" disabled onclick="guardarInspeccion()">Guardar inspección</button>
+      </form>
+    </div>` : '';
+
+  main.innerHTML = `
+  <div class="page">
+    <div class="page-head">
+      <div><h1>Inspecciones</h1><p>${ROLE==='singemelec' ? 'Registro de inspecciones diarias en terreno' : 'Historial de inspecciones diarias — Sacyr Aguas'}</p></div>
+    </div>
+    ${formHtml}
+    <div class="panel" style="margin-top:${ROLE==='singemelec'?'18px':'0'};">
+      <h3 style="margin-top:0;">Historial de inspecciones <span class="mono" style="font-size:12px;color:var(--text-soft);font-weight:400;">(${inspecciones.length})</span></h3>
+      <div class="estado-table-wrap">
+        <table class="estado-table">
+          <thead><tr><th>Fecha ejecución</th><th>Horario</th><th>Grifo</th><th>Dirección</th><th>Presión</th><th>¿Hallazgo?</th><th>Creado por</th><th></th></tr></thead>
+          <tbody>${inspecciones.length ? inspecciones.map(h=>`<tr>
+            <td>${h.fecha_ejecucion || '—'}</td>
+            <td>${h.horario_ejecucion || '—'}</td>
+            <td class="faddr-cell">${h.codigo_grifo ? `<span class="mono">${h.codigo_grifo}</span>` : '—'}</td>
+            <td class="faddr-cell">${h.direccion || '—'}</td>
+            <td>${h.presion_grifo!=null && h.presion_grifo!=='' ? h.presion_grifo+' bar' : '—'}</td>
+            <td>${h.tiene_hallazgo==='si' ? `<span class="badge ${criticidadDeRegistro(h)}">Sí · ${PRIORIDAD_LABEL[criticidadDeRegistro(h)]}</span>` : '<span class="badge pendiente" style="background:#eef1ee;color:#5c6b6e;">No</span>'}</td>
+            <td>${h.creado_por || '—'}</td>
+            <td><button class="btn btn-ghost btn-sm" onclick="openDetail('${h.id}')">Ver detalle</button></td>
+          </tr>`).join('') : `<tr class="empty-row"><td colspan="8">Aún no se han registrado inspecciones.</td></tr>`}</tbody>
+        </table>
+      </div>
+    </div>
+  </div>`;
+
+  if(ROLE==='singemelec'){
+    inicializarFormularioGrifo({grifo:null, hallazgo:null, operativo:null, presion:null, camara:null});
+  }
+}
+
+/* Muestra/oculta el bloque de categorización de hallazgo dentro de
+   Inspecciones según la respuesta a "¿tuvo hallazgo?". Si se cambia a "No"
+   después de haber agregado hallazgos, se limpian para no guardar
+   información inconsistente. */
+function toggleBloqueHallazgoInsp(){
+  const val = document.getElementById('fTieneHallazgo').value;
+  const bloque = document.getElementById('bloqueHallazgoInsp');
+  if(bloque) bloque.style.display = (val==='si') ? '' : 'none';
+  if(val==='no' && hallazgosAgregados.length){
+    hallazgosAgregados = [];
+    renderListaHallazgosAgregados();
+  }
+}
+
+async function guardarInspeccion(){
+  if(!document.getElementById('fRevisionOkInsp').checked){ toast('Marca la casilla de revisión antes de guardar'); return; }
+  if(!formMarkerActual){ toast('Marca la ubicación real del grifo en el mapa'); return; }
+  const fechaEjecucion = document.getElementById('fFechaEjecucion').value;
+  const horarioEjecucion = document.getElementById('fHorarioEjecucion').value;
+  if(!fechaEjecucion || !horarioEjecucion){ toast('Indica la fecha y el horario de ejecución'); return; }
+  const presionRaw = document.getElementById('fPresionGrifo').value;
+  if(presionRaw===''){ toast('Indica la presión del grifo'); return; }
+  const tieneHallazgo = document.getElementById('fTieneHallazgo').value;
+  if(tieneHallazgo==='si' && hallazgosAgregados.length===0){ toast('Agrega al menos un hallazgo, o marca "No" si la inspección no encontró novedades'); return; }
+
+  const llActual = formMarkerActual.getLatLng();
+  const llIdeal = formMarkerIdeal ? formMarkerIdeal.getLatLng() : null;
+  const id = uid();
+  const btn = document.getElementById('btnGuardarInspeccion');
+  if(btn){ btn.disabled = true; btn.textContent = 'Guardando…'; }
+
+  const [fotoGrifoUrl, fotoOperativoUrl, fotoPresionUrl, fotoCamaraUrl] = await Promise.all([
+    subirFoto(pendingFotos.grifo, `hallazgos/${id}/grifo.jpg`),
+    subirFoto(pendingFotos.operativo, `hallazgos/${id}/operativo.jpg`),
+    subirFoto(pendingFotos.presion, `hallazgos/${id}/presion.jpg`),
+    subirFoto(pendingFotos.camara, `hallazgos/${id}/camara.jpg`)
+  ]);
+
+  const codigoGrifo = document.getElementById('fCodigoGrifo').value.trim().toUpperCase() || null;
+  const prioridad = tieneHallazgo==='si' ? criticidadMasSevera(hallazgosAgregados) : null;
+
+  const nuevo = {
+    id,
+    origen: 'inspeccion',
+    fecha_creacion: new Date().toISOString(),
+    creado_por: 'Singemelec',
+    codigo_grifo: codigoGrifo,
+    comuna: catalogoMatchActual ? catalogoMatchActual.comuna : null,
+    localidad: catalogoMatchActual ? catalogoMatchActual.localidad : null,
+    modelo_grifo: catalogoMatchActual ? catalogoMatchActual.modelo : null,
+    diametro_conexion: catalogoMatchActual ? catalogoMatchActual.diametro_conexion : null,
+    ano_instalacion: catalogoMatchActual ? catalogoMatchActual.ano_instalacion : null,
+    fecha_ejecucion: fechaEjecucion,
+    horario_ejecucion: horarioEjecucion,
+    presion_grifo: presionRaw,
+    tiene_hallazgo: tieneHallazgo,
+    hallazgos_detalle: tieneHallazgo==='si' ? hallazgosAgregados.slice() : [],
+    direccion: document.getElementById('fDireccion').value || 'Sin dirección registrada',
+    lat: llActual.lat, lng: llActual.lng,
+    ideal_lat: llIdeal? llIdeal.lat : null, ideal_lng: llIdeal? llIdeal.lng : null,
+    foto_grifo: fotoGrifoUrl,
+    foto_hallazgo: null,
+    foto_grifo_operativo: fotoOperativoUrl,
+    foto_presion: fotoPresionUrl,
+    foto_camara: fotoCamaraUrl,
+    foto_respaldo: null,
+    descripcion: document.getElementById('fDescripcion').value,
+    prioridad,
+    estado: tieneHallazgo==='si' ? 'pendiente' : null,
+    comentarios: tieneHallazgo==='si' ? [{autor:'Singemelec', fecha:new Date().toISOString(), texto:'Hallazgo detectado durante inspección diaria.', estado_anterior:null, estado_nuevo:'pendiente', foto_antes:null, foto_despues:null}] : []
+  };
+
+  if(STORAGE_MODE === 'remote' && firebaseReady){
+    try{
+      const {id: _omit, ...datos} = nuevo;
+      await db.collection('hallazgos').doc(id).set(datos);
+    }catch(e){
+      console.error(e);
+      toast('Sin conexión a la base de datos compartida: guardando solo en este dispositivo');
+      HALLAZGOS.unshift(nuevo);
+      guardarLocal();
+    }
+  } else {
+    HALLAZGOS.unshift(nuevo);
+    guardarLocal();
+  }
+
+  toast(tieneHallazgo==='si' ? 'Inspección guardada — hallazgo registrado' : 'Inspección guardada — sin novedad');
+  goPage('inspecciones');
 }
 
 /* Devuelve la lista de hallazgos (grifo/cámara) de un registro, sea que
@@ -937,8 +1213,9 @@ function handlePhoto(evt, tipo){
       ctx.fillText(stamp, padding, img.height-fontSize/2-padding);
       const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
       pendingFotos[tipo] = dataUrl;
-      const box = document.getElementById(tipo==='grifo'?'boxGrifo':'boxHallazgo');
-      box.innerHTML = `<img src="${dataUrl}">`;
+      const BOX_IDS = {grifo:'boxGrifo', hallazgo:'boxHallazgo', operativo:'boxOperativo', presion:'boxPresion', camara:'boxCamara'};
+      const box = document.getElementById(BOX_IDS[tipo] || ('box'+tipo));
+      if(box) box.innerHTML = `<img src="${dataUrl}">`;
     };
     img.src = e.target.result;
   };
@@ -1014,8 +1291,9 @@ async function guardarHallazgo(){
 /* ================= LISTA ================= */
 function renderLista(){
   const main = document.getElementById('main');
-  const countLampa = HALLAZGOS.filter(h=>zonaDeHallazgo(h)==='lampa').length;
-  const countMetro = HALLAZGOS.filter(h=>zonaDeHallazgo(h)==='metropolitana').length;
+  const conHallazgo = HALLAZGOS.filter(tieneHallazgoReal);
+  const countLampa = conHallazgo.filter(h=>zonaDeHallazgo(h)==='lampa').length;
+  const countMetro = conHallazgo.filter(h=>zonaDeHallazgo(h)==='metropolitana').length;
   main.innerHTML = `
   <div class="page">
     <div class="page-head">
@@ -1026,7 +1304,7 @@ function renderLista(){
       </div>
     </div>
     <div class="zone-tabs">
-      <button class="zone-tab ${FILTRO_ZONA==='todos'?'active':''}" onclick="cambiarFiltroZona('todos')">Todos (${HALLAZGOS.length})</button>
+      <button class="zone-tab ${FILTRO_ZONA==='todos'?'active':''}" onclick="cambiarFiltroZona('todos')">Todos (${conHallazgo.length})</button>
       <button class="zone-tab ${FILTRO_ZONA==='lampa'?'active':''}" onclick="cambiarFiltroZona('lampa')">Lampa (${countLampa})</button>
       <button class="zone-tab ${FILTRO_ZONA==='metropolitana'?'active':''}" onclick="cambiarFiltroZona('metropolitana')">Metropolitana (${countMetro})</button>
     </div>
@@ -1038,8 +1316,8 @@ function renderLista(){
     <div class="estado-board" id="findingsList"></div>
   </div>`;
   const board = document.getElementById('findingsList');
-  const hallazgosFiltrados = FILTRO_ZONA==='todos' ? HALLAZGOS : HALLAZGOS.filter(h=>zonaDeHallazgo(h)===FILTRO_ZONA);
-  if(HALLAZGOS.length===0){
+  const hallazgosFiltrados = FILTRO_ZONA==='todos' ? conHallazgo : conHallazgo.filter(h=>zonaDeHallazgo(h)===FILTRO_ZONA);
+  if(conHallazgo.length===0){
     board.innerHTML = `<div class="empty"><div class="display">Sin hallazgos</div>Aún no hay hallazgos en el catastro.</div>`;
     actualizarBarraSeleccion();
     return;
@@ -1177,25 +1455,30 @@ async function borrarFotosHallazgo(id){
 function openDetail(id){
   const h = HALLAZGOS.find(x=>x.id===id);
   if(!h) return;
-  pendingRespaldo = null;
+  pendingRespaldoAntes = null;
+  pendingRespaldoDespues = null;
   const modalBg = document.getElementById('modalBg');
   const modal = document.getElementById('modalContent');
   if(!modalBg || !modal) return;
   modal.innerHTML = `
     <button class="closeX" onclick="closeModal()">&times;</button>
     <h2>${h.direccion}</h2>
-    <div class="fid mono">${h.id} · registrado ${fmtDate(h.fecha_creacion)}</div>
-    <div style="display:flex;gap:6px;margin:10px 0;">
-      <span class="badge ${h.prioridad}">${PRIORIDAD_LABEL[h.prioridad]}</span>
-      <span class="badge ${h.estado}">${ESTADO_LABEL[h.estado]}</span>
+    <div class="fid mono">${h.id} · registrado ${fmtDate(h.fecha_creacion)}${esInspeccion(h)?' · Inspección':''}</div>
+    <div style="display:flex;gap:6px;margin:10px 0;flex-wrap:wrap;">
+      ${h.estado ? `<span class="badge ${h.prioridad}">${PRIORIDAD_LABEL[h.prioridad]}</span><span class="badge ${h.estado}">${ESTADO_LABEL[h.estado]}</span>` : `<span class="badge" style="background:var(--concrete-2);color:var(--text-soft);">Inspección sin hallazgo</span>`}
     </div>
     ${h.codigo_grifo ? `<div class="mono" style="font-size:12px;color:var(--text-soft);margin-bottom:8px;">Grifo ${h.codigo_grifo}${h.modelo_grifo?` · ${h.modelo_grifo}`:''}${h.diametro_conexion?` · Ø${h.diametro_conexion}mm`:''}${h.localidad||h.comuna?` · ${[h.localidad,h.comuna].filter(Boolean).join(', ')}`:''}${h.ano_instalacion?` · instalado ${h.ano_instalacion}`:''}</div>` : ''}
+    ${esInspeccion(h) ? `<div class="mono" style="font-size:12px;color:var(--text-soft);margin-bottom:8px;">${h.fecha_ejecucion?`Ejecución ${h.fecha_ejecucion}`:''}${h.horario_ejecucion?` · ${h.horario_ejecucion} hrs`:''}${h.presion_grifo?` · Presión ${h.presion_grifo}`:''}</div>` : ''}
     ${obtenerDetalleHallazgos(h).length ? `<div class="chips-list" style="margin-bottom:8px;">${obtenerDetalleHallazgos(h).map(d=>`<span class="chip" style="cursor:default;"><i class="dot" style="background:${PRIORIDAD_COLOR[criticidadDeDetalle(d,h)]}"></i>${d.tipo_elemento==='camara'?'Cámara':'Grifo'} · ${d.tipo_hallazgo}</span>`).join('')}</div>` : ''}
     <p style="font-size:13.5px;color:var(--text);">${h.descripcion || '<em>Sin descripción</em>'}</p>
 
     <div class="detail-imgs">
       <figure>${h.foto_grifo?`<img src="${h.foto_grifo}">`:'<div style="background:var(--concrete-2);height:140px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--text-soft);font-size:12px;">Sin foto</div>'}<figcaption>Fotografía del grifo</figcaption></figure>
-      <figure>${h.foto_hallazgo?`<img src="${h.foto_hallazgo}">`:'<div style="background:var(--concrete-2);height:140px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--text-soft);font-size:12px;">Sin foto</div>'}<figcaption>Fotografía del hallazgo</figcaption></figure>
+      ${esInspeccion(h) ? `
+      <figure>${h.foto_grifo_operativo?`<img src="${h.foto_grifo_operativo}">`:'<div style="background:var(--concrete-2);height:140px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--text-soft);font-size:12px;">Sin foto</div>'}<figcaption>Grifo operativo</figcaption></figure>
+      <figure>${h.foto_presion?`<img src="${h.foto_presion}">`:'<div style="background:var(--concrete-2);height:140px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--text-soft);font-size:12px;">Sin foto</div>'}<figcaption>Presión del grifo</figcaption></figure>
+      <figure>${h.foto_camara?`<img src="${h.foto_camara}">`:'<div style="background:var(--concrete-2);height:140px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--text-soft);font-size:12px;">Sin foto</div>'}<figcaption>Cámara</figcaption></figure>` : ''}
+      ${(!esInspeccion(h) || tieneHallazgoReal(h)) ? `<figure>${h.foto_hallazgo?`<img src="${h.foto_hallazgo}">`:'<div style="background:var(--concrete-2);height:140px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--text-soft);font-size:12px;">Sin foto</div>'}<figcaption>Fotografía del hallazgo</figcaption></figure>` : ''}
       ${h.foto_respaldo ? `<figure><img src="${h.foto_respaldo}"><figcaption>Respaldo de solución</figcaption></figure>` : ''}
     </div>
 
@@ -1205,7 +1488,7 @@ function openDetail(id){
       ${h.ideal_lat?'<span><i style="background:#3B6E8F"></i>Ubicación ideal</span>':''}
     </div>
 
-    ${ROLE==='sacyr' ? `
+    ${ROLE==='sacyr' && h.estado ? `
     <div class="panel" style="margin-top:16px;">
       <h3>Actualizar estado</h3>
       <div class="field">
@@ -1215,14 +1498,23 @@ function openDetail(id){
           <option value="resuelto" ${h.estado==='resuelto'?'selected':''}>Resuelto</option>
         </select>
       </div>
-      <div class="field">
-        <label>Foto de respaldo de la solución</label>
-        <div class="photo-box" id="boxRespaldo" onclick="document.getElementById('inputRespaldo').click()">
-          ${h.foto_respaldo ? `<img src="${h.foto_respaldo}">` : '<span>Toca para tomar / subir foto de respaldo</span>'}
+      <div class="form-grid">
+        <div class="field">
+          <label>Foto de respaldo — ANTES de la solución</label>
+          <div class="photo-box" id="boxRespaldoAntes" onclick="document.getElementById('inputRespaldoAntes').click()">
+            <span>Toca para tomar / subir foto</span>
+          </div>
+          <input type="file" id="inputRespaldoAntes" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoRespaldo(event,'antes')">
         </div>
-        <input type="file" id="inputRespaldo" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoRespaldo(event)">
-        <small>Evidencia de que el hallazgo fue resuelto en terreno.</small>
+        <div class="field">
+          <label>Foto de respaldo — DESPUÉS / solución ejecutada</label>
+          <div class="photo-box" id="boxRespaldoDespues" onclick="document.getElementById('inputRespaldoDespues').click()">
+            <span>Toca para tomar / subir foto</span>
+          </div>
+          <input type="file" id="inputRespaldoDespues" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoRespaldo(event,'despues')">
+        </div>
       </div>
+      <small>Ambas fotos son opcionales e independientes — súbelas cuando correspondan según el avance que estés registrando. Quedan guardadas para siempre en el historial, junto al resto de la traza.</small>
       <div class="field">
         <label>Agregar avance / comentario</label>
         <textarea id="nuevoComentario" placeholder="Describe el avance realizado…"></textarea>
@@ -1233,11 +1525,16 @@ function openDetail(id){
     <div class="panel" style="margin-top:14px;">
       <h3>Historial de avances <span style="font-size:11px;color:var(--text-soft);font-weight:400;text-transform:none;">(traza completa, no se borra)</span></h3>
       ${h.comentarios.length===0 ? '<div style="font-size:12.5px;color:var(--text-soft);">Sin comentarios aún.</div>' :
-        h.comentarios.map(c=>`<div class="comment">
+        h.comentarios.map(c=>{
+          const fotos = [];
+          if(c.foto_antes) fotos.push({url:c.foto_antes, label:'Antes'});
+          if(c.foto_despues) fotos.push({url:c.foto_despues, label:'Después'});
+          if(!c.foto_antes && !c.foto_despues && c.foto) fotos.push({url:c.foto, label:'Respaldo'});
+          return `<div class="comment">
           <div class="ca">${c.autor} · ${fmtDate(c.fecha)}${c.estado_nuevo ? ` · <span class="badge ${c.estado_nuevo}" style="font-size:9px;">${ESTADO_LABEL[c.estado_nuevo]}</span>` : ''}</div>
           ${c.texto}
-          ${c.foto ? `<div style="margin-top:6px;"><img src="${c.foto}" style="max-width:130px;border-radius:6px;border:1px solid var(--line);display:block;"></div>` : ''}
-        </div>`).join('')}
+          ${fotos.length ? `<div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;">${fotos.map(f=>`<figure style="margin:0;"><img src="${f.url}" style="max-width:110px;border-radius:6px;border:1px solid var(--line);display:block;"><figcaption style="font-size:9.5px;color:var(--text-soft);text-align:center;">${f.label}</figcaption></figure>`).join('')}</div>` : ''}
+        </div>`;}).join('')}
     </div>
   `;
   modalBg.classList.add('open');
@@ -1250,8 +1547,9 @@ function openDetail(id){
 }
 function closeModal(){ const m = document.getElementById('modalBg'); if(m) m.classList.remove('open'); }
 
-let pendingRespaldo = null;
-function handlePhotoRespaldo(evt){
+let pendingRespaldoAntes = null;
+let pendingRespaldoDespues = null;
+function handlePhotoRespaldo(evt, cual){
   const file = evt.target.files[0];
   if(!file) return;
   const reader = new FileReader();
@@ -1272,8 +1570,10 @@ function handlePhotoRespaldo(evt){
       ctx.fillStyle = '#fff';
       ctx.textBaseline = 'middle';
       ctx.fillText(stamp, padding, img.height-fontSize/2-padding);
-      pendingRespaldo = canvas.toDataURL('image/jpeg', 0.82);
-      document.getElementById('boxRespaldo').innerHTML = `<img src="${pendingRespaldo}">`;
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+      const boxId = cual==='antes' ? 'boxRespaldoAntes' : 'boxRespaldoDespues';
+      if(cual==='antes') pendingRespaldoAntes = dataUrl; else pendingRespaldoDespues = dataUrl;
+      document.getElementById(boxId).innerHTML = `<img src="${dataUrl}">`;
     };
     img.src = e.target.result;
   };
@@ -1288,20 +1588,20 @@ async function actualizarHallazgo(id){
   const txt = document.getElementById('nuevoComentario').value.trim();
   const estadoCambio = nuevoEstado !== h.estado;
 
-  let fotoNuevaUrl = null;
-  if(pendingRespaldo){
-    fotoNuevaUrl = await subirFoto(pendingRespaldo, `hallazgos/${id}/respaldo_${Date.now()}.jpg`);
-  }
+  const [fotoAntesUrl, fotoDespuesUrl] = await Promise.all([
+    pendingRespaldoAntes ? subirFoto(pendingRespaldoAntes, `hallazgos/${id}/respaldo_antes_${Date.now()}.jpg`) : Promise.resolve(null),
+    pendingRespaldoDespues ? subirFoto(pendingRespaldoDespues, `hallazgos/${id}/respaldo_despues_${Date.now()}.jpg`) : Promise.resolve(null)
+  ]);
 
-  if(!txt && !fotoNuevaUrl && !estadoCambio){
+  if(!txt && !fotoAntesUrl && !fotoDespuesUrl && !estadoCambio){
     toast('No hay cambios que guardar');
     return;
   }
 
   // Cada actualización queda como una entrada nueva del historial (nunca se
-  // sobrescribe ni se pierde una anterior), con su estado y su foto propios,
-  // para que la traza completa (ingreso → desarrollo → ejecución) quede
-  // siempre disponible en el detalle del hallazgo.
+  // sobrescribe ni se pierde una anterior), con su estado y sus fotos de
+  // antes/después propias, para que la traza completa (ingreso → desarrollo
+  // → ejecución) quede siempre disponible en el detalle del hallazgo.
   const nuevosComentarios = h.comentarios.slice();
   nuevosComentarios.push({
     autor: 'Sacyr Aguas',
@@ -1309,13 +1609,15 @@ async function actualizarHallazgo(id){
     texto: txt || (estadoCambio ? `Estado actualizado a "${ESTADO_LABEL[nuevoEstado]}".` : 'Se agregó foto de respaldo.'),
     estado_anterior: estadoCambio ? h.estado : null,
     estado_nuevo: estadoCambio ? nuevoEstado : null,
-    foto: fotoNuevaUrl || null
+    foto_antes: fotoAntesUrl || null,
+    foto_despues: fotoDespuesUrl || null
   });
 
-  // foto_respaldo guarda siempre la más reciente (se usa como miniatura
-  // rápida en la lista, el detalle y el reporte); el historial de arriba
-  // conserva todas las fotos de respaldo anteriores, ninguna se pierde.
-  const fotoRespaldoUrl = fotoNuevaUrl || h.foto_respaldo;
+  // foto_respaldo guarda siempre la más reciente que exista (prioriza la de
+  // "después" por ser la más representativa del estado final) — se usa como
+  // miniatura rápida en la lista, el detalle y el reporte; el historial de
+  // arriba conserva todas las fotos de respaldo anteriores, ninguna se pierde.
+  const fotoRespaldoUrl = fotoDespuesUrl || fotoAntesUrl || h.foto_respaldo;
 
   const cambios = { estado: nuevoEstado, foto_respaldo: fotoRespaldoUrl, comentarios: nuevosComentarios };
 
@@ -1333,7 +1635,8 @@ async function actualizarHallazgo(id){
     guardarLocal();
   }
 
-  pendingRespaldo = null;
+  pendingRespaldoAntes = null;
+  pendingRespaldoDespues = null;
   toast('Actualización guardada');
   closeModal();
   render();
@@ -1343,20 +1646,21 @@ async function actualizarHallazgo(id){
 /* Construye el HTML del informe ejecutivo (se reutiliza tanto para la
    descarga en HTML como para la generación de PDF vía impresión). */
 function construirReporteHTML(){
-  const total = HALLAZGOS.length;
+  const conHallazgo = HALLAZGOS.filter(tieneHallazgoReal);
+  const total = conHallazgo.length;
   const counts = {directa:0, indirecta:0, senaletica:0};
   const estados = {pendiente:0, en_proceso:0, resuelto:0};
-  HALLAZGOS.forEach(h=>{ const c=criticidadDeRegistro(h); counts[c]=(counts[c]||0)+1; estados[h.estado]=(estados[h.estado]||0)+1; });
+  conHallazgo.forEach(h=>{ const c=criticidadDeRegistro(h); counts[c]=(counts[c]||0)+1; estados[h.estado]=(estados[h.estado]||0)+1; });
   const fechaReporte = fmtDate(new Date());
   const pctResuelto = total ? Math.round((estados.resuelto||0)/total*100) : 0;
-  const dataJson = JSON.stringify(HALLAZGOS).replace(/</g,'\\u003c');
+  const dataJson = JSON.stringify(conHallazgo).replace(/</g,'\\u003c');
 
   // Texto de introducción
   const introTexto = `Singemelec, en su rol de empresa de servicio de inspección de grifos, ha desarrollado un proceso sistemático de levantamiento de hallazgos en terreno para la red de grifos contraparte de Sacyr Aguas. El presente informe resume el estado del catastro a la fecha de emisión, presentando la categorización y criticidad de los hallazgos detectados, así como el avance en su resolución por parte de la empresa mandante.`;
 
   // Tablas por criticidad para el desarrollo
   function bloquePrioridad(clave, etiqueta, color){
-    const items = HALLAZGOS.filter(h=>criticidadDeRegistro(h)===clave);
+    const items = conHallazgo.filter(h=>criticidadDeRegistro(h)===clave);
     if(items.length===0) return `<h3 style="color:${color}">${etiqueta} <span class="mono" style="font-size:12px;color:var(--text-soft);font-weight:400;">(0 hallazgos)</span></h3><p style="font-size:13px;color:var(--text-soft);">Sin hallazgos registrados en esta categoría.</p>`;
     const rows = items.map(h=>{
       const detalle = obtenerDetalleHallazgos(h);
@@ -1380,7 +1684,7 @@ function construirReporteHTML(){
   // hallazgos (de grifo y de cámara) se han levantado por cada grifo.
   function bloqueResumenPorGrifo(){
     const porCodigo = {};
-    HALLAZGOS.forEach(h=>{
+    conHallazgo.forEach(h=>{
       const cod = h.codigo_grifo || 'Sin código';
       if(!porCodigo[cod]) porCodigo[cod] = {registros:0, hallazgos:0, comuna:h.comuna||'', localidad:h.localidad||''};
       porCodigo[cod].registros += 1;
@@ -1571,8 +1875,9 @@ function descargarReporteEjecutivo(){
    sus datos, agrupados por zona (Lampa / Metropolitana). */
 function construirReporteHallazgosHTML(){
   const fechaReporte = fmtDate(new Date());
-  const totalRegistros = HALLAZGOS.length;
-  const totalHallazgos = HALLAZGOS.reduce((acc,h)=>acc + Math.max(obtenerDetalleHallazgos(h).length,1), 0);
+  const conHallazgoRep = HALLAZGOS.filter(tieneHallazgoReal);
+  const totalRegistros = conHallazgoRep.length;
+  const totalHallazgos = conHallazgoRep.reduce((acc,h)=>acc + Math.max(obtenerDetalleHallazgos(h).length,1), 0);
 
   /* Miniaturas de las fotos asociadas al registro (visita) al que pertenece
      cada hallazgo. Las fotos se guardan por registro, no por hallazgo
@@ -1652,9 +1957,9 @@ function construirReporteHallazgosHTML(){
       ${grupos.map(bloqueGrifo).join('')}`;
   }
 
-  const lampa = HALLAZGOS.filter(h=>zonaDeHallazgo(h)==='lampa');
-  const metro = HALLAZGOS.filter(h=>zonaDeHallazgo(h)==='metropolitana');
-  const sinZona = HALLAZGOS.filter(h=>zonaDeHallazgo(h)==='sin_zona');
+  const lampa = conHallazgoRep.filter(h=>zonaDeHallazgo(h)==='lampa');
+  const metro = conHallazgoRep.filter(h=>zonaDeHallazgo(h)==='metropolitana');
+  const sinZona = conHallazgoRep.filter(h=>zonaDeHallazgo(h)==='sin_zona');
 
   return `<!DOCTYPE html>
 <html lang="es"><head><meta charset="UTF-8"><title>Reporte de Hallazgos en Grifos — ${fechaReporte}</title>
@@ -1730,7 +2035,7 @@ function descargarReporteHallazgos(){
    los datos quedan bien armados antes de generar el archivo. */
 function construirFilasExcel(){
   const filas = [];
-  HALLAZGOS.forEach(h=>{
+  HALLAZGOS.filter(tieneHallazgoReal).forEach(h=>{
     const detalle = obtenerDetalleHallazgos(h);
     const zona = zonaDeHallazgo(h)==='lampa' ? 'Lampa' : zonaDeHallazgo(h)==='metropolitana' ? 'Metropolitana' : 'Sin zona';
     const base = {
@@ -1750,7 +2055,7 @@ function construirFilasExcel(){
       'Estado': ESTADO_LABEL[h.estado] || h.estado || '',
       'Descripción': h.descripcion || '',
       'Último comentario': (h.comentarios && h.comentarios.length) ? h.comentarios[h.comentarios.length-1].texto : '',
-      'Fotos adjuntas': [h.foto_grifo,h.foto_hallazgo,h.foto_respaldo].filter(Boolean).length
+      'Fotos adjuntas': [h.foto_grifo,h.foto_hallazgo,h.foto_respaldo,h.foto_grifo_operativo,h.foto_presion,h.foto_camara].filter(Boolean).length
     };
     if(detalle.length===0){
       filas.push(Object.assign({}, base, {'Tipo de elemento':'', 'Hallazgo':'', 'Criticidad': PRIORIDAD_LABEL[criticidadDeRegistro(h)]}));
@@ -1766,7 +2071,7 @@ function construirFilasExcel(){
 
 function construirFilasResumenExcel(){
   const porCodigo = {};
-  HALLAZGOS.forEach(h=>{
+  HALLAZGOS.filter(tieneHallazgoReal).forEach(h=>{
     const cod = h.codigo_grifo || 'Sin código';
     if(!porCodigo[cod]){
       const zona = zonaDeHallazgo(h)==='lampa' ? 'Lampa' : zonaDeHallazgo(h)==='metropolitana' ? 'Metropolitana' : 'Sin zona';
