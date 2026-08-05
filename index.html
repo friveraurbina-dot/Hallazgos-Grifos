@@ -10,6 +10,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-storage-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -160,6 +161,9 @@ main{flex:1;overflow-y:auto;padding:24px 28px 60px;}
 .fcard .fselect input{width:17px;height:17px;cursor:pointer;}
 .fcard.selected{outline:2px solid var(--hidrante);outline-offset:-2px;}
 .list-actions{display:flex;align-items:center;gap:12px;background:#fdecef;border:1px solid var(--hidrante);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12.5px;color:var(--hidrante);font-weight:700;flex-wrap:wrap;}
+.zone-tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.zone-tab{font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:12.5px;padding:8px 14px;border-radius:20px;border:1px solid var(--line);background:#fff;color:var(--text-soft);cursor:pointer;transition:.15s;}
+.zone-tab.active{background:var(--ink);border-color:var(--ink);color:#fff;}
 .btn-danger{background:var(--hidrante);color:#fff;}
 .btn-danger:hover{background:#a82440;}
 .revision-box{background:var(--concrete-2);padding:10px 14px;border-radius:8px;border:1px solid var(--line);}
@@ -304,6 +308,16 @@ let catalogoGrifosListo = false;
 let catalogoMatchActual = null; // datos del catastro para el código de grifo ingresado en el formulario actual
 let SELECCION_LISTA = new Set(); // ids de hallazgos marcados para eliminar en la lista
 let hallazgosAgregados = []; // hallazgos (grifo/cámara) agregados al registro que se está creando
+let FILTRO_ZONA = 'todos'; // 'todos' | 'lampa' | 'metropolitana' — filtro de la pestaña Hallazgos
+
+/* Determina la zona de un hallazgo según la comuna del grifo en el catastro
+   (LAMPA => zona Lampa; LO BARNECHEA / COLINA => zona Metropolitana).
+   Los hallazgos sin código de grifo (o cuyo código no está en el catastro)
+   no tienen comuna registrada y quedan como "sin_zona". */
+function zonaDeHallazgo(h){
+  if(!h.comuna) return 'sin_zona';
+  return h.comuna === 'LAMPA' ? 'lampa' : 'metropolitana';
+}
 
 const PRIORIDAD_LABEL = {inmediato:'Inmediato', corto:'Corto plazo', mediano:'Mediano plazo'};
 const PRIORIDAD_COLOR = {inmediato:'#C8334D', corto:'#E2A33D', mediano:'#3B6E8F'};
@@ -605,16 +619,20 @@ function renderNuevo(){
             <select id="fTipoHallazgo"></select>
           </div>
         </div>
-        <div class="field" id="campoPintura">
-          <label>¿Grifo requiere pintura?</label>
-          <select id="fRequierePintura">
-            <option value="no">No</option>
-            <option value="si">Sí</option>
-          </select>
-        </div>
         <div class="field">
           <button type="button" class="btn btn-ghost btn-sm" onclick="agregarHallazgoDetalle()">+ Agregar hallazgo a este registro</button>
           <small>Un mismo grifo puede tener más de un hallazgo (de grifo y de cámara). Agrega cada uno y luego guarda el registro completo.</small>
+        </div>
+        <div class="field" id="campoPintura">
+          <label>¿Grifo requiere pintura?</label>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <select id="fRequierePintura" style="max-width:140px;">
+              <option value="no">No</option>
+              <option value="si">Sí</option>
+            </select>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="agregarPinturaDetalle()">+ Agregar como hallazgo</button>
+          </div>
+          <small>El estado de pintura se agrega como un hallazgo del grifo independiente, no ligado a otro hallazgo seleccionado.</small>
         </div>
         <div class="field">
           <label>Hallazgos agregados a este registro</label>
@@ -729,14 +747,29 @@ function actualizarTipoHallazgo(){
    hallazgo — por ejemplo uno de grifo y otro de cámara. Cada clic en
    "+ Agregar hallazgo a este registro" suma la combinación tipo+hallazgo
    actualmente seleccionada a `hallazgosAgregados`, que se guarda completa
-   al presionar "Guardar hallazgo". */
+   al presionar "Guardar hallazgo". El estado de pintura NO se adjunta acá:
+   se agrega aparte, como su propio hallazgo (ver agregarPinturaDetalle). */
 function agregarHallazgoDetalle(){
   const tipo_elemento = document.getElementById('fTipoElemento').value;
   const tipo_hallazgo = document.getElementById('fTipoHallazgo').value;
-  const requiere_pintura = tipo_elemento === 'grifo' ? document.getElementById('fRequierePintura').value : null;
   const yaExiste = hallazgosAgregados.some(h=>h.tipo_elemento===tipo_elemento && h.tipo_hallazgo===tipo_hallazgo);
   if(yaExiste){ toast('Ese hallazgo ya fue agregado a este registro'); return; }
-  hallazgosAgregados.push({tipo_elemento, tipo_hallazgo, requiere_pintura});
+  hallazgosAgregados.push({tipo_elemento, tipo_hallazgo, requiere_pintura:null});
+  renderListaHallazgosAgregados();
+  toast('Hallazgo agregado al registro');
+}
+
+/* Agrega el estado de pintura del grifo como un hallazgo propio e
+   independiente (p.ej. "Grifo · Requiere pintura"), sin mezclarlo con
+   ningún otro hallazgo de grifo que se haya agregado (Vástago agripado,
+   Filtración agua, etc.). Solo puede haber un estado de pintura por
+   registro — para cambiarlo, se quita el chip existente y se agrega de nuevo. */
+function agregarPinturaDetalle(){
+  const valor = document.getElementById('fRequierePintura').value; // 'si' | 'no'
+  const tipo_hallazgo = valor === 'si' ? 'Requiere pintura' : 'No requiere pintura';
+  const yaExiste = hallazgosAgregados.some(h=>h.tipo_hallazgo==='Requiere pintura' || h.tipo_hallazgo==='No requiere pintura');
+  if(yaExiste){ toast('Ya agregaste el estado de pintura a este registro; quítalo si quieres cambiarlo'); return; }
+  hallazgosAgregados.push({tipo_elemento:'grifo', tipo_hallazgo, requiere_pintura:valor});
   renderListaHallazgosAgregados();
   toast('Hallazgo agregado al registro');
 }
@@ -754,7 +787,7 @@ function renderListaHallazgosAgregados(){
     return;
   }
   cont.innerHTML = hallazgosAgregados.map((h,i)=>`
-    <span class="chip">${h.tipo_elemento==='camara'?'Cámara':'Grifo'} · ${h.tipo_hallazgo}${h.requiere_pintura==='si'?' · pintura':''}
+    <span class="chip">${h.tipo_elemento==='camara'?'Cámara':'Grifo'} · ${h.tipo_hallazgo}
       <button type="button" onclick="quitarHallazgoDetalle(${i})" title="Quitar">&times;</button>
     </span>
   `).join('');
@@ -952,10 +985,21 @@ async function guardarHallazgo(){
 /* ================= LISTA ================= */
 function renderLista(){
   const main = document.getElementById('main');
+  const countLampa = HALLAZGOS.filter(h=>zonaDeHallazgo(h)==='lampa').length;
+  const countMetro = HALLAZGOS.filter(h=>zonaDeHallazgo(h)==='metropolitana').length;
   main.innerHTML = `
   <div class="page">
     <div class="page-head">
       <div><h1>Hallazgos</h1><p>${ROLE==='singemelec' ? 'Registro de hallazgos en terreno' : 'Seguimiento y resolución — Sacyr Aguas'}</p></div>
+      <div>
+        <button class="btn btn-amber btn-sm" onclick="descargarReporteHallazgos()">📄 Reporte de hallazgos (HTML)</button>
+        <button class="btn btn-amber btn-sm" onclick="exportarExcel()">📊 Exportar a Excel</button>
+      </div>
+    </div>
+    <div class="zone-tabs">
+      <button class="zone-tab ${FILTRO_ZONA==='todos'?'active':''}" onclick="cambiarFiltroZona('todos')">Todos (${HALLAZGOS.length})</button>
+      <button class="zone-tab ${FILTRO_ZONA==='lampa'?'active':''}" onclick="cambiarFiltroZona('lampa')">Lampa (${countLampa})</button>
+      <button class="zone-tab ${FILTRO_ZONA==='metropolitana'?'active':''}" onclick="cambiarFiltroZona('metropolitana')">Metropolitana (${countMetro})</button>
     </div>
     <div class="list-actions" id="listActions" style="display:none;">
       <span id="seleccionCount"></span>
@@ -965,8 +1009,10 @@ function renderLista(){
     <div class="findings-list" id="findingsList"></div>
   </div>`;
   const list = document.getElementById('findingsList');
-  if(HALLAZGOS.length===0){
-    list.innerHTML = `<div class="empty"><div class="display">Sin hallazgos registrados</div>Aún no hay hallazgos en el catastro.</div>`;
+  const hallazgosFiltrados = FILTRO_ZONA==='todos' ? HALLAZGOS : HALLAZGOS.filter(h=>zonaDeHallazgo(h)===FILTRO_ZONA);
+  if(hallazgosFiltrados.length===0){
+    const msg = HALLAZGOS.length===0 ? 'Aún no hay hallazgos en el catastro.' : 'No hay hallazgos registrados en esta zona.';
+    list.innerHTML = `<div class="empty"><div class="display">Sin hallazgos${FILTRO_ZONA!=='todos'?' en esta zona':''}</div>${msg}</div>`;
     actualizarBarraSeleccion();
     return;
   }
@@ -974,7 +1020,7 @@ function renderLista(){
   const idsActuales = new Set(HALLAZGOS.map(h=>h.id));
   Array.from(SELECCION_LISTA).forEach(id=>{ if(!idsActuales.has(id)) SELECCION_LISTA.delete(id); });
 
-  list.innerHTML = HALLAZGOS.map(h=>`
+  list.innerHTML = hallazgosFiltrados.map(h=>`
     <div class="fcard ${SELECCION_LISTA.has(h.id)?'selected':''}" data-id="${h.id}">
       <div class="tag" style="background:${PRIORIDAD_COLOR[h.prioridad]}"></div>
       <div class="fselect">
@@ -1011,6 +1057,11 @@ function toggleSeleccion(id){
 
 function limpiarSeleccion(){
   SELECCION_LISTA.clear();
+  renderLista();
+}
+
+function cambiarFiltroZona(zona){
+  FILTRO_ZONA = zona;
   renderLista();
 }
 
@@ -1098,7 +1149,7 @@ function openDetail(id){
       <span class="badge ${h.estado}">${ESTADO_LABEL[h.estado]}</span>
     </div>
     ${h.codigo_grifo ? `<div class="mono" style="font-size:12px;color:var(--text-soft);margin-bottom:8px;">Grifo ${h.codigo_grifo}${h.modelo_grifo?` · ${h.modelo_grifo}`:''}${h.diametro_conexion?` · Ø${h.diametro_conexion}mm`:''}${h.localidad||h.comuna?` · ${[h.localidad,h.comuna].filter(Boolean).join(', ')}`:''}${h.ano_instalacion?` · instalado ${h.ano_instalacion}`:''}</div>` : ''}
-    ${obtenerDetalleHallazgos(h).length ? `<div class="chips-list" style="margin-bottom:8px;">${obtenerDetalleHallazgos(h).map(d=>`<span class="chip" style="cursor:default;">${d.tipo_elemento==='camara'?'Cámara':'Grifo'} · ${d.tipo_hallazgo}${d.requiere_pintura==='si' ? ' · pintura' : ''}</span>`).join('')}</div>` : ''}
+    ${obtenerDetalleHallazgos(h).length ? `<div class="chips-list" style="margin-bottom:8px;">${obtenerDetalleHallazgos(h).map(d=>`<span class="chip" style="cursor:default;">${d.tipo_elemento==='camara'?'Cámara':'Grifo'} · ${d.tipo_hallazgo}</span>`).join('')}</div>` : ''}
     <p style="font-size:13.5px;color:var(--text);">${h.descripcion || '<em>Sin descripción</em>'}</p>
 
     <div class="detail-imgs">
@@ -1241,7 +1292,7 @@ function construirReporteHTML(){
     if(items.length===0) return `<h3 style="color:${color}">${etiqueta} <span class="mono" style="font-size:12px;color:var(--text-soft);font-weight:400;">(0 hallazgos)</span></h3><p style="font-size:13px;color:var(--text-soft);">Sin hallazgos registrados en esta categoría.</p>`;
     const rows = items.map(h=>{
       const detalle = obtenerDetalleHallazgos(h);
-      const detalleTxt = detalle.length ? detalle.map(d=>`${d.tipo_elemento==='camara'?'Cámara':'Grifo'}: ${d.tipo_hallazgo}${d.requiere_pintura==='si'?' (req. pintura)':''}`).join('; ') : '—';
+      const detalleTxt = detalle.length ? detalle.map(d=>`${d.tipo_elemento==='camara'?'Cámara':'Grifo'}: ${d.tipo_hallazgo}`).join('; ') : '—';
       return `
       <tr>
         <td class="mono">${h.id}</td>
@@ -1443,6 +1494,175 @@ function descargarReporteEjecutivo(){
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
   toast('Informe ejecutivo descargado');
+}
+
+/* ---------------- REPORTE COMPLETO DE HALLAZGOS (pestaña Hallazgos) ----------------
+   A diferencia del informe ejecutivo (que resume y prioriza para presentar a
+   Sacyr Aguas), este reporte lista TODOS los hallazgos registrados, con todos
+   sus datos, agrupados por zona (Lampa / Metropolitana). */
+function construirReporteHallazgosHTML(){
+  const fechaReporte = fmtDate(new Date());
+  const total = HALLAZGOS.length;
+
+  function filaHallazgo(h){
+    const detalle = obtenerDetalleHallazgos(h);
+    const detalleTxt = detalle.length ? detalle.map(d=>`${d.tipo_elemento==='camara'?'Cámara':'Grifo'}: ${d.tipo_hallazgo}`).join('<br>') : '—';
+    const nFotos = [h.foto_grifo,h.foto_hallazgo,h.foto_respaldo].filter(Boolean).length;
+    return `<tr>
+      <td class="mono">${h.id}</td>
+      <td class="mono">${h.codigo_grifo || '—'}</td>
+      <td>${[h.localidad,h.comuna].filter(Boolean).join(', ') || '—'}</td>
+      <td>${h.direccion || '—'}</td>
+      <td>${detalleTxt}</td>
+      <td><span class="badge ${h.prioridad}">${PRIORIDAD_LABEL[h.prioridad]}</span></td>
+      <td><span class="badge ${h.estado}">${ESTADO_LABEL[h.estado]}</span></td>
+      <td>${fmtDate(h.fecha_creacion)}</td>
+      <td>${h.creado_por || '—'}</td>
+      <td>${nFotos}</td>
+    </tr>`;
+  }
+  function bloqueZona(nombre, items){
+    if(items.length===0) return `<h3>${nombre} <span class="mono" style="font-size:12px;color:var(--text-soft);font-weight:400;">(0 hallazgos)</span></h3><p style="font-size:13px;color:var(--text-soft);">Sin registros en esta zona.</p>`;
+    return `<h3>${nombre} <span class="mono" style="font-size:12px;color:var(--text-soft);font-weight:400;">(${items.length} registro${items.length===1?'':'s'})</span></h3>
+      <table><thead><tr><th>ID</th><th>Grifo</th><th>Ubicación catastro</th><th>Dirección</th><th>Hallazgos</th><th>Prioridad</th><th>Estado</th><th>Registrado</th><th>Creado por</th><th>Fotos</th></tr></thead>
+      <tbody>${items.map(filaHallazgo).join('')}</tbody></table>`;
+  }
+
+  const lampa = HALLAZGOS.filter(h=>zonaDeHallazgo(h)==='lampa');
+  const metro = HALLAZGOS.filter(h=>zonaDeHallazgo(h)==='metropolitana');
+  const sinZona = HALLAZGOS.filter(h=>zonaDeHallazgo(h)==='sin_zona');
+
+  return `<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8"><title>Reporte de Hallazgos en Grifos — ${fechaReporte}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#16323A;--ink-2:#1F4350;--concrete:#EDE7DC;--concrete-2:#F7F4ED;--paper:#fff;--hidrante:#C8334D;--senal:#E2A33D;--tuberia:#3B6E8F;--musgo:#5C8A60;--line:#D9D2C2;--text:#1B2A2E;--text-soft:#5C6B6E;}
+*{box-sizing:border-box;}body{margin:0;font-family:'IBM Plex Sans',sans-serif;background:var(--concrete);color:var(--text);}
+.mono{font-family:'IBM Plex Mono',monospace;}
+header{background:var(--ink);color:#fff;padding:28px 34px;border-bottom:4px solid var(--senal);}
+header h1{font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.02em;margin:0;font-size:22px;}
+header p{margin:6px 0 0;color:#bcd0d4;font-size:12.5px;font-family:'IBM Plex Mono',monospace;}
+.wrap{max-width:1100px;margin:0 auto;padding:26px 24px 60px;}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:18px;}
+h3{font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:15px;margin:22px 0 10px;letter-spacing:.01em;}
+h3:first-child{margin-top:0;}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:6px;}
+th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;}
+th{font-family:'IBM Plex Mono',monospace;font-size:9.5px;text-transform:uppercase;color:var(--text-soft);letter-spacing:.03em;}
+.badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:12px;text-transform:uppercase;}
+.badge.inmediato{background:#fdecef;color:var(--hidrante);}
+.badge.corto{background:#fdf3e1;color:#8a6109;}
+.badge.mediano{background:#e9f1f5;color:var(--tuberia);}
+.badge.pendiente{background:#f1eee6;color:#7a7263;}
+.badge.en_proceso{background:#eaf1ec;color:#3f6e46;}
+.badge.resuelto{background:#e3f0e4;color:var(--musgo);}
+footer{text-align:center;font-size:11px;color:var(--text-soft);font-family:'IBM Plex Mono',monospace;padding:24px;}
+@media print{ body{background:#fff;} .wrap{padding:14px 8px 30px;} .panel,table{page-break-inside:avoid;} }
+</style></head>
+<body>
+<header>
+  <h1>Reporte de Hallazgos en Grifos</h1>
+  <p>Emitido el ${fechaReporte} · ${total} hallazgo${total===1?'':'s'} registrado${total===1?'':'s'} en total · Singemelec / Sacyr Aguas</p>
+</header>
+<div class="wrap">
+  <div class="panel">
+    ${bloqueZona('Zona Lampa', lampa)}
+    ${bloqueZona('Zona Metropolitana', metro)}
+    ${sinZona.length ? bloqueZona('Sin zona asignada (sin código de grifo del catastro)', sinZona) : ''}
+  </div>
+</div>
+<footer>Reporte completo generado desde el catastro de grifos Singemelec / Sacyr Aguas — no se actualiza automáticamente. Vuelve a generarlo para reflejar el estado más reciente.</footer>
+</body></html>`;
+}
+
+function descargarReporteHallazgos(){
+  const html = construirReporteHallazgosHTML();
+  const blob = new Blob([html], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
+  a.href = url;
+  a.download = `reporte-hallazgos-grifos-${stamp}.html`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('Reporte de hallazgos descargado');
+}
+
+/* ---------------- EXPORTAR A EXCEL ----------------
+   La construcción de las filas está separada de la llamada a la librería
+   XLSX a propósito, para poder probar (offline, sin la librería real) que
+   los datos quedan bien armados antes de generar el archivo. */
+function construirFilasExcel(){
+  const filas = [];
+  HALLAZGOS.forEach(h=>{
+    const detalle = obtenerDetalleHallazgos(h);
+    const zona = zonaDeHallazgo(h)==='lampa' ? 'Lampa' : zonaDeHallazgo(h)==='metropolitana' ? 'Metropolitana' : 'Sin zona';
+    const base = {
+      'ID registro': h.id,
+      'Fecha registro': fmtDate(h.fecha_creacion),
+      'Creado por': h.creado_por || '',
+      'Zona': zona,
+      'Código de grifo': h.codigo_grifo || '',
+      'Comuna': h.comuna || '',
+      'Localidad': h.localidad || '',
+      'Dirección': h.direccion || '',
+      'Modelo grifo': h.modelo_grifo || '',
+      'Diámetro conexión (mm)': h.diametro_conexion || '',
+      'Año instalación': h.ano_instalacion || '',
+      'Latitud': h.lat || '', 'Longitud': h.lng || '',
+      'Latitud ideal': h.ideal_lat || '', 'Longitud ideal': h.ideal_lng || '',
+      'Prioridad': PRIORIDAD_LABEL[h.prioridad] || h.prioridad || '',
+      'Estado': ESTADO_LABEL[h.estado] || h.estado || '',
+      'Descripción': h.descripcion || '',
+      'Último comentario': (h.comentarios && h.comentarios.length) ? h.comentarios[h.comentarios.length-1].texto : '',
+      'Fotos adjuntas': [h.foto_grifo,h.foto_hallazgo,h.foto_respaldo].filter(Boolean).length
+    };
+    if(detalle.length===0){
+      filas.push(Object.assign({}, base, {'Tipo de elemento':'', 'Hallazgo':''}));
+    } else {
+      detalle.forEach(d=>{
+        filas.push(Object.assign({}, base, {'Tipo de elemento': d.tipo_elemento==='camara'?'Cámara':'Grifo', 'Hallazgo': d.tipo_hallazgo}));
+      });
+    }
+  });
+  return filas;
+}
+
+function construirFilasResumenExcel(){
+  const porCodigo = {};
+  HALLAZGOS.forEach(h=>{
+    const cod = h.codigo_grifo || 'Sin código';
+    if(!porCodigo[cod]){
+      const zona = zonaDeHallazgo(h)==='lampa' ? 'Lampa' : zonaDeHallazgo(h)==='metropolitana' ? 'Metropolitana' : 'Sin zona';
+      porCodigo[cod] = {zona, comuna:h.comuna||'', localidad:h.localidad||'', registros:0, hallazgos:0};
+    }
+    porCodigo[cod].registros += 1;
+    porCodigo[cod].hallazgos += obtenerDetalleHallazgos(h).length;
+  });
+  return Object.keys(porCodigo).sort().map(cod=>({
+    'Código de grifo': cod,
+    'Zona': porCodigo[cod].zona,
+    'Localidad': porCodigo[cod].localidad,
+    'Comuna': porCodigo[cod].comuna,
+    'Registros': porCodigo[cod].registros,
+    'Hallazgos totales': porCodigo[cod].hallazgos
+  }));
+}
+
+function exportarExcel(){
+  if(typeof XLSX === 'undefined'){ toast('No se pudo cargar el módulo de Excel. Revisa tu conexión e intenta nuevamente.'); return; }
+  if(HALLAZGOS.length===0){ toast('No hay hallazgos para exportar'); return; }
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(construirFilasExcel());
+  XLSX.utils.book_append_sheet(wb, ws, 'Hallazgos');
+  const wsResumen = XLSX.utils.json_to_sheet(construirFilasResumenExcel());
+  XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen por grifo');
+  const stamp = new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
+  XLSX.writeFile(wb, `hallazgos-grifos-${stamp}.xlsx`);
+  toast('Excel generado');
 }
 
 /* Genera el informe ejecutivo en PDF: abre el mismo informe en una pestaña
