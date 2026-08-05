@@ -1502,30 +1502,83 @@ function descargarReporteEjecutivo(){
    sus datos, agrupados por zona (Lampa / Metropolitana). */
 function construirReporteHallazgosHTML(){
   const fechaReporte = fmtDate(new Date());
-  const total = HALLAZGOS.length;
+  const totalRegistros = HALLAZGOS.length;
+  const totalHallazgos = HALLAZGOS.reduce((acc,h)=>acc + Math.max(obtenerDetalleHallazgos(h).length,1), 0);
 
-  function filaHallazgo(h){
-    const detalle = obtenerDetalleHallazgos(h);
-    const detalleTxt = detalle.length ? detalle.map(d=>`${d.tipo_elemento==='camara'?'Cámara':'Grifo'}: ${d.tipo_hallazgo}`).join('<br>') : '—';
-    const nFotos = [h.foto_grifo,h.foto_hallazgo,h.foto_respaldo].filter(Boolean).length;
-    return `<tr>
-      <td class="mono">${h.id}</td>
-      <td class="mono">${h.codigo_grifo || '—'}</td>
-      <td>${[h.localidad,h.comuna].filter(Boolean).join(', ') || '—'}</td>
-      <td>${h.direccion || '—'}</td>
-      <td>${detalleTxt}</td>
-      <td><span class="badge ${h.prioridad}">${PRIORIDAD_LABEL[h.prioridad]}</span></td>
-      <td><span class="badge ${h.estado}">${ESTADO_LABEL[h.estado]}</span></td>
-      <td>${fmtDate(h.fecha_creacion)}</td>
-      <td>${h.creado_por || '—'}</td>
-      <td>${nFotos}</td>
-    </tr>`;
+  /* Miniaturas de las fotos asociadas al registro (visita) al que pertenece
+     cada hallazgo. Las fotos se guardan por registro, no por hallazgo
+     individual, así que un mismo set de fotos puede repetirse en las filas
+     de hallazgos que vienen del mismo registro/visita — eso es intencional,
+     son evidencia de esa visita. */
+  function fotosThumbs(h){
+    const items = [];
+    if(h.foto_grifo) items.push({url:h.foto_grifo, label:'Foto del grifo'});
+    if(h.foto_hallazgo) items.push({url:h.foto_hallazgo, label:'Foto del hallazgo'});
+    if(h.foto_respaldo) items.push({url:h.foto_respaldo, label:'Respaldo de solución'});
+    if(!items.length) return '<span class="sinfoto">Sin foto</span>';
+    return items.map(f=>`<a href="${f.url}" target="_blank" rel="noopener" title="${f.label}"><img src="${f.url}" alt="${f.label}" loading="lazy"></a>`).join('');
   }
+
+  /* Agrupa los registros de una zona por código de grifo, para que la
+     ubicación y dirección del catastro se muestren una sola vez por grifo
+     en vez de repetirse en cada fila de hallazgo. */
+  function agruparPorGrifo(items){
+    const grupos = new Map();
+    items.forEach(h=>{
+      const key = h.codigo_grifo || ('__sin_codigo__'+h.id);
+      if(!grupos.has(key)) grupos.set(key, {codigo: h.codigo_grifo || null, registros: []});
+      grupos.get(key).registros.push(h);
+    });
+    return Array.from(grupos.values()).sort((a,b)=>{
+      if(a.codigo && b.codigo) return a.codigo.localeCompare(b.codigo);
+      if(a.codigo && !b.codigo) return -1;
+      if(!a.codigo && b.codigo) return 1;
+      return 0;
+    });
+  }
+
+  function bloqueGrifo(grupo){
+    const registros = grupo.registros.slice().sort((a,b)=>{
+      const fa = a.fecha_creacion && a.fecha_creacion.seconds ? a.fecha_creacion.seconds : (new Date(a.fecha_creacion||0).getTime()/1000)||0;
+      const fb = b.fecha_creacion && b.fecha_creacion.seconds ? b.fecha_creacion.seconds : (new Date(b.fecha_creacion||0).getTime()/1000)||0;
+      return fa - fb;
+    });
+    const filas = [];
+    registros.forEach(h=>{
+      const detalle = obtenerDetalleHallazgos(h);
+      const items = detalle.length ? detalle : [{tipo_elemento:null, tipo_hallazgo:'Sin categorizar'}];
+      items.forEach(d=> filas.push({h, d}));
+    });
+    const primero = registros[0];
+    const ubicacion = [primero.localidad, primero.comuna].filter(Boolean).join(', ') || '—';
+    const direccion = primero.direccion || '—';
+    const titulo = grupo.codigo ? grupo.codigo : `Sin código de grifo (registro ${primero.id})`;
+
+    const filasHtml = filas.map((f,i)=>`<tr>
+      <td class="mono">#${i+1}</td>
+      <td>${f.d.tipo_elemento==='camara'?'Cámara':(f.d.tipo_elemento==='grifo'?'Grifo':'—')}</td>
+      <td>${f.d.tipo_hallazgo}</td>
+      <td><span class="badge ${f.h.prioridad}">${PRIORIDAD_LABEL[f.h.prioridad]}</span></td>
+      <td><span class="badge ${f.h.estado}">${ESTADO_LABEL[f.h.estado]}</span></td>
+      <td>${fmtDate(f.h.fecha_creacion)}</td>
+      <td>${f.h.creado_por || '—'}</td>
+      <td class="fotos-cell">${fotosThumbs(f.h)}</td>
+    </tr>`).join('');
+
+    return `<div class="grifo-block">
+      <h4>Grifo <span class="mono">${titulo}</span> <span class="contador">(${filas.length} hallazgo${filas.length===1?'':'s'})</span></h4>
+      <div class="grifo-meta">Ubicación catastro: <strong>${ubicacion}</strong> &nbsp;·&nbsp; Dirección: <strong>${direccion}</strong></div>
+      <table><thead><tr><th>#</th><th>Tipo</th><th>Hallazgo</th><th>Prioridad</th><th>Estado</th><th>Registrado</th><th>Creado por</th><th>Fotos</th></tr></thead>
+      <tbody>${filasHtml}</tbody></table>
+    </div>`;
+  }
+
   function bloqueZona(nombre, items){
     if(items.length===0) return `<h3>${nombre} <span class="mono" style="font-size:12px;color:var(--text-soft);font-weight:400;">(0 hallazgos)</span></h3><p style="font-size:13px;color:var(--text-soft);">Sin registros en esta zona.</p>`;
-    return `<h3>${nombre} <span class="mono" style="font-size:12px;color:var(--text-soft);font-weight:400;">(${items.length} registro${items.length===1?'':'s'})</span></h3>
-      <table><thead><tr><th>ID</th><th>Grifo</th><th>Ubicación catastro</th><th>Dirección</th><th>Hallazgos</th><th>Prioridad</th><th>Estado</th><th>Registrado</th><th>Creado por</th><th>Fotos</th></tr></thead>
-      <tbody>${items.map(filaHallazgo).join('')}</tbody></table>`;
+    const grupos = agruparPorGrifo(items);
+    const nHallazgos = items.reduce((acc,h)=>acc + Math.max(obtenerDetalleHallazgos(h).length,1), 0);
+    return `<h3>${nombre} <span class="mono" style="font-size:12px;color:var(--text-soft);font-weight:400;">(${grupos.length} grifo${grupos.length===1?'':'s'} · ${nHallazgos} hallazgo${nHallazgos===1?'':'s'})</span></h3>
+      ${grupos.map(bloqueGrifo).join('')}`;
   }
 
   const lampa = HALLAZGOS.filter(h=>zonaDeHallazgo(h)==='lampa');
@@ -1557,13 +1610,22 @@ th{font-family:'IBM Plex Mono',monospace;font-size:9.5px;text-transform:uppercas
 .badge.pendiente{background:#f1eee6;color:#7a7263;}
 .badge.en_proceso{background:#eaf1ec;color:#3f6e46;}
 .badge.resuelto{background:#e3f0e4;color:var(--musgo);}
+.grifo-block{border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:14px;background:var(--concrete-2);}
+.grifo-block h4{font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:13.5px;margin:0 0 4px;letter-spacing:.01em;color:var(--ink);}
+.grifo-block h4 .mono{color:var(--hidrante);}
+.grifo-block .contador{font-size:11px;color:var(--text-soft);font-weight:400;text-transform:none;font-family:'IBM Plex Sans',sans-serif;}
+.grifo-meta{font-size:12px;color:var(--text-soft);margin-bottom:8px;}
+.grifo-block table{background:var(--paper);border-radius:6px;overflow:hidden;}
+.fotos-cell{white-space:nowrap;}
+.fotos-cell img{width:42px;height:42px;object-fit:cover;border-radius:5px;border:1px solid var(--line);margin:1px 3px 1px 0;vertical-align:middle;}
+.sinfoto{font-size:10.5px;color:var(--text-soft);}
 footer{text-align:center;font-size:11px;color:var(--text-soft);font-family:'IBM Plex Mono',monospace;padding:24px;}
-@media print{ body{background:#fff;} .wrap{padding:14px 8px 30px;} .panel,table{page-break-inside:avoid;} }
+@media print{ body{background:#fff;} .wrap{padding:14px 8px 30px;} .panel,table{page-break-inside:avoid;} .grifo-block{break-inside:avoid;} }
 </style></head>
 <body>
 <header>
   <h1>Reporte de Hallazgos en Grifos</h1>
-  <p>Emitido el ${fechaReporte} · ${total} hallazgo${total===1?'':'s'} registrado${total===1?'':'s'} en total · Singemelec / Sacyr Aguas</p>
+  <p>Emitido el ${fechaReporte} · ${totalRegistros} registro${totalRegistros===1?'':'s'} · ${totalHallazgos} hallazgo${totalHallazgos===1?'':'s'} en total · Singemelec / Sacyr Aguas</p>
 </header>
 <div class="wrap">
   <div class="panel">
