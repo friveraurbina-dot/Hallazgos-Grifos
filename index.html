@@ -165,6 +165,9 @@ main{flex:1;overflow-y:auto;padding:24px 28px 60px;}
 .revision-box{background:var(--concrete-2);padding:10px 14px;border-radius:8px;border:1px solid var(--line);}
 .revision-box label{display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;font-size:13px;font-weight:500;color:var(--text);}
 .revision-box input{width:16px;height:16px;cursor:pointer;}
+.chips-list{display:flex;flex-wrap:wrap;gap:0;}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--concrete-2);border:1px solid var(--line);border-radius:16px;padding:5px 8px 5px 12px;font-size:12px;margin:0 6px 6px 0;color:var(--text);}
+.chip button{background:none;border:none;cursor:pointer;color:var(--hidrante);font-weight:700;font-size:15px;line-height:1;padding:0 2px;}
 .badge{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:14px;text-transform:uppercase;letter-spacing:.03em;}
 .badge.inmediato{background:#fdecef;color:var(--hidrante);}
 .badge.corto{background:#fdf3e1;color:#8a6109;}
@@ -300,6 +303,7 @@ let CATALOGO_GRIFOS = {}; // catastro oficial de grifos (Sacyr), por código, ca
 let catalogoGrifosListo = false;
 let catalogoMatchActual = null; // datos del catastro para el código de grifo ingresado en el formulario actual
 let SELECCION_LISTA = new Set(); // ids de hallazgos marcados para eliminar en la lista
+let hallazgosAgregados = []; // hallazgos (grifo/cámara) agregados al registro que se está creando
 
 const PRIORIDAD_LABEL = {inmediato:'Inmediato', corto:'Corto plazo', mediano:'Mediano plazo'};
 const PRIORIDAD_COLOR = {inmediato:'#C8334D', corto:'#E2A33D', mediano:'#3B6E8F'};
@@ -608,6 +612,14 @@ function renderNuevo(){
             <option value="si">Sí</option>
           </select>
         </div>
+        <div class="field">
+          <button type="button" class="btn btn-ghost btn-sm" onclick="agregarHallazgoDetalle()">+ Agregar hallazgo a este registro</button>
+          <small>Un mismo grifo puede tener más de un hallazgo (de grifo y de cámara). Agrega cada uno y luego guarda el registro completo.</small>
+        </div>
+        <div class="field">
+          <label>Hallazgos agregados a este registro</label>
+          <div id="listaHallazgosAgregados" class="chips-list"></div>
+        </div>
 
         <div class="field">
           <label>Ubicación del grifo (real) y ubicación ideal</label>
@@ -660,6 +672,7 @@ function renderNuevo(){
   pendingFotos = {grifo:null, hallazgo:null};
   formMarkerActual = null; formMarkerIdeal = null;
   catalogoMatchActual = null;
+  hallazgosAgregados = [];
 
   if(formMap){ formMap.remove(); formMap=null; }
   formMap = L.map('formMiniMap').setView([-33.0245,-71.5518], 13);
@@ -697,6 +710,7 @@ function renderNuevo(){
   });
 
   actualizarTipoHallazgo();
+  renderListaHallazgosAgregados();
 }
 
 /* Llena el menú desplegable "Hallazgo" según el tipo de elemento elegido
@@ -709,6 +723,52 @@ function actualizarTipoHallazgo(){
   sel.innerHTML = opciones.map(o=>`<option value="${o}">${o}</option>`).join('');
   const campoPintura = document.getElementById('campoPintura');
   if(campoPintura) campoPintura.style.display = (tipo==='grifo') ? '' : 'none';
+}
+
+/* Un mismo registro (una misma visita a un grifo) puede tener más de un
+   hallazgo — por ejemplo uno de grifo y otro de cámara. Cada clic en
+   "+ Agregar hallazgo a este registro" suma la combinación tipo+hallazgo
+   actualmente seleccionada a `hallazgosAgregados`, que se guarda completa
+   al presionar "Guardar hallazgo". */
+function agregarHallazgoDetalle(){
+  const tipo_elemento = document.getElementById('fTipoElemento').value;
+  const tipo_hallazgo = document.getElementById('fTipoHallazgo').value;
+  const requiere_pintura = tipo_elemento === 'grifo' ? document.getElementById('fRequierePintura').value : null;
+  const yaExiste = hallazgosAgregados.some(h=>h.tipo_elemento===tipo_elemento && h.tipo_hallazgo===tipo_hallazgo);
+  if(yaExiste){ toast('Ese hallazgo ya fue agregado a este registro'); return; }
+  hallazgosAgregados.push({tipo_elemento, tipo_hallazgo, requiere_pintura});
+  renderListaHallazgosAgregados();
+  toast('Hallazgo agregado al registro');
+}
+
+function quitarHallazgoDetalle(i){
+  hallazgosAgregados.splice(i,1);
+  renderListaHallazgosAgregados();
+}
+
+function renderListaHallazgosAgregados(){
+  const cont = document.getElementById('listaHallazgosAgregados');
+  if(!cont) return;
+  if(hallazgosAgregados.length===0){
+    cont.innerHTML = '<em style="font-size:12px;color:var(--text-soft);">Aún no se ha agregado ningún hallazgo. Agrega al menos uno antes de guardar.</em>';
+    return;
+  }
+  cont.innerHTML = hallazgosAgregados.map((h,i)=>`
+    <span class="chip">${h.tipo_elemento==='camara'?'Cámara':'Grifo'} · ${h.tipo_hallazgo}${h.requiere_pintura==='si'?' · pintura':''}
+      <button type="button" onclick="quitarHallazgoDetalle(${i})" title="Quitar">&times;</button>
+    </span>
+  `).join('');
+}
+
+/* Devuelve la lista de hallazgos (grifo/cámara) de un registro, sea que
+   use el esquema nuevo (hallazgos_detalle: array) o el esquema anterior
+   de campos planos (tipo_hallazgo/tipo_elemento/requiere_pintura), para
+   que la lista, el detalle y el reporte funcionen igual con documentos
+   guardados antes de este cambio. */
+function obtenerDetalleHallazgos(h){
+  if(h.hallazgos_detalle && h.hallazgos_detalle.length) return h.hallazgos_detalle;
+  if(h.tipo_hallazgo) return [{tipo_elemento:h.tipo_elemento, tipo_hallazgo:h.tipo_hallazgo, requiere_pintura:h.requiere_pintura}];
+  return [];
 }
 
 /* Busca el código de grifo en el catastro cargado y, si existe, autocompleta
@@ -829,12 +889,10 @@ function handlePhoto(evt, tipo){
 }
 
 async function guardarHallazgo(){
+  if(hallazgosAgregados.length===0){ toast('Agrega al menos un hallazgo (grifo o cámara) antes de guardar'); return; }
   if(!document.getElementById('fRevisionOk').checked){ toast('Marca la casilla de revisión antes de guardar'); return; }
   if(!formMarkerActual){ toast('Marca la ubicación real del grifo en el mapa'); return; }
   const prioridad = document.querySelector('input[name="prioridad"]:checked').value;
-  const tipoElemento = document.getElementById('fTipoElemento').value;
-  const tipoHallazgo = document.getElementById('fTipoHallazgo').value;
-  const requierePintura = tipoElemento === 'grifo' ? document.getElementById('fRequierePintura').value : null;
   const llActual = formMarkerActual.getLatLng();
   const llIdeal = formMarkerIdeal ? formMarkerIdeal.getLatLng() : null;
   const id = uid();
@@ -858,9 +916,7 @@ async function guardarHallazgo(){
     modelo_grifo: catalogoMatchActual ? catalogoMatchActual.modelo : null,
     diametro_conexion: catalogoMatchActual ? catalogoMatchActual.diametro_conexion : null,
     ano_instalacion: catalogoMatchActual ? catalogoMatchActual.ano_instalacion : null,
-    tipo_elemento: tipoElemento,
-    tipo_hallazgo: tipoHallazgo,
-    requiere_pintura: requierePintura,
+    hallazgos_detalle: hallazgosAgregados.slice(),
     direccion: document.getElementById('fDireccion').value || 'Sin dirección registrada',
     lat: llActual.lat, lng: llActual.lng,
     ideal_lat: llIdeal? llIdeal.lat : null, ideal_lng: llIdeal? llIdeal.lng : null,
@@ -935,7 +991,7 @@ function renderLista(){
             <span class="badge ${h.estado}">${ESTADO_LABEL[h.estado]}</span>
           </div>
         </div>
-        <div class="fmeta">Registrado ${fmtDate(h.fecha_creacion)} · ${h.creado_por}${h.tipo_hallazgo ? ` · ${h.tipo_hallazgo}` : ''}</div>
+        <div class="fmeta">Registrado ${fmtDate(h.fecha_creacion)} · ${h.creado_por}${obtenerDetalleHallazgos(h).length ? ` · ${obtenerDetalleHallazgos(h).length} hallazgo${obtenerDetalleHallazgos(h).length===1?'':'s'}` : ''}</div>
         <div class="factions">
           <button class="btn btn-ghost btn-sm" onclick="openDetail('${h.id}')">Ver detalle</button>
         </div>
@@ -1042,7 +1098,7 @@ function openDetail(id){
       <span class="badge ${h.estado}">${ESTADO_LABEL[h.estado]}</span>
     </div>
     ${h.codigo_grifo ? `<div class="mono" style="font-size:12px;color:var(--text-soft);margin-bottom:8px;">Grifo ${h.codigo_grifo}${h.modelo_grifo?` · ${h.modelo_grifo}`:''}${h.diametro_conexion?` · Ø${h.diametro_conexion}mm`:''}${h.localidad||h.comuna?` · ${[h.localidad,h.comuna].filter(Boolean).join(', ')}`:''}${h.ano_instalacion?` · instalado ${h.ano_instalacion}`:''}</div>` : ''}
-    ${h.tipo_hallazgo ? `<div class="mono" style="font-size:12px;color:var(--text-soft);margin-bottom:8px;">${h.tipo_elemento==='camara'?'Cámara':'Grifo'} · ${h.tipo_hallazgo}${h.requiere_pintura==='si' ? ' · Requiere pintura' : ''}</div>` : ''}
+    ${obtenerDetalleHallazgos(h).length ? `<div class="chips-list" style="margin-bottom:8px;">${obtenerDetalleHallazgos(h).map(d=>`<span class="chip" style="cursor:default;">${d.tipo_elemento==='camara'?'Cámara':'Grifo'} · ${d.tipo_hallazgo}${d.requiere_pintura==='si' ? ' · pintura' : ''}</span>`).join('')}</div>` : ''}
     <p style="font-size:13.5px;color:var(--text);">${h.descripcion || '<em>Sin descripción</em>'}</p>
 
     <div class="detail-imgs">
@@ -1183,19 +1239,46 @@ function construirReporteHTML(){
   function bloquePrioridad(clave, etiqueta, color){
     const items = HALLAZGOS.filter(h=>h.prioridad===clave);
     if(items.length===0) return `<h3 style="color:${color}">${etiqueta} <span class="mono" style="font-size:12px;color:var(--text-soft);font-weight:400;">(0 hallazgos)</span></h3><p style="font-size:13px;color:var(--text-soft);">Sin hallazgos registrados en esta categoría.</p>`;
-    const rows = items.map(h=>`
+    const rows = items.map(h=>{
+      const detalle = obtenerDetalleHallazgos(h);
+      const detalleTxt = detalle.length ? detalle.map(d=>`${d.tipo_elemento==='camara'?'Cámara':'Grifo'}: ${d.tipo_hallazgo}${d.requiere_pintura==='si'?' (req. pintura)':''}`).join('; ') : '—';
+      return `
       <tr>
         <td class="mono">${h.id}</td>
         <td class="mono">${h.codigo_grifo || '—'}</td>
-        <td>${h.tipo_hallazgo || '—'}${h.requiere_pintura==='si' ? ' (req. pintura)' : ''}</td>
+        <td>${detalleTxt}</td>
         <td>${h.direccion}</td>
         <td><span class="badge ${h.estado}">${ESTADO_LABEL[h.estado]}</span></td>
         <td>${fmtDate(h.fecha_creacion)}</td>
         <td>${h.comentarios.length ? h.comentarios[h.comentarios.length-1].texto : '—'}</td>
-      </tr>`).join('');
+      </tr>`;}).join('');
     return `<h3 style="color:${color}">${etiqueta} <span class="mono" style="font-size:12px;color:var(--text-soft);font-weight:400;">(${items.length} hallazgo${items.length===1?'':'s'})</span></h3>
       <table><thead><tr><th>ID</th><th>Grifo</th><th>Hallazgo</th><th>Dirección</th><th>Estado</th><th>Registrado</th><th>Último avance</th></tr></thead>
       <tbody>${rows}</tbody></table>`;
+  }
+
+  // Resumen agrupado por código de grifo: cuántos registros y cuántos
+  // hallazgos (de grifo y de cámara) se han levantado por cada grifo.
+  function bloqueResumenPorGrifo(){
+    const porCodigo = {};
+    HALLAZGOS.forEach(h=>{
+      const cod = h.codigo_grifo || 'Sin código';
+      if(!porCodigo[cod]) porCodigo[cod] = {registros:0, hallazgos:0, comuna:h.comuna||'', localidad:h.localidad||''};
+      porCodigo[cod].registros += 1;
+      porCodigo[cod].hallazgos += obtenerDetalleHallazgos(h).length;
+    });
+    const codigos = Object.keys(porCodigo).sort();
+    if(codigos.length===0) return '';
+    const rows = codigos.map(cod=>{
+      const d = porCodigo[cod];
+      const ubic = [d.localidad, d.comuna].filter(Boolean).join(', ');
+      return `<tr><td class="mono">${cod}</td><td>${ubic || '—'}</td><td>${d.registros}</td><td>${d.hallazgos}</td></tr>`;
+    }).join('');
+    return `<div class="panel">
+      <h3 style="margin-top:0;">Resumen por grifo</h3>
+      <table><thead><tr><th>Código de grifo</th><th>Ubicación</th><th>Registros</th><th>Hallazgos totales</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>`;
   }
 
   // Texto de conclusión, generado a partir del estado real del catastro
@@ -1301,6 +1384,8 @@ footer{text-align:center;font-size:11px;color:var(--text-soft);font-family:'IBM 
         <div class="panel"><h3 style="margin-top:0;">Avance de resolución</h3><div class="chart-wrap"><canvas id="repChart2"></canvas></div></div>
       </div>
     </div>
+
+    ${bloqueResumenPorGrifo()}
 
     <div class="panel">
       ${bloquePrioridad('inmediato','Prioridad inmediata','var(--hidrante)')}
