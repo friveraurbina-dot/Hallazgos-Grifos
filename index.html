@@ -1310,6 +1310,7 @@ function renderLista(){
     </div>
     <div class="list-actions" id="listActions" style="display:none;">
       <span id="seleccionCount"></span>
+      <button class="btn btn-amber btn-sm" onclick="descargarReporteHallazgos(Array.from(SELECCION_LISTA))">⬇ Descargar seleccionados (HTML)</button>
       <button class="btn btn-amber btn-sm" onclick="imprimirReporteSeleccionados()">🖨️ Imprimir seleccionados</button>
       <button class="btn btn-danger btn-sm" onclick="confirmarEliminacion()">🗑 Eliminar seleccionados</button>
       <button class="btn btn-ghost btn-sm" onclick="limpiarSeleccion()">Cancelar selección</button>
@@ -1468,6 +1469,11 @@ function openDetail(id){
     <div style="display:flex;gap:6px;margin:10px 0;flex-wrap:wrap;">
       ${h.estado ? `<span class="badge ${h.prioridad}">${PRIORIDAD_LABEL[h.prioridad]}</span><span class="badge ${h.estado}">${ESTADO_LABEL[h.estado]}</span>` : `<span class="badge" style="background:var(--concrete-2);color:var(--text-soft);">Inspección sin hallazgo</span>`}
     </div>
+    ${tieneHallazgoReal(h) ? `
+    <div style="display:flex;gap:8px;margin:0 0 10px;flex-wrap:wrap;">
+      <button class="btn btn-ghost btn-sm" onclick="descargarReporteHallazgos(['${h.id}'])">⬇ Descargar informe (HTML)</button>
+      <button class="btn btn-ghost btn-sm" onclick="imprimirReporteIndividual('${h.id}')">🖨️ Imprimir informe</button>
+    </div>` : ''}
     ${h.codigo_grifo ? `<div class="mono" style="font-size:12px;color:var(--text-soft);margin-bottom:8px;">Grifo ${h.codigo_grifo}${h.modelo_grifo?` · ${h.modelo_grifo}`:''}${h.diametro_conexion?` · Ø${h.diametro_conexion}mm`:''}${h.localidad||h.comuna?` · ${[h.localidad,h.comuna].filter(Boolean).join(', ')}`:''}${h.ano_instalacion?` · instalado ${h.ano_instalacion}`:''}</div>` : ''}
     ${esInspeccion(h) ? `<div class="mono" style="font-size:12px;color:var(--text-soft);margin-bottom:8px;">${h.fecha_ejecucion?`Ejecución ${h.fecha_ejecucion}`:''}${h.horario_ejecucion?` · ${h.horario_ejecucion} hrs`:''}${h.presion_grifo?` · Presión ${h.presion_grifo}`:''}</div>` : ''}
     ${obtenerDetalleHallazgos(h).length ? `<div class="chips-list" style="margin-bottom:8px;">${obtenerDetalleHallazgos(h).map(d=>`<span class="chip" style="cursor:default;"><i class="dot" style="background:${PRIORIDAD_COLOR[criticidadDeDetalle(d,h)]}"></i>${d.tipo_elemento==='camara'?'Cámara':'Grifo'} · ${d.tipo_hallazgo}</span>`).join('')}</div>` : ''}
@@ -1956,6 +1962,11 @@ function construirReporteHallazgosHTML(soloIds){
     const ubicacion = [primero.localidad, primero.comuna].filter(Boolean).join(', ') || '—';
     const direccion = primero.direccion || '—';
     const titulo = grupo.codigo ? grupo.codigo : `Sin código de grifo (registro ${primero.id})`;
+    const datosGrifo = [
+      primero.modelo_grifo ? `Modelo: <strong>${primero.modelo_grifo}</strong>` : null,
+      primero.diametro_conexion ? `Diámetro: <strong>Ø${primero.diametro_conexion}mm</strong>` : null,
+      primero.ano_instalacion ? `Instalado: <strong>${primero.ano_instalacion}</strong>` : null
+    ].filter(Boolean).join(' &nbsp;·&nbsp; ');
 
     const tarjetasHtml = filas.map((f,i)=>{
       const crit = criticidadDeDetalle(f.d, f.h);
@@ -1967,19 +1978,20 @@ function construirReporteHallazgosHTML(soloIds){
           <span class="badge ${f.h.estado}">${ESTADO_LABEL[f.h.estado]}</span>
           <span class="hc-meta">${fmtDate(f.h.fecha_creacion)} · ${f.h.creado_por || '—'}</span>
         </div>
-        <div class="hc-section">
-          <h5>Hallazgo detectado en terreno</h5>
+        <div class="hc-section hc-encontrado">
+          <h5>① Hallazgo detectado en terreno</h5>
+          ${f.h.descripcion ? `<p class="hc-desc">${f.h.descripcion}</p>` : ''}
           ${galeriaFotos(fotosHallazgoIniciales(f.h))}
         </div>
-        <div class="hc-section">
-          <h5>Proceso de solución</h5>
+        <div class="hc-section hc-solucion">
+          <h5>② Proceso de solución</h5>
           ${bloqueProcesoSolucion(f.h)}
         </div>
       </div>`;}).join('');
 
     return `<div class="grifo-block">
       <h4>Grifo <span class="mono">${titulo}</span> <span class="contador">(${filas.length} hallazgo${filas.length===1?'':'s'})</span></h4>
-      <div class="grifo-meta">Ubicación catastro: <strong>${ubicacion}</strong> &nbsp;·&nbsp; Dirección: <strong>${direccion}</strong></div>
+      <div class="grifo-meta">Ubicación catastro: <strong>${ubicacion}</strong> &nbsp;·&nbsp; Dirección: <strong>${direccion}</strong>${datosGrifo ? ` &nbsp;·&nbsp; ${datosGrifo}` : ''}</div>
       ${tarjetasHtml}
     </div>`;
   }
@@ -2044,9 +2056,12 @@ th{font-family:'IBM Plex Mono',monospace;font-size:9.5px;text-transform:uppercas
 .hc-head{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--line);font-size:12px;}
 .hc-titulo{font-weight:600;}
 .hc-meta{margin-left:auto;font-size:11px;color:var(--text-soft);}
-.hc-section{margin-top:12px;}
+.hc-section{margin-top:12px;padding-left:10px;border-left:3px solid var(--line);}
 .hc-section:first-of-type{margin-top:0;}
 .hc-section h5{font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:11px;letter-spacing:.04em;color:var(--text-soft);margin:0 0 6px;}
+.hc-encontrado{border-left-color:var(--hidrante);}
+.hc-solucion{border-left-color:var(--musgo);}
+.hc-desc{font-size:12.5px;margin:0 0 8px;color:var(--text);}
 .foto-galeria{display:flex;flex-wrap:wrap;gap:8px;}
 .foto-item{display:block;text-align:center;text-decoration:none;color:var(--text-soft);font-size:9.5px;width:70px;}
 .foto-item img{width:70px;height:70px;object-fit:cover;border-radius:6px;border:1px solid var(--line);display:block;margin-bottom:3px;}
@@ -2108,28 +2123,28 @@ function idsSegunFiltroZona(){
   return HALLAZGOS.filter(tieneHallazgoReal).filter(h=>zonaDeHallazgo(h)===FILTRO_ZONA).map(h=>h.id);
 }
 
-function descargarReporteHallazgos(){
-  const html = construirReporteHallazgosHTML(idsSegunFiltroZona());
+/* soloIds: si se pasa (array), descarga el informe solo con esos hallazgos
+   (selección múltiple, o uno solo). Si no se pasa, respeta la pestaña de
+   zona activa — comportamiento del botón general "Reporte de hallazgos". */
+function descargarReporteHallazgos(soloIds){
+  const ids = soloIds || idsSegunFiltroZona();
+  const html = construirReporteHallazgosHTML(ids);
   const blob = new Blob([html], {type:'text/html'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   const stamp = new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
   a.href = url;
-  a.download = `reporte-hallazgos-grifos-${stamp}.html`;
+  a.download = ids && ids.length===1 ? `informe-hallazgo-${stamp}.html` : `reporte-hallazgos-grifos-${stamp}.html`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  toast('Reporte de hallazgos descargado');
+  toast(ids && ids.length===1 ? 'Informe descargado' : 'Reporte de hallazgos descargado');
 }
 
-/* Genera el reporte solo con los hallazgos marcados con las casillas del
-   tablero, y abre directamente el diálogo de impresión del navegador
-   (igual que el PDF del reporte ejecutivo), sin descargar un archivo aparte. */
-function imprimirReporteSeleccionados(){
-  if(SELECCION_LISTA.size===0){ toast('Selecciona al menos un hallazgo para imprimir'); return; }
-  const ids = Array.from(SELECCION_LISTA);
-  const html = construirReporteHallazgosHTML(ids);
+/* Abre el diálogo de impresión del navegador con el informe ya armado,
+   igual que el PDF del reporte ejecutivo, sin descargar un archivo aparte. */
+function abrirEImprimir(html){
   const w = window.open('', '_blank');
   if(!w){ toast('Habilita las ventanas emergentes del navegador para imprimir'); return; }
   w.document.open();
@@ -2137,6 +2152,20 @@ function imprimirReporteSeleccionados(){
   w.document.close();
   toast('Elige "Guardar como PDF" o imprime desde el diálogo que se abrirá');
   setTimeout(()=>{ try{ w.focus(); w.print(); }catch(e){ console.error(e); } }, 1200);
+}
+
+/* Genera el reporte solo con los hallazgos marcados con las casillas del
+   tablero, y abre directamente el diálogo de impresión. */
+function imprimirReporteSeleccionados(){
+  if(SELECCION_LISTA.size===0){ toast('Selecciona al menos un hallazgo para imprimir'); return; }
+  abrirEImprimir(construirReporteHallazgosHTML(Array.from(SELECCION_LISTA)));
+}
+
+/* Informe "uno a uno": el mismo formato estructurado (encabezado, mapa,
+   hallazgo detectado, proceso de solución), pero de un único registro —
+   se usa desde el modal de detalle. */
+function imprimirReporteIndividual(id){
+  abrirEImprimir(construirReporteHallazgosHTML([id]));
 }
 
 /* ---------------- EXPORTAR A EXCEL ----------------
