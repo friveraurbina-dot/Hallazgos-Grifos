@@ -9,6 +9,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-storage-compat.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -291,7 +292,7 @@ const PRIORIDAD_LABEL = {inmediato:'Inmediato', corto:'Corto plazo', mediano:'Me
 const PRIORIDAD_COLOR = {inmediato:'#C8334D', corto:'#E2A33D', mediano:'#3B6E8F'};
 const ESTADO_LABEL = {pendiente:'Pendiente', en_proceso:'En proceso', resuelto:'Resuelto'};
 
-function uid(){ return 'H-' + Date.now().toString(36).toUpperCase().slice(-6); }
+function uid(){ return 'H-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2,6).toUpperCase(); }
 function fmtDate(d){ const dt=new Date(d); return dt.toLocaleString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
 function toast(msg){ const t=document.getElementById('toast'); if(!t) return; t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2600); }
 
@@ -301,27 +302,36 @@ function toast(msg){ const t=document.getElementById('toast'); if(!t) return; t.
    (Firebase Console → Configuración del proyecto → Tus apps → SDK).
    Mientras dejes "TU_API_KEY" la app funcionará en modo local
    (solo en este dispositivo, sin compartir datos entre empresas).
+   Ver la guía adjunta para crear el proyecto, activar Firestore + Storage
+   (plan Blaze) y las reglas de seguridad a pegar.
    ==================================================================== */
 const firebaseConfig = {
-  apiKey: "TU_API_KEY",
-  authDomain: "TU_PROYECTO.firebaseapp.com",
-  projectId: "TU_PROYECTO",
-  storageBucket: "TU_PROYECTO.appspot.com",
-  messagingSenderId: "000000000000",
-  appId: "TU_APP_ID"
+  apiKey: "AIzaSyApa-zy4sV8iM1-MNgtIvRcev9j8CAve10",
+  authDomain: "hallazgos-grifos-app.firebaseapp.com",
+  projectId: "hallazgos-grifos-app",
+  storageBucket: "hallazgos-grifos-app.firebasestorage.app",
+  messagingSenderId: "156705018338",
+  appId: "1:156705018338:web:9c35d7983923aaa123e9bb"
 };
 
-/* ---------------- STORAGE (Firebase Firestore, tiempo real) ---------------- */
+/* ---------------- STORAGE (Firestore, tiempo real + Storage para fotos) ----------------
+   Cada hallazgo es un documento propio en la colección "hallazgos" (no un único
+   documento gigante con todo el catastro), para no chocar con el límite de 1MB
+   por documento de Firestore a medida que crece el catastro. Las fotos se suben
+   a Firebase Storage y en el documento solo se guarda la URL. */
 let STORAGE_MODE = 'local'; // se cambia a 'remote' si Firebase queda bien configurado
 const LOCAL_KEY = 'grifos_hallazgos_local';
 let db = null;
+let storageRef = null;
 let firebaseReady = false;
+let unsubscribeHallazgos = null;
 
 function initFirebase(){
   try{
     if(!firebaseConfig.apiKey || firebaseConfig.apiKey.indexOf('TU_API_KEY')>-1) throw new Error('sin-configurar');
     firebase.initializeApp(firebaseConfig);
     db = firebase.firestore();
+    storageRef = firebase.storage();
     firebaseReady = true;
     STORAGE_MODE = 'remote';
   }catch(e){
@@ -339,10 +349,10 @@ function suscribirHallazgos(onChange){
     onChange();
     return;
   }
-  db.collection('catastro_grifos').doc('data').onSnapshot(
-    (doc)=>{
-      try{ HALLAZGOS = doc.exists ? JSON.parse(doc.data().hallazgos || '[]') : []; }
-      catch(e){ HALLAZGOS = []; }
+  if(unsubscribeHallazgos) unsubscribeHallazgos();
+  unsubscribeHallazgos = db.collection('hallazgos').orderBy('fecha_creacion','desc').onSnapshot(
+    (snap)=>{
+      HALLAZGOS = snap.docs.map(d=>({id:d.id, ...d.data()}));
       onChange();
     },
     (err)=>{
@@ -357,24 +367,30 @@ function suscribirHallazgos(onChange){
   );
 }
 
-async function saveHallazgos(){
-  if(STORAGE_MODE === 'remote' && firebaseReady){
-    try{
-      await db.collection('catastro_grifos').doc('data').set({
-        hallazgos: JSON.stringify(HALLAZGOS),
-        actualizado: new Date().toISOString()
-      });
-      return; // el listener en tiempo real actualizará la vista en todos los dispositivos
-    }catch(e){
-      console.error(e);
-      STORAGE_MODE = 'local';
-      toast('Sin conexión a la base de datos compartida: guardando solo en este dispositivo');
-    }
-  }
+/* Guarda solo en este dispositivo (modo local / sin conexión / Firebase no configurado). */
+function guardarLocal(){
   try{
     localStorage.setItem(LOCAL_KEY, JSON.stringify(HALLAZGOS));
     render();
   }catch(e){ toast('Error al guardar. Intenta nuevamente.'); console.error(e); }
+}
+
+/* Sube una foto (dataURL) a Firebase Storage y devuelve la URL pública de descarga.
+   Si Firebase no está configurado, devuelve el dataURL tal cual (queda embebido
+   localmente, como antes). */
+async function subirFoto(dataUrl, path){
+  if(!dataUrl) return null;
+  if(!firebaseReady || !storageRef) return dataUrl;
+  try{
+    const blob = await (await fetch(dataUrl)).blob();
+    const ref = storageRef.ref().child(path);
+    await ref.put(blob);
+    return await ref.getDownloadURL();
+  }catch(e){
+    console.error('Error subiendo foto a Storage', e);
+    toast('No se pudo subir la foto a la nube; se guardó solo en este dispositivo');
+    return dataUrl;
+  }
 }
 
 /* ---------------- ROLE ---------------- */
@@ -429,6 +445,7 @@ function renderDashboard(){
       </div>
       <div>
         <button class="btn btn-amber btn-sm" onclick="descargarReporteEjecutivo()">📄 Reporte ejecutivo (HTML)</button>
+        <button class="btn btn-amber btn-sm" onclick="imprimirReportePDF()">🖨️ Reporte ejecutivo (PDF)</button>
         <button class="btn btn-ghost btn-sm" onclick="document.getElementById('csvInput').click()">⬆ Importar base de grifos (CSV)</button>
         <input type="file" id="csvInput" accept=".csv" style="display:none" onchange="handleCSVImport(event)">
       </div>
@@ -676,23 +693,47 @@ async function guardarHallazgo(){
   const prioridad = document.querySelector('input[name="prioridad"]:checked').value;
   const llActual = formMarkerActual.getLatLng();
   const llIdeal = formMarkerIdeal ? formMarkerIdeal.getLatLng() : null;
+  const id = uid();
+  const btn = document.querySelector('#formNuevo button.btn-primary');
+  if(btn){ btn.disabled = true; btn.textContent = 'Guardando…'; }
+
+  const [fotoGrifoUrl, fotoHallazgoUrl] = await Promise.all([
+    subirFoto(pendingFotos.grifo, `hallazgos/${id}/grifo.jpg`),
+    subirFoto(pendingFotos.hallazgo, `hallazgos/${id}/hallazgo.jpg`)
+  ]);
+
   const nuevo = {
-    id: uid(),
+    id,
     fecha_creacion: new Date().toISOString(),
     creado_por: 'Singemelec',
     direccion: document.getElementById('fDireccion').value || 'Sin dirección registrada',
     lat: llActual.lat, lng: llActual.lng,
     ideal_lat: llIdeal? llIdeal.lat : null, ideal_lng: llIdeal? llIdeal.lng : null,
-    foto_grifo: pendingFotos.grifo,
-    foto_hallazgo: pendingFotos.hallazgo,
+    foto_grifo: fotoGrifoUrl,
+    foto_hallazgo: fotoHallazgoUrl,
     foto_respaldo: null,
     descripcion: document.getElementById('fDescripcion').value,
     prioridad,
     estado: 'pendiente',
     comentarios: []
   };
-  HALLAZGOS.unshift(nuevo);
-  await saveHallazgos();
+
+  if(STORAGE_MODE === 'remote' && firebaseReady){
+    try{
+      const {id: _omit, ...datos} = nuevo;
+      await db.collection('hallazgos').doc(id).set(datos);
+      // el listener en tiempo real (onSnapshot) actualiza la vista en todos los dispositivos
+    }catch(e){
+      console.error(e);
+      toast('Sin conexión a la base de datos compartida: guardando solo en este dispositivo');
+      HALLAZGOS.unshift(nuevo);
+      guardarLocal();
+    }
+  } else {
+    HALLAZGOS.unshift(nuevo);
+    guardarLocal();
+  }
+
   toast('Hallazgo guardado correctamente');
   goPage('lista');
 }
@@ -839,11 +880,33 @@ function handlePhotoRespaldo(evt){
 async function actualizarHallazgo(id){
   const h = HALLAZGOS.find(x=>x.id===id);
   if(!h) return;
-  h.estado = document.getElementById('estadoSelect').value;
-  if(pendingRespaldo) h.foto_respaldo = pendingRespaldo;
+
+  const nuevoEstado = document.getElementById('estadoSelect').value;
   const txt = document.getElementById('nuevoComentario').value.trim();
-  if(txt) h.comentarios.push({autor:'Sacyr Aguas', fecha:new Date().toISOString(), texto:txt});
-  await saveHallazgos();
+  const nuevosComentarios = h.comentarios.slice();
+  if(txt) nuevosComentarios.push({autor:'Sacyr Aguas', fecha:new Date().toISOString(), texto:txt});
+
+  let fotoRespaldoUrl = h.foto_respaldo;
+  if(pendingRespaldo){
+    fotoRespaldoUrl = await subirFoto(pendingRespaldo, `hallazgos/${id}/respaldo_${Date.now()}.jpg`);
+  }
+
+  const cambios = { estado: nuevoEstado, foto_respaldo: fotoRespaldoUrl, comentarios: nuevosComentarios };
+
+  if(STORAGE_MODE === 'remote' && firebaseReady){
+    try{
+      await db.collection('hallazgos').doc(id).update(cambios);
+    }catch(e){
+      console.error(e);
+      toast('Sin conexión: actualización guardada solo en este dispositivo');
+      Object.assign(h, cambios);
+      guardarLocal();
+    }
+  } else {
+    Object.assign(h, cambios);
+    guardarLocal();
+  }
+
   pendingRespaldo = null;
   toast('Actualización guardada');
   closeModal();
@@ -851,7 +914,9 @@ async function actualizarHallazgo(id){
 }
 
 /* ---------------- REPORTE EJECUTIVO ---------------- */
-function descargarReporteEjecutivo(){
+/* Construye el HTML del informe ejecutivo (se reutiliza tanto para la
+   descarga en HTML como para la generación de PDF vía impresión). */
+function construirReporteHTML(){
   const total = HALLAZGOS.length;
   const counts = {inmediato:0, corto:0, mediano:0};
   const estados = {pendiente:0, en_proceso:0, resuelto:0};
@@ -934,6 +999,12 @@ th{font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase
 .conclusion-box{background:var(--ink-2);color:#e8f0f1;border-radius:10px;padding:22px 24px;}
 .conclusion-box p{font-size:14.5px;line-height:1.7;margin:0;}
 footer{text-align:center;font-size:11px;color:var(--text-soft);font-family:'IBM Plex Mono',monospace;padding:24px;}
+@media print{
+  body{background:#fff;}
+  .wrap{padding:14px 8px 30px;}
+  section,.panel,table{page-break-inside:avoid;}
+  header{border-bottom-width:2px;}
+}
 </style></head>
 <body>
 <header>
@@ -1017,6 +1088,12 @@ new Chart(document.getElementById('repChart2'), {type:'bar',
 <\/script>
 </body></html>`;
 
+  return html;
+}
+
+/* Descarga el informe ejecutivo como archivo .html */
+function descargarReporteEjecutivo(){
+  const html = construirReporteHTML();
   const blob = new Blob([html], {type:'text/html'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1028,6 +1105,23 @@ new Chart(document.getElementById('repChart2'), {type:'bar',
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
   toast('Informe ejecutivo descargado');
+}
+
+/* Genera el informe ejecutivo en PDF: abre el mismo informe en una pestaña
+   nueva y dispara el diálogo de impresión nativo del navegador (el usuario
+   elige "Guardar como PDF"). Se usa impresión nativa en vez de una librería
+   tipo html2canvas porque las imágenes del mapa (OpenStreetMap) son de otro
+   origen y suelen fallar al capturarlas como imagen/canvas; la impresión
+   nativa no tiene ese problema. */
+function imprimirReportePDF(){
+  const html = construirReporteHTML();
+  const w = window.open('', '_blank');
+  if(!w){ toast('Habilita las ventanas emergentes del navegador para generar el PDF'); return; }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+  toast('Elige "Guardar como PDF" en el diálogo de impresión que se abrirá');
+  setTimeout(()=>{ try{ w.focus(); w.print(); }catch(e){ console.error(e); } }, 1200);
 }
 
 /* ---------------- IMPORTAR CSV ---------------- */
@@ -1052,7 +1146,7 @@ function handleCSVImport(evt){
       toast('El CSV debe tener al menos columnas: direccion, lat, lng');
       return;
     }
-    let importados = 0;
+    const nuevos = [];
     for(let i=1;i<lines.length;i++){
       const cols = lines[i].split(',');
       const lat = parseFloat(cols[idx.lat]);
@@ -1062,7 +1156,7 @@ function handleCSVImport(evt){
       const prioridad = ['inmediato','corto','mediano'].includes(prioridadRaw) ? prioridadRaw : 'mediano';
       const estadoRaw = (idx.estado>-1 ? cols[idx.estado] : '').trim().toLowerCase();
       const estado = ['pendiente','en_proceso','resuelto'].includes(estadoRaw) ? estadoRaw : 'pendiente';
-      HALLAZGOS.unshift({
+      nuevos.push({
         id: uid(),
         fecha_creacion: new Date().toISOString(),
         creado_por: 'Importado (base de datos)',
@@ -1072,10 +1166,33 @@ function handleCSVImport(evt){
         descripcion: idx.descripcion>-1 ? (cols[idx.descripcion]||'').trim() : '',
         prioridad, estado, comentarios:[]
       });
-      importados++;
     }
-    await saveHallazgos();
-    toast(`${importados} grifos importados correctamente`);
+
+    if(nuevos.length===0){ toast('No se encontraron filas válidas para importar'); return; }
+
+    if(STORAGE_MODE === 'remote' && firebaseReady){
+      try{
+        const CHUNK = 400; // límite de 500 operaciones por batch en Firestore
+        for(let i=0;i<nuevos.length;i+=CHUNK){
+          const batch = db.batch();
+          nuevos.slice(i,i+CHUNK).forEach(n=>{
+            const {id, ...datos} = n;
+            batch.set(db.collection('hallazgos').doc(id), datos);
+          });
+          await batch.commit();
+        }
+      }catch(e){
+        console.error(e);
+        toast('Sin conexión a la base de datos compartida: importando solo en este dispositivo');
+        HALLAZGOS.unshift(...nuevos);
+        guardarLocal();
+      }
+    } else {
+      HALLAZGOS.unshift(...nuevos);
+      guardarLocal();
+    }
+
+    toast(`${nuevos.length} grifos importados correctamente`);
     evt.target.value = '';
     renderDashboard();
   };
