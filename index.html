@@ -1959,7 +1959,6 @@ function construirReporteHallazgosHTML(soloIds){
       items.forEach(d=> filas.push({h, d}));
     });
     const primero = registros[0];
-    const ubicacion = [primero.localidad, primero.comuna].filter(Boolean).join(', ') || '—';
     const direccion = primero.direccion || '—';
     const titulo = grupo.codigo ? grupo.codigo : `Sin código de grifo (registro ${primero.id})`;
     const datosGrifo = [
@@ -1967,6 +1966,15 @@ function construirReporteHallazgosHTML(soloIds){
       primero.diametro_conexion ? `Diámetro: <strong>Ø${primero.diametro_conexion}mm</strong>` : null,
       primero.ano_instalacion ? `Instalado: <strong>${primero.ano_instalacion}</strong>` : null
     ].filter(Boolean).join(' &nbsp;·&nbsp; ');
+
+    let mapaPuntoHtml;
+    if(typeof primero.lat==='number' && typeof primero.lng==='number'){
+      const mapId = 'mapaPunto' + puntosMapData.length;
+      puntosMapData.push({id:mapId, lat:primero.lat, lng:primero.lng, label:`${titulo} · ${direccion}`});
+      mapaPuntoHtml = `<div class="mapa-punto" id="${mapId}"></div>`;
+    } else {
+      mapaPuntoHtml = `<p class="sin-mapa">Sin coordenadas registradas para este punto.</p>`;
+    }
 
     const tarjetasHtml = filas.map((f,i)=>{
       const crit = criticidadDeDetalle(f.d, f.h);
@@ -1991,7 +1999,14 @@ function construirReporteHallazgosHTML(soloIds){
 
     return `<div class="grifo-block">
       <h4>Grifo <span class="mono">${titulo}</span> <span class="contador">(${filas.length} hallazgo${filas.length===1?'':'s'})</span></h4>
-      <div class="grifo-meta">Ubicación catastro: <strong>${ubicacion}</strong> &nbsp;·&nbsp; Dirección: <strong>${direccion}</strong>${datosGrifo ? ` &nbsp;·&nbsp; ${datosGrifo}` : ''}</div>
+      <div class="grifo-info-grid">
+        <div><span class="gi-label">Código</span><span class="gi-val">${titulo}</span></div>
+        <div><span class="gi-label">Comuna</span><span class="gi-val">${primero.comuna || '—'}</span></div>
+        <div><span class="gi-label">Localidad</span><span class="gi-val">${primero.localidad || '—'}</span></div>
+        <div><span class="gi-label">Dirección</span><span class="gi-val">${direccion}</span></div>
+        ${datosGrifo ? `<div><span class="gi-label">Datos técnicos</span><span class="gi-val">${datosGrifo}</span></div>` : ''}
+      </div>
+      ${mapaPuntoHtml}
       ${tarjetasHtml}
     </div>`;
   }
@@ -2007,6 +2022,10 @@ function construirReporteHallazgosHTML(soloIds){
   const lampa = conHallazgoRep.filter(h=>zonaDeHallazgo(h)==='lampa');
   const metro = conHallazgoRep.filter(h=>zonaDeHallazgo(h)==='metropolitana');
   const sinZona = conHallazgoRep.filter(h=>zonaDeHallazgo(h)==='sin_zona');
+
+  // Mapas individuales "del punto" que bloqueGrifo va llenando a medida que
+  // se arma el HTML de cada grifo (uno por grifo con coordenadas válidas).
+  const puntosMapData = [];
 
   // Datos livianos para el mapa general del informe (un punto por registro)
   const mapData = conHallazgoRep
@@ -2050,6 +2069,11 @@ th{font-family:'IBM Plex Mono',monospace;font-size:9.5px;text-transform:uppercas
 .grifo-block h4 .mono{color:var(--hidrante);}
 .grifo-block .contador{font-size:11px;color:var(--text-soft);font-weight:400;text-transform:none;font-family:'IBM Plex Sans',sans-serif;}
 .grifo-meta{font-size:12px;color:var(--text-soft);margin-bottom:8px;}
+.grifo-info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px 18px;margin-bottom:10px;}
+.gi-label{display:block;font-family:'IBM Plex Mono',monospace;font-size:9px;text-transform:uppercase;color:var(--text-soft);letter-spacing:.03em;margin-bottom:1px;}
+.gi-val{display:block;font-size:12.5px;font-weight:600;color:var(--text);}
+.mapa-punto{height:190px;border-radius:8px;border:1px solid var(--line);margin:0 0 12px;}
+.sin-mapa{font-size:11px;color:var(--text-soft);font-style:italic;margin:0 0 12px;}
 .sinfoto{font-size:10.5px;color:var(--text-soft);}
 .hallazgo-card{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:10px;}
 .hallazgo-card:last-child{margin-bottom:0;}
@@ -2072,7 +2096,7 @@ th{font-family:'IBM Plex Mono',monospace;font-size:9.5px;text-transform:uppercas
 .tl-txt{font-size:12px;margin-bottom:6px;}
 .sin-historial{font-size:11.5px;color:var(--text-soft);font-style:italic;margin:0;}
 footer{text-align:center;font-size:11px;color:var(--text-soft);font-family:'IBM Plex Mono',monospace;padding:24px;}
-@media print{ body{background:#fff;} .wrap{padding:14px 8px 30px;} .panel{page-break-inside:avoid;} .grifo-block,.hallazgo-card{break-inside:avoid;} }
+@media print{ body{background:#fff;} .wrap{padding:14px 8px 30px;} .panel{page-break-inside:avoid;} .grifo-block,.hallazgo-card{break-inside:avoid;} .mapa-punto{break-inside:avoid;} }
 </style></head>
 <body>
 <header>
@@ -2098,20 +2122,33 @@ footer{text-align:center;font-size:11px;color:var(--text-soft);font-family:'IBM 
 <footer>Reporte completo generado desde el catastro de grifos Singemelec / Sacyr Aguas — no se actualiza automáticamente. Vuelve a generarlo para reflejar el estado más reciente.</footer>
 <script>
 const MAPDATA = ${mapDataJson};
+const PUNTOS = ${JSON.stringify(puntosMapData).replace(/</g,'\\u003c')};
 const PRIORIDAD_COLOR_MAP = {directa:'#C8334D', indirecta:'#E2A33D', senaletica:'#3B6E8F', inmediato:'#C8334D', corto:'#E2A33D', mediano:'#3B6E8F'};
 const ESTADO_LABEL_MAP = {pendiente:'Pendiente', en_proceso:'En proceso', resuelto:'Resuelto'};
 if(MAPDATA.length){
-  const center = [MAPDATA[0].lat, MAPDATA[0].lng];
-  const map = L.map('repMapHallazgos').setView(center, 12);
+  const map = L.map('repMapHallazgos');
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
-  MAPDATA.forEach(d=>{
+  const marcadores = MAPDATA.map(d=>{
     const c = PRIORIDAD_COLOR_MAP[d.criticidad] || '#999';
-    L.circleMarker([d.lat, d.lng], {radius:8, color:'#fff', weight:2, fillColor:c, fillOpacity:1}).addTo(map)
+    return L.circleMarker([d.lat, d.lng], {radius:8, color:'#fff', weight:2, fillColor:c, fillOpacity:1}).addTo(map)
       .bindPopup('<strong>'+(d.codigo ? ('Grifo '+d.codigo+' · ') : '')+d.direccion+'</strong><br>'+(ESTADO_LABEL_MAP[d.estado]||''));
   });
+  if(MAPDATA.length===1){
+    map.setView([MAPDATA[0].lat, MAPDATA[0].lng], 16);
+  } else {
+    map.fitBounds(L.featureGroup(marcadores).getBounds(), {padding:[24,24]});
+  }
 } else {
   document.getElementById('repMapHallazgos').outerHTML = '<p style="font-size:12.5px;color:var(--text-soft);">Sin coordenadas para mostrar en el mapa.</p>';
 }
+// Mapas individuales "del punto" — uno por grifo, en el encabezado de cada bloque.
+PUNTOS.forEach(p=>{
+  const el = document.getElementById(p.id);
+  if(!el) return;
+  const m = L.map(p.id).setView([p.lat, p.lng], 17);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(m);
+  L.circleMarker([p.lat, p.lng], {radius:8, color:'#fff', weight:2, fillColor:'#C8334D', fillOpacity:1}).addTo(m).bindPopup(p.label);
+});
 <\/script>
 </body></html>`;
 }
