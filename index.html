@@ -166,6 +166,19 @@ main{flex:1;overflow-y:auto;padding:24px 28px 60px;}
 .zone-tab.active{background:var(--ink);border-color:var(--ink);color:#fff;}
 .btn-danger{background:var(--hidrante);color:#fff;}
 .btn-danger:hover{background:#a82440;}
+.estado-board{display:flex;flex-direction:column;gap:24px;}
+.estado-col h2{font-size:15px;margin:0 0 2px;color:var(--ink);display:flex;align-items:center;gap:8px;}
+.estado-col h2 .count{font-size:11.5px;font-weight:600;color:var(--text-soft);background:var(--concrete-2);padding:2px 9px;border-radius:12px;}
+.estado-col .sub{font-size:12px;color:var(--text-soft);margin:0 0 8px;}
+.estado-table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);}
+.estado-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+.estado-table th,.estado-table td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle;white-space:nowrap;}
+.estado-table th{font-family:'IBM Plex Mono',monospace;font-size:9.5px;text-transform:uppercase;color:var(--text-soft);letter-spacing:.03em;background:var(--concrete-2);}
+.estado-table tbody tr:last-child td{border-bottom:none;}
+.estado-table tbody tr:hover{background:var(--concrete-2);}
+.estado-table .faddr-cell{white-space:normal;font-weight:600;color:var(--ink);}
+.estado-table tr.selected{background:#fdecef;}
+.estado-table .empty-row td{color:var(--text-soft);font-style:italic;white-space:normal;}
 .revision-box{background:var(--concrete-2);padding:10px 14px;border-radius:8px;border:1px solid var(--line);}
 .revision-box label{display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;font-size:13px;font-weight:500;color:var(--text);}
 .revision-box input{width:16px;height:16px;cursor:pointer;}
@@ -959,7 +972,10 @@ async function guardarHallazgo(){
     descripcion: document.getElementById('fDescripcion').value,
     prioridad,
     estado: 'pendiente',
-    comentarios: []
+    // El historial arranca con este primer registro para que la traza quede
+    // completa desde el ingreso en terreno, no solo desde la primera
+    // actualización de Sacyr.
+    comentarios: [{autor:'Singemelec', fecha:new Date().toISOString(), texto:'Hallazgo ingresado en terreno.', estado_anterior:null, estado_nuevo:'pendiente', foto:null}]
   };
 
   if(STORAGE_MODE === 'remote' && firebaseReady){
@@ -1006,13 +1022,12 @@ function renderLista(){
       <button class="btn btn-danger btn-sm" onclick="confirmarEliminacion()">🗑 Eliminar seleccionados</button>
       <button class="btn btn-ghost btn-sm" onclick="limpiarSeleccion()">Cancelar selección</button>
     </div>
-    <div class="findings-list" id="findingsList"></div>
+    <div class="estado-board" id="findingsList"></div>
   </div>`;
-  const list = document.getElementById('findingsList');
+  const board = document.getElementById('findingsList');
   const hallazgosFiltrados = FILTRO_ZONA==='todos' ? HALLAZGOS : HALLAZGOS.filter(h=>zonaDeHallazgo(h)===FILTRO_ZONA);
-  if(hallazgosFiltrados.length===0){
-    const msg = HALLAZGOS.length===0 ? 'Aún no hay hallazgos en el catastro.' : 'No hay hallazgos registrados en esta zona.';
-    list.innerHTML = `<div class="empty"><div class="display">Sin hallazgos${FILTRO_ZONA!=='todos'?' en esta zona':''}</div>${msg}</div>`;
+  if(HALLAZGOS.length===0){
+    board.innerHTML = `<div class="empty"><div class="display">Sin hallazgos</div>Aún no hay hallazgos en el catastro.</div>`;
     actualizarBarraSeleccion();
     return;
   }
@@ -1020,38 +1035,51 @@ function renderLista(){
   const idsActuales = new Set(HALLAZGOS.map(h=>h.id));
   Array.from(SELECCION_LISTA).forEach(id=>{ if(!idsActuales.has(id)) SELECCION_LISTA.delete(id); });
 
-  list.innerHTML = hallazgosFiltrados.map(h=>`
-    <div class="fcard ${SELECCION_LISTA.has(h.id)?'selected':''}" data-id="${h.id}">
-      <div class="tag" style="background:${PRIORIDAD_COLOR[h.prioridad]}"></div>
-      <div class="fselect">
-        <input type="checkbox" title="Seleccionar para eliminar" onchange="toggleSeleccion('${h.id}')" ${SELECCION_LISTA.has(h.id)?'checked':''}>
+  // Tablero simple por estado: los hallazgos siempre están visibles, agrupados
+  // en tres tablas (Nuevos / En proceso / Ejecutados) en vez de una lista
+  // plana, para poder ver de un vistazo cuántos van en cada etapa. Al abrir
+  // el detalle y guardar una actualización, el hallazgo cambia de tabla solo.
+  const COLUMNAS_ESTADO = [
+    {clave:'pendiente', titulo:'🆕 Nuevos', sub:'Recién ingresados por Singemelec, sin avance de Sacyr aún.'},
+    {clave:'en_proceso', titulo:'🔧 En proceso', sub:'Con avance registrado, todavía no resueltos.'},
+    {clave:'resuelto', titulo:'✅ Ejecutados', sub:'Resueltos, con respaldo de la solución.'}
+  ];
+
+  function filaHallazgo(h){
+    const nHallazgos = obtenerDetalleHallazgos(h).length;
+    return `<tr data-id="${h.id}" class="${SELECCION_LISTA.has(h.id)?'selected':''}">
+      <td><input type="checkbox" title="Seleccionar para eliminar" onchange="toggleSeleccion('${h.id}')" ${SELECCION_LISTA.has(h.id)?'checked':''}></td>
+      <td class="faddr-cell">${h.direccion || 'Sin dirección registrada'}${h.codigo_grifo ? `<div class="mono" style="font-size:10.5px;color:var(--text-soft);font-weight:400;">Grifo ${h.codigo_grifo}</div>` : ''}</td>
+      <td><span class="badge ${h.prioridad}">${PRIORIDAD_LABEL[h.prioridad]}</span></td>
+      <td>${nHallazgos ? `${nHallazgos} hallazgo${nHallazgos===1?'':'s'}` : '—'}</td>
+      <td>${fmtDate(h.fecha_creacion)}</td>
+      <td>${h.creado_por || '—'}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="openDetail('${h.id}')">${ROLE==='sacyr' ? 'Completar' : 'Ver detalle'}</button></td>
+    </tr>`;
+  }
+
+  board.innerHTML = COLUMNAS_ESTADO.map(col=>{
+    const items = hallazgosFiltrados.filter(h=>h.estado===col.clave);
+    return `<div class="estado-col">
+      <h2>${col.titulo} <span class="count">${items.length}</span></h2>
+      <p class="sub">${col.sub}</p>
+      <div class="estado-table-wrap">
+        <table class="estado-table">
+          <thead><tr><th></th><th>Dirección / Grifo</th><th>Prioridad</th><th>Hallazgos</th><th>Registrado</th><th>Creado por</th><th></th></tr></thead>
+          <tbody>${items.length ? items.map(filaHallazgo).join('') : `<tr class="empty-row"><td colspan="7">Sin hallazgos aquí${FILTRO_ZONA!=='todos' ? ' en esta zona' : ''}.</td></tr>`}</tbody>
+        </table>
       </div>
-      <div class="fbody">
-        <div class="frow1">
-          <div>
-            <div class="fid">${h.id}${h.codigo_grifo ? ` · Grifo ${h.codigo_grifo}` : ''}</div>
-            <div class="faddr">${h.direccion}</div>
-          </div>
-          <div style="display:flex;gap:6px;">
-            <span class="badge ${h.prioridad}">${PRIORIDAD_LABEL[h.prioridad]}</span>
-            <span class="badge ${h.estado}">${ESTADO_LABEL[h.estado]}</span>
-          </div>
-        </div>
-        <div class="fmeta">Registrado ${fmtDate(h.fecha_creacion)} · ${h.creado_por}${obtenerDetalleHallazgos(h).length ? ` · ${obtenerDetalleHallazgos(h).length} hallazgo${obtenerDetalleHallazgos(h).length===1?'':'s'}` : ''}</div>
-        <div class="factions">
-          <button class="btn btn-ghost btn-sm" onclick="openDetail('${h.id}')">Ver detalle</button>
-        </div>
-      </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
+
   actualizarBarraSeleccion();
 }
 
 function toggleSeleccion(id){
   if(SELECCION_LISTA.has(id)) SELECCION_LISTA.delete(id);
   else SELECCION_LISTA.add(id);
-  const card = document.querySelector(`.fcard[data-id="${id}"]`);
-  if(card) card.classList.toggle('selected', SELECCION_LISTA.has(id));
+  const fila = document.querySelector(`tr[data-id="${id}"]`);
+  if(fila) fila.classList.toggle('selected', SELECCION_LISTA.has(id));
   actualizarBarraSeleccion();
 }
 
@@ -1190,9 +1218,13 @@ function openDetail(id){
     </div>` : ''}
 
     <div class="panel" style="margin-top:14px;">
-      <h3>Historial de avances</h3>
+      <h3>Historial de avances <span style="font-size:11px;color:var(--text-soft);font-weight:400;text-transform:none;">(traza completa, no se borra)</span></h3>
       ${h.comentarios.length===0 ? '<div style="font-size:12.5px;color:var(--text-soft);">Sin comentarios aún.</div>' :
-        h.comentarios.map(c=>`<div class="comment"><div class="ca">${c.autor} · ${fmtDate(c.fecha)}</div>${c.texto}</div>`).join('')}
+        h.comentarios.map(c=>`<div class="comment">
+          <div class="ca">${c.autor} · ${fmtDate(c.fecha)}${c.estado_nuevo ? ` · <span class="badge ${c.estado_nuevo}" style="font-size:9px;">${ESTADO_LABEL[c.estado_nuevo]}</span>` : ''}</div>
+          ${c.texto}
+          ${c.foto ? `<div style="margin-top:6px;"><img src="${c.foto}" style="max-width:130px;border-radius:6px;border:1px solid var(--line);display:block;"></div>` : ''}
+        </div>`).join('')}
     </div>
   `;
   modalBg.classList.add('open');
@@ -1241,13 +1273,36 @@ async function actualizarHallazgo(id){
 
   const nuevoEstado = document.getElementById('estadoSelect').value;
   const txt = document.getElementById('nuevoComentario').value.trim();
-  const nuevosComentarios = h.comentarios.slice();
-  if(txt) nuevosComentarios.push({autor:'Sacyr Aguas', fecha:new Date().toISOString(), texto:txt});
+  const estadoCambio = nuevoEstado !== h.estado;
 
-  let fotoRespaldoUrl = h.foto_respaldo;
+  let fotoNuevaUrl = null;
   if(pendingRespaldo){
-    fotoRespaldoUrl = await subirFoto(pendingRespaldo, `hallazgos/${id}/respaldo_${Date.now()}.jpg`);
+    fotoNuevaUrl = await subirFoto(pendingRespaldo, `hallazgos/${id}/respaldo_${Date.now()}.jpg`);
   }
+
+  if(!txt && !fotoNuevaUrl && !estadoCambio){
+    toast('No hay cambios que guardar');
+    return;
+  }
+
+  // Cada actualización queda como una entrada nueva del historial (nunca se
+  // sobrescribe ni se pierde una anterior), con su estado y su foto propios,
+  // para que la traza completa (ingreso → desarrollo → ejecución) quede
+  // siempre disponible en el detalle del hallazgo.
+  const nuevosComentarios = h.comentarios.slice();
+  nuevosComentarios.push({
+    autor: 'Sacyr Aguas',
+    fecha: new Date().toISOString(),
+    texto: txt || (estadoCambio ? `Estado actualizado a "${ESTADO_LABEL[nuevoEstado]}".` : 'Se agregó foto de respaldo.'),
+    estado_anterior: estadoCambio ? h.estado : null,
+    estado_nuevo: estadoCambio ? nuevoEstado : null,
+    foto: fotoNuevaUrl || null
+  });
+
+  // foto_respaldo guarda siempre la más reciente (se usa como miniatura
+  // rápida en la lista, el detalle y el reporte); el historial de arriba
+  // conserva todas las fotos de respaldo anteriores, ninguna se pierde.
+  const fotoRespaldoUrl = fotoNuevaUrl || h.foto_respaldo;
 
   const cambios = { estado: nuevoEstado, foto_respaldo: fotoRespaldoUrl, comentarios: nuevosComentarios };
 
