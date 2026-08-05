@@ -156,6 +156,15 @@ main{flex:1;overflow-y:auto;padding:24px 28px 60px;}
 .fcard .fid{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-soft);}
 .fcard .faddr{font-weight:600;font-size:14.5px;color:var(--ink);}
 .fcard .fmeta{font-size:11.5px;color:var(--text-soft);margin-top:3px;}
+.fcard .fselect{display:flex;align-items:center;padding:0 2px 0 12px;}
+.fcard .fselect input{width:17px;height:17px;cursor:pointer;}
+.fcard.selected{outline:2px solid var(--hidrante);outline-offset:-2px;}
+.list-actions{display:flex;align-items:center;gap:12px;background:#fdecef;border:1px solid var(--hidrante);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12.5px;color:var(--hidrante);font-weight:700;flex-wrap:wrap;}
+.btn-danger{background:var(--hidrante);color:#fff;}
+.btn-danger:hover{background:#a82440;}
+.revision-box{background:var(--concrete-2);padding:10px 14px;border-radius:8px;border:1px solid var(--line);}
+.revision-box label{display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;font-size:13px;font-weight:500;color:var(--text);}
+.revision-box input{width:16px;height:16px;cursor:pointer;}
 .badge{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:14px;text-transform:uppercase;letter-spacing:.03em;}
 .badge.inmediato{background:#fdecef;color:var(--hidrante);}
 .badge.corto{background:#fdf3e1;color:#8a6109;}
@@ -290,10 +299,13 @@ let pendingFotos = {grifo:null, hallazgo:null};
 let CATALOGO_GRIFOS = {}; // catastro oficial de grifos (Sacyr), por código, cargado desde Firestore
 let catalogoGrifosListo = false;
 let catalogoMatchActual = null; // datos del catastro para el código de grifo ingresado en el formulario actual
+let SELECCION_LISTA = new Set(); // ids de hallazgos marcados para eliminar en la lista
 
 const PRIORIDAD_LABEL = {inmediato:'Inmediato', corto:'Corto plazo', mediano:'Mediano plazo'};
 const PRIORIDAD_COLOR = {inmediato:'#C8334D', corto:'#E2A33D', mediano:'#3B6E8F'};
 const ESTADO_LABEL = {pendiente:'Pendiente', en_proceso:'En proceso', resuelto:'Resuelto'};
+const HALLAZGOS_GRIFO = ['Vástago agripado','Obturador agripado','Válvula de pie cerrada','Filtración agua','Robo agua','Sin observación'];
+const HALLAZGOS_CAMARA = ['Cámara no visible','Cámara con basura','Tapa cámara agripada','Cámara dañada','Cámara inundada','Sin observación'];
 
 function uid(){ return 'H-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2,6).toUpperCase(); }
 function fmtDate(d){ const dt=new Date(d); return dt.toLocaleString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
@@ -448,6 +460,7 @@ function cerrarSesion(){
 let currentPage = 'dashboard';
 function goPage(p){
   currentPage = p;
+  if(p==='lista') SELECCION_LISTA.clear();
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active', b.dataset.page===p));
   render();
 }
@@ -575,6 +588,27 @@ function renderNuevo(){
           </div>
         </div>
 
+        <div class="form-grid">
+          <div class="field">
+            <label>Tipo de elemento</label>
+            <select id="fTipoElemento" onchange="actualizarTipoHallazgo()">
+              <option value="grifo">Grifo</option>
+              <option value="camara">Cámara</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Hallazgo</label>
+            <select id="fTipoHallazgo"></select>
+          </div>
+        </div>
+        <div class="field" id="campoPintura">
+          <label>¿Grifo requiere pintura?</label>
+          <select id="fRequierePintura">
+            <option value="no">No</option>
+            <option value="si">Sí</option>
+          </select>
+        </div>
+
         <div class="field">
           <label>Ubicación del grifo (real) y ubicación ideal</label>
           <small>Clic normal = ubicación real del grifo · Clic con tecla Shift = ubicación ideal sugerida · Botón GPS usa la ubicación del dispositivo</small>
@@ -607,11 +641,18 @@ function renderNuevo(){
         </div>
 
         <div class="field">
-          <label>Descripción del hallazgo</label>
-          <textarea id="fDescripcion" placeholder="Detalle lo observado en terreno…"></textarea>
+          <label>Descripción / observaciones adicionales</label>
+          <textarea id="fDescripcion" placeholder="Detalle adicional lo observado en terreno (opcional)…"></textarea>
         </div>
 
-        <button class="btn btn-primary" onclick="guardarHallazgo()">Guardar hallazgo</button>
+        <div class="field revision-box">
+          <label>
+            <input type="checkbox" id="fRevisionOk" onchange="document.getElementById('btnGuardarHallazgo').disabled = !this.checked;">
+            Revisé y verifiqué la información cargada
+          </label>
+        </div>
+
+        <button class="btn btn-primary" id="btnGuardarHallazgo" disabled onclick="guardarHallazgo()">Guardar hallazgo</button>
       </form>
     </div>
   </div>`;
@@ -654,6 +695,20 @@ function renderNuevo(){
   document.getElementById('fCodigoGrifo').addEventListener('blur', (e)=>{
     e.target.value = e.target.value.trim().toUpperCase();
   });
+
+  actualizarTipoHallazgo();
+}
+
+/* Llena el menú desplegable "Hallazgo" según el tipo de elemento elegido
+   (Grifo o Cámara) y muestra/oculta la pregunta de pintura, que solo
+   aplica a grifos. */
+function actualizarTipoHallazgo(){
+  const tipo = document.getElementById('fTipoElemento').value;
+  const sel = document.getElementById('fTipoHallazgo');
+  const opciones = tipo === 'grifo' ? HALLAZGOS_GRIFO : HALLAZGOS_CAMARA;
+  sel.innerHTML = opciones.map(o=>`<option value="${o}">${o}</option>`).join('');
+  const campoPintura = document.getElementById('campoPintura');
+  if(campoPintura) campoPintura.style.display = (tipo==='grifo') ? '' : 'none';
 }
 
 /* Busca el código de grifo en el catastro cargado y, si existe, autocompleta
@@ -774,8 +829,12 @@ function handlePhoto(evt, tipo){
 }
 
 async function guardarHallazgo(){
+  if(!document.getElementById('fRevisionOk').checked){ toast('Marca la casilla de revisión antes de guardar'); return; }
   if(!formMarkerActual){ toast('Marca la ubicación real del grifo en el mapa'); return; }
   const prioridad = document.querySelector('input[name="prioridad"]:checked').value;
+  const tipoElemento = document.getElementById('fTipoElemento').value;
+  const tipoHallazgo = document.getElementById('fTipoHallazgo').value;
+  const requierePintura = tipoElemento === 'grifo' ? document.getElementById('fRequierePintura').value : null;
   const llActual = formMarkerActual.getLatLng();
   const llIdeal = formMarkerIdeal ? formMarkerIdeal.getLatLng() : null;
   const id = uid();
@@ -799,6 +858,9 @@ async function guardarHallazgo(){
     modelo_grifo: catalogoMatchActual ? catalogoMatchActual.modelo : null,
     diametro_conexion: catalogoMatchActual ? catalogoMatchActual.diametro_conexion : null,
     ano_instalacion: catalogoMatchActual ? catalogoMatchActual.ano_instalacion : null,
+    tipo_elemento: tipoElemento,
+    tipo_hallazgo: tipoHallazgo,
+    requiere_pintura: requierePintura,
     direccion: document.getElementById('fDireccion').value || 'Sin dirección registrada',
     lat: llActual.lat, lng: llActual.lng,
     ideal_lat: llIdeal? llIdeal.lat : null, ideal_lng: llIdeal? llIdeal.lng : null,
@@ -839,16 +901,29 @@ function renderLista(){
     <div class="page-head">
       <div><h1>Hallazgos</h1><p>${ROLE==='singemelec' ? 'Registro de hallazgos en terreno' : 'Seguimiento y resolución — Sacyr Aguas'}</p></div>
     </div>
+    <div class="list-actions" id="listActions" style="display:none;">
+      <span id="seleccionCount"></span>
+      <button class="btn btn-danger btn-sm" onclick="confirmarEliminacion()">🗑 Eliminar seleccionados</button>
+      <button class="btn btn-ghost btn-sm" onclick="limpiarSeleccion()">Cancelar selección</button>
+    </div>
     <div class="findings-list" id="findingsList"></div>
   </div>`;
   const list = document.getElementById('findingsList');
   if(HALLAZGOS.length===0){
     list.innerHTML = `<div class="empty"><div class="display">Sin hallazgos registrados</div>Aún no hay hallazgos en el catastro.</div>`;
+    actualizarBarraSeleccion();
     return;
   }
+  // descarta de la selección ids que ya no existen (p.ej. borrados desde otro dispositivo)
+  const idsActuales = new Set(HALLAZGOS.map(h=>h.id));
+  Array.from(SELECCION_LISTA).forEach(id=>{ if(!idsActuales.has(id)) SELECCION_LISTA.delete(id); });
+
   list.innerHTML = HALLAZGOS.map(h=>`
-    <div class="fcard">
+    <div class="fcard ${SELECCION_LISTA.has(h.id)?'selected':''}" data-id="${h.id}">
       <div class="tag" style="background:${PRIORIDAD_COLOR[h.prioridad]}"></div>
+      <div class="fselect">
+        <input type="checkbox" title="Seleccionar para eliminar" onchange="toggleSeleccion('${h.id}')" ${SELECCION_LISTA.has(h.id)?'checked':''}>
+      </div>
       <div class="fbody">
         <div class="frow1">
           <div>
@@ -860,13 +935,94 @@ function renderLista(){
             <span class="badge ${h.estado}">${ESTADO_LABEL[h.estado]}</span>
           </div>
         </div>
-        <div class="fmeta">Registrado ${fmtDate(h.fecha_creacion)} · ${h.creado_por}</div>
+        <div class="fmeta">Registrado ${fmtDate(h.fecha_creacion)} · ${h.creado_por}${h.tipo_hallazgo ? ` · ${h.tipo_hallazgo}` : ''}</div>
         <div class="factions">
           <button class="btn btn-ghost btn-sm" onclick="openDetail('${h.id}')">Ver detalle</button>
         </div>
       </div>
     </div>
   `).join('');
+  actualizarBarraSeleccion();
+}
+
+function toggleSeleccion(id){
+  if(SELECCION_LISTA.has(id)) SELECCION_LISTA.delete(id);
+  else SELECCION_LISTA.add(id);
+  const card = document.querySelector(`.fcard[data-id="${id}"]`);
+  if(card) card.classList.toggle('selected', SELECCION_LISTA.has(id));
+  actualizarBarraSeleccion();
+}
+
+function limpiarSeleccion(){
+  SELECCION_LISTA.clear();
+  renderLista();
+}
+
+function actualizarBarraSeleccion(){
+  const bar = document.getElementById('listActions');
+  if(!bar) return;
+  const n = SELECCION_LISTA.size;
+  bar.style.display = n>0 ? 'flex' : 'none';
+  const count = document.getElementById('seleccionCount');
+  if(count) count.textContent = `${n} hallazgo${n===1?'':'s'} seleccionado${n===1?'':'s'}`;
+}
+
+/* Muestra un modal de confirmación (no usa confirm() nativo) antes de
+   eliminar en forma permanente los hallazgos seleccionados. */
+function confirmarEliminacion(){
+  if(SELECCION_LISTA.size===0) return;
+  const modalBg = document.getElementById('modalBg');
+  const modal = document.getElementById('modalContent');
+  if(!modalBg || !modal) return;
+  const n = SELECCION_LISTA.size;
+  modal.innerHTML = `
+    <button class="closeX" onclick="closeModal()">&times;</button>
+    <h2>Eliminar hallazgo${n===1?'':'s'}</h2>
+    <p style="font-size:13.5px;color:var(--text);">¿Confirmas eliminar ${n} hallazgo${n===1?'':'s'} seleccionado${n===1?'':'s'}? Esta acción no se puede deshacer.</p>
+    <div style="display:flex;gap:8px;margin-top:16px;">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-danger btn-sm" onclick="ejecutarEliminacion()">Eliminar definitivamente</button>
+    </div>
+  `;
+  modalBg.classList.add('open');
+}
+
+async function ejecutarEliminacion(){
+  const ids = Array.from(SELECCION_LISTA);
+  closeModal();
+  if(ids.length===0) return;
+  if(STORAGE_MODE === 'remote' && firebaseReady){
+    try{
+      const batch = db.batch();
+      ids.forEach(id => batch.delete(db.collection('hallazgos').doc(id)));
+      await batch.commit();
+      ids.forEach(id => borrarFotosHallazgo(id)); // best-effort, no bloquea la UI
+    }catch(e){
+      console.error(e);
+      toast('No se pudo eliminar: revisa tu conexión e intenta nuevamente');
+      return;
+    }
+  } else {
+    HALLAZGOS = HALLAZGOS.filter(h => !ids.includes(h.id));
+    guardarLocal();
+  }
+  SELECCION_LISTA.clear();
+  toast(`${ids.length} hallazgo${ids.length===1?'':'s'} eliminado${ids.length===1?'':'s'}`);
+  render();
+}
+
+/* Borra las fotos asociadas a un hallazgo en Cloud Storage. Es "best effort":
+   si falla (por ejemplo la carpeta no existe o hay un error de permisos)
+   no interrumpe el resto del flujo de eliminación. */
+async function borrarFotosHallazgo(id){
+  if(!storageRef) return;
+  try{
+    const folder = storageRef.ref().child('hallazgos/'+id);
+    const listado = await folder.listAll();
+    await Promise.all(listado.items.map(item => item.delete().catch(()=>{})));
+  }catch(e){
+    // sin bloquear: puede que la carpeta no exista o no haya fotos
+  }
 }
 
 /* ================= DETALLE / MODAL ================= */
@@ -886,6 +1042,7 @@ function openDetail(id){
       <span class="badge ${h.estado}">${ESTADO_LABEL[h.estado]}</span>
     </div>
     ${h.codigo_grifo ? `<div class="mono" style="font-size:12px;color:var(--text-soft);margin-bottom:8px;">Grifo ${h.codigo_grifo}${h.modelo_grifo?` · ${h.modelo_grifo}`:''}${h.diametro_conexion?` · Ø${h.diametro_conexion}mm`:''}${h.localidad||h.comuna?` · ${[h.localidad,h.comuna].filter(Boolean).join(', ')}`:''}${h.ano_instalacion?` · instalado ${h.ano_instalacion}`:''}</div>` : ''}
+    ${h.tipo_hallazgo ? `<div class="mono" style="font-size:12px;color:var(--text-soft);margin-bottom:8px;">${h.tipo_elemento==='camara'?'Cámara':'Grifo'} · ${h.tipo_hallazgo}${h.requiere_pintura==='si' ? ' · Requiere pintura' : ''}</div>` : ''}
     <p style="font-size:13.5px;color:var(--text);">${h.descripcion || '<em>Sin descripción</em>'}</p>
 
     <div class="detail-imgs">
@@ -1030,13 +1187,14 @@ function construirReporteHTML(){
       <tr>
         <td class="mono">${h.id}</td>
         <td class="mono">${h.codigo_grifo || '—'}</td>
+        <td>${h.tipo_hallazgo || '—'}${h.requiere_pintura==='si' ? ' (req. pintura)' : ''}</td>
         <td>${h.direccion}</td>
         <td><span class="badge ${h.estado}">${ESTADO_LABEL[h.estado]}</span></td>
         <td>${fmtDate(h.fecha_creacion)}</td>
         <td>${h.comentarios.length ? h.comentarios[h.comentarios.length-1].texto : '—'}</td>
       </tr>`).join('');
     return `<h3 style="color:${color}">${etiqueta} <span class="mono" style="font-size:12px;color:var(--text-soft);font-weight:400;">(${items.length} hallazgo${items.length===1?'':'s'})</span></h3>
-      <table><thead><tr><th>ID</th><th>Grifo</th><th>Dirección</th><th>Estado</th><th>Registrado</th><th>Último avance</th></tr></thead>
+      <table><thead><tr><th>ID</th><th>Grifo</th><th>Hallazgo</th><th>Dirección</th><th>Estado</th><th>Registrado</th><th>Último avance</th></tr></thead>
       <tbody>${rows}</tbody></table>`;
   }
 
