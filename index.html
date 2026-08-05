@@ -1310,6 +1310,7 @@ function renderLista(){
     </div>
     <div class="list-actions" id="listActions" style="display:none;">
       <span id="seleccionCount"></span>
+      <button class="btn btn-amber btn-sm" onclick="imprimirReporteSeleccionados()">🖨️ Imprimir seleccionados</button>
       <button class="btn btn-danger btn-sm" onclick="confirmarEliminacion()">🗑 Eliminar seleccionados</button>
       <button class="btn btn-ghost btn-sm" onclick="limpiarSeleccion()">Cancelar selección</button>
     </div>
@@ -1645,8 +1646,9 @@ async function actualizarHallazgo(id){
 /* ---------------- REPORTE EJECUTIVO ---------------- */
 /* Construye el HTML del informe ejecutivo (se reutiliza tanto para la
    descarga en HTML como para la generación de PDF vía impresión). */
-function construirReporteHTML(){
-  const conHallazgo = HALLAZGOS.filter(tieneHallazgoReal);
+function construirReporteHTML(soloIds){
+  const baseHallazgos = HALLAZGOS.filter(tieneHallazgoReal);
+  const conHallazgo = soloIds ? baseHallazgos.filter(h=>soloIds.includes(h.id)) : baseHallazgos;
   const total = conHallazgo.length;
   const counts = {directa:0, indirecta:0, senaletica:0};
   const estados = {pendiente:0, en_proceso:0, resuelto:0};
@@ -1665,18 +1667,22 @@ function construirReporteHTML(){
     const rows = items.map(h=>{
       const detalle = obtenerDetalleHallazgos(h);
       const detalleTxt = detalle.length ? detalle.map(d=>`${d.tipo_elemento==='camara'?'Cámara':'Grifo'}: ${d.tipo_hallazgo}`).join('; ') : '—';
+      const fotoPrincipal = h.foto_hallazgo || h.foto_grifo;
+      const ultimoComentario = h.comentarios && h.comentarios.length ? h.comentarios[h.comentarios.length-1] : null;
+      const fotoAvance = ultimoComentario ? (ultimoComentario.foto_despues || ultimoComentario.foto_antes || ultimoComentario.foto) : null;
       return `
       <tr>
         <td class="mono">${h.id}</td>
         <td class="mono">${h.codigo_grifo || '—'}</td>
         <td>${detalleTxt}</td>
+        <td class="fotos-cell">${fotoPrincipal ? `<a href="${fotoPrincipal}" target="_blank" rel="noopener"><img class="mini-foto" src="${fotoPrincipal}" alt="Foto del hallazgo"></a>` : '<span class="sinfoto">Sin foto</span>'}</td>
         <td>${h.direccion}</td>
         <td><span class="badge ${h.estado}">${ESTADO_LABEL[h.estado]}</span></td>
         <td>${fmtDate(h.fecha_creacion)}</td>
-        <td>${h.comentarios.length ? h.comentarios[h.comentarios.length-1].texto : '—'}</td>
+        <td>${ultimoComentario ? `${ultimoComentario.texto || '—'}${fotoAvance ? `<br><a href="${fotoAvance}" target="_blank" rel="noopener"><img class="mini-foto" src="${fotoAvance}" alt="Avance más reciente"></a>` : ''}` : 'Sin avances registrados'}</td>
       </tr>`;}).join('');
     return `<h3 style="color:${color}">${etiqueta} <span class="mono" style="font-size:12px;color:var(--text-soft);font-weight:400;">(${items.length} hallazgo${items.length===1?'':'s'})</span></h3>
-      <table><thead><tr><th>ID</th><th>Grifo</th><th>Hallazgo</th><th>Dirección</th><th>Estado</th><th>Registrado</th><th>Último avance</th></tr></thead>
+      <table><thead><tr><th>ID</th><th>Grifo</th><th>Hallazgo</th><th>Foto</th><th>Dirección</th><th>Estado</th><th>Registrado</th><th>Proceso de solución (último avance)</th></tr></thead>
       <tbody>${rows}</tbody></table>`;
   }
 
@@ -1755,6 +1761,9 @@ th{font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase
 .badge.pendiente{background:#f1eee6;color:#7a7263;}
 .badge.en_proceso{background:#eaf1ec;color:#3f6e46;}
 .badge.resuelto{background:#e3f0e4;color:var(--musgo);}
+.fotos-cell{white-space:nowrap;}
+.mini-foto{width:44px;height:44px;object-fit:cover;border-radius:5px;border:1px solid var(--line);margin-top:3px;vertical-align:middle;}
+.sinfoto{font-size:10.5px;color:var(--text-soft);}
 .conclusion-box{background:var(--ink-2);color:#e8f0f1;border-radius:10px;padding:22px 24px;}
 .conclusion-box p{font-size:14.5px;line-height:1.7;margin:0;}
 footer{text-align:center;font-size:11px;color:var(--text-soft);font-family:'IBM Plex Mono',monospace;padding:24px;}
@@ -1873,24 +1882,52 @@ function descargarReporteEjecutivo(){
    A diferencia del informe ejecutivo (que resume y prioriza para presentar a
    Sacyr Aguas), este reporte lista TODOS los hallazgos registrados, con todos
    sus datos, agrupados por zona (Lampa / Metropolitana). */
-function construirReporteHallazgosHTML(){
+function construirReporteHallazgosHTML(soloIds){
   const fechaReporte = fmtDate(new Date());
-  const conHallazgoRep = HALLAZGOS.filter(tieneHallazgoReal);
+  const baseHallazgosRep = HALLAZGOS.filter(tieneHallazgoReal);
+  const conHallazgoRep = soloIds ? baseHallazgosRep.filter(h=>soloIds.includes(h.id)) : baseHallazgosRep;
   const totalRegistros = conHallazgoRep.length;
   const totalHallazgos = conHallazgoRep.reduce((acc,h)=>acc + Math.max(obtenerDetalleHallazgos(h).length,1), 0);
 
-  /* Miniaturas de las fotos asociadas al registro (visita) al que pertenece
-     cada hallazgo. Las fotos se guardan por registro, no por hallazgo
-     individual, así que un mismo set de fotos puede repetirse en las filas
-     de hallazgos que vienen del mismo registro/visita — eso es intencional,
-     son evidencia de esa visita. */
-  function fotosThumbs(h){
+  /* Fotos del hallazgo propiamente dicho (el "proceso del hallazgo"): la
+     foto del grifo y la del hallazgo detectado, más las fotos específicas
+     de inspección cuando el registro viene de esa pestaña. Se guardan por
+     registro, no por hallazgo individual, así que un mismo set de fotos
+     puede repetirse en las tarjetas que vienen del mismo registro/visita —
+     eso es intencional, son evidencia de esa visita. */
+  function fotosHallazgoIniciales(h){
     const items = [];
+    if(esInspeccion(h)){
+      if(h.foto_grifo_operativo) items.push({url:h.foto_grifo_operativo, label:'Grifo operativo'});
+      if(h.foto_presion) items.push({url:h.foto_presion, label:'Presión del grifo'});
+      if(h.foto_camara) items.push({url:h.foto_camara, label:'Cámara'});
+    }
     if(h.foto_grifo) items.push({url:h.foto_grifo, label:'Foto del grifo'});
     if(h.foto_hallazgo) items.push({url:h.foto_hallazgo, label:'Foto del hallazgo'});
-    if(h.foto_respaldo) items.push({url:h.foto_respaldo, label:'Respaldo de solución'});
+    return items;
+  }
+
+  function galeriaFotos(items){
     if(!items.length) return '<span class="sinfoto">Sin foto</span>';
-    return items.map(f=>`<a href="${f.url}" target="_blank" rel="noopener" title="${f.label}"><img src="${f.url}" alt="${f.label}" loading="lazy"></a>`).join('');
+    return `<div class="foto-galeria">${items.map(f=>`<a href="${f.url}" target="_blank" rel="noopener" class="foto-item" title="${f.label}"><img src="${f.url}" alt="${f.label}" loading="lazy"><span>${f.label}</span></a>`).join('')}</div>`;
+  }
+
+  /* El "proceso de solución": la traza completa de comentarios/avances de
+     este hallazgo, en orden cronológico, con sus fotos de antes/después
+     (o la foto de respaldo única, para registros antiguos). */
+  function bloqueProcesoSolucion(h){
+    if(!h.comentarios || !h.comentarios.length) return '<p class="sin-historial">Sin avances registrados todavía.</p>';
+    return `<div class="timeline">${h.comentarios.map(c=>{
+      const fotos = [];
+      if(c.foto_antes) fotos.push({url:c.foto_antes, label:'Antes'});
+      if(c.foto_despues) fotos.push({url:c.foto_despues, label:'Después'});
+      if(!c.foto_antes && !c.foto_despues && c.foto) fotos.push({url:c.foto, label:'Respaldo'});
+      return `<div class="tl-item">
+        <div class="tl-head"><strong>${c.autor || '—'}</strong> <span class="mono">· ${fmtDate(c.fecha)}</span>${c.estado_nuevo ? ` <span class="badge ${c.estado_nuevo}">${ESTADO_LABEL[c.estado_nuevo]}</span>` : ''}</div>
+        ${c.texto ? `<div class="tl-txt">${c.texto}</div>` : ''}
+        ${fotos.length ? galeriaFotos(fotos) : ''}
+      </div>`;
+    }).join('')}</div>`;
   }
 
   /* Agrupa los registros de una zona por código de grifo, para que la
@@ -1928,24 +1965,32 @@ function construirReporteHallazgosHTML(){
     const direccion = primero.direccion || '—';
     const titulo = grupo.codigo ? grupo.codigo : `Sin código de grifo (registro ${primero.id})`;
 
-    const filasHtml = filas.map((f,i)=>{
+    const tarjetasHtml = filas.map((f,i)=>{
       const crit = criticidadDeDetalle(f.d, f.h);
-      return `<tr>
-      <td class="mono">#${i+1}</td>
-      <td>${f.d.tipo_elemento==='camara'?'Cámara':(f.d.tipo_elemento==='grifo'?'Grifo':'—')}</td>
-      <td>${f.d.tipo_hallazgo}</td>
-      <td><span class="badge ${crit}">${PRIORIDAD_LABEL[crit]}</span></td>
-      <td><span class="badge ${f.h.estado}">${ESTADO_LABEL[f.h.estado]}</span></td>
-      <td>${fmtDate(f.h.fecha_creacion)}</td>
-      <td>${f.h.creado_por || '—'}</td>
-      <td class="fotos-cell">${fotosThumbs(f.h)}</td>
-    </tr>`;}).join('');
+      return `<div class="hallazgo-card">
+        <div class="hc-head">
+          <span class="mono">#${i+1}</span>
+          <span class="hc-titulo">${f.d.tipo_elemento==='camara'?'Cámara':(f.d.tipo_elemento==='grifo'?'Grifo':'—')} · ${f.d.tipo_hallazgo}</span>
+          <span class="badge ${crit}">${PRIORIDAD_LABEL[crit]}</span>
+          <span class="badge ${f.h.estado}">${ESTADO_LABEL[f.h.estado]}</span>
+          <span class="hc-meta">${fmtDate(f.h.fecha_creacion)} · ${f.h.creado_por || '—'}</span>
+        </div>
+        <div class="hc-body">
+          <div class="hc-col">
+            <h5>Proceso del hallazgo</h5>
+            ${galeriaFotos(fotosHallazgoIniciales(f.h))}
+          </div>
+          <div class="hc-col">
+            <h5>Proceso de solución</h5>
+            ${bloqueProcesoSolucion(f.h)}
+          </div>
+        </div>
+      </div>`;}).join('');
 
     return `<div class="grifo-block">
       <h4>Grifo <span class="mono">${titulo}</span> <span class="contador">(${filas.length} hallazgo${filas.length===1?'':'s'})</span></h4>
       <div class="grifo-meta">Ubicación catastro: <strong>${ubicacion}</strong> &nbsp;·&nbsp; Dirección: <strong>${direccion}</strong></div>
-      <table><thead><tr><th>#</th><th>Tipo</th><th>Hallazgo</th><th>Criticidad</th><th>Estado</th><th>Registrado</th><th>Creado por</th><th>Fotos</th></tr></thead>
-      <tbody>${filasHtml}</tbody></table>
+      ${tarjetasHtml}
     </div>`;
   }
 
@@ -1991,12 +2036,26 @@ th{font-family:'IBM Plex Mono',monospace;font-size:9.5px;text-transform:uppercas
 .grifo-block h4 .mono{color:var(--hidrante);}
 .grifo-block .contador{font-size:11px;color:var(--text-soft);font-weight:400;text-transform:none;font-family:'IBM Plex Sans',sans-serif;}
 .grifo-meta{font-size:12px;color:var(--text-soft);margin-bottom:8px;}
-.grifo-block table{background:var(--paper);border-radius:6px;overflow:hidden;}
-.fotos-cell{white-space:nowrap;}
-.fotos-cell img{width:42px;height:42px;object-fit:cover;border-radius:5px;border:1px solid var(--line);margin:1px 3px 1px 0;vertical-align:middle;}
 .sinfoto{font-size:10.5px;color:var(--text-soft);}
+.hallazgo-card{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:10px;}
+.hallazgo-card:last-child{margin-bottom:0;}
+.hc-head{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--line);font-size:12px;}
+.hc-titulo{font-weight:600;}
+.hc-meta{margin-left:auto;font-size:11px;color:var(--text-soft);}
+.hc-body{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:720px){.hc-body{grid-template-columns:1fr;}}
+.hc-col h5{font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:11px;letter-spacing:.04em;color:var(--text-soft);margin:0 0 6px;}
+.foto-galeria{display:flex;flex-wrap:wrap;gap:8px;}
+.foto-item{display:block;text-align:center;text-decoration:none;color:var(--text-soft);font-size:9.5px;width:70px;}
+.foto-item img{width:70px;height:70px;object-fit:cover;border-radius:6px;border:1px solid var(--line);display:block;margin-bottom:3px;}
+.timeline{display:flex;flex-direction:column;gap:8px;}
+.tl-item{background:var(--concrete-2);border-radius:6px;padding:8px 10px;}
+.tl-head{font-size:11.5px;margin-bottom:3px;}
+.tl-head .badge{font-size:9px;padding:2px 7px;}
+.tl-txt{font-size:12px;margin-bottom:6px;}
+.sin-historial{font-size:11.5px;color:var(--text-soft);font-style:italic;margin:0;}
 footer{text-align:center;font-size:11px;color:var(--text-soft);font-family:'IBM Plex Mono',monospace;padding:24px;}
-@media print{ body{background:#fff;} .wrap{padding:14px 8px 30px;} .panel,table{page-break-inside:avoid;} .grifo-block{break-inside:avoid;} }
+@media print{ body{background:#fff;} .wrap{padding:14px 8px 30px;} .panel{page-break-inside:avoid;} .grifo-block,.hallazgo-card{break-inside:avoid;} }
 </style></head>
 <body>
 <header>
@@ -2014,8 +2073,15 @@ footer{text-align:center;font-size:11px;color:var(--text-soft);font-family:'IBM 
 </body></html>`;
 }
 
+/* Respeta la pestaña de zona activa (Todos/Lampa/Metropolitana): si no estás
+   en "Todos", el reporte descargado incluye solo esa zona. */
+function idsSegunFiltroZona(){
+  if(FILTRO_ZONA==='todos') return null;
+  return HALLAZGOS.filter(tieneHallazgoReal).filter(h=>zonaDeHallazgo(h)===FILTRO_ZONA).map(h=>h.id);
+}
+
 function descargarReporteHallazgos(){
-  const html = construirReporteHallazgosHTML();
+  const html = construirReporteHallazgosHTML(idsSegunFiltroZona());
   const blob = new Blob([html], {type:'text/html'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -2027,6 +2093,22 @@ function descargarReporteHallazgos(){
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
   toast('Reporte de hallazgos descargado');
+}
+
+/* Genera el reporte solo con los hallazgos marcados con las casillas del
+   tablero, y abre directamente el diálogo de impresión del navegador
+   (igual que el PDF del reporte ejecutivo), sin descargar un archivo aparte. */
+function imprimirReporteSeleccionados(){
+  if(SELECCION_LISTA.size===0){ toast('Selecciona al menos un hallazgo para imprimir'); return; }
+  const ids = Array.from(SELECCION_LISTA);
+  const html = construirReporteHallazgosHTML(ids);
+  const w = window.open('', '_blank');
+  if(!w){ toast('Habilita las ventanas emergentes del navegador para imprimir'); return; }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+  toast('Elige "Guardar como PDF" o imprime desde el diálogo que se abrirá');
+  setTimeout(()=>{ try{ w.focus(); w.print(); }catch(e){ console.error(e); } }, 1200);
 }
 
 /* ---------------- EXPORTAR A EXCEL ----------------
