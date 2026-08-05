@@ -1297,7 +1297,7 @@ function renderLista(){
   main.innerHTML = `
   <div class="page">
     <div class="page-head">
-      <div><h1>Hallazgos</h1><p>${ROLE==='singemelec' ? 'Registro de hallazgos en terreno' : 'Seguimiento y resolución — Sacyr Aguas'}</p></div>
+      <div><h1>Hallazgos</h1><p>${ROLE==='singemelec' ? 'Registro y resolución de hallazgos en terreno' : 'Seguimiento — Sacyr Aguas (solo lectura)'}</p></div>
       <div>
         <button class="btn btn-amber btn-sm" onclick="descargarReporteHallazgos()">📄 Reporte de hallazgos (HTML)</button>
         <button class="btn btn-amber btn-sm" onclick="exportarExcel()">📊 Exportar a Excel</button>
@@ -1345,7 +1345,7 @@ function renderLista(){
       <td>${nHallazgos ? `${nHallazgos} hallazgo${nHallazgos===1?'':'s'}` : '—'}</td>
       <td>${fmtDate(h.fecha_creacion)}</td>
       <td>${h.creado_por || '—'}</td>
-      <td><button class="btn btn-ghost btn-sm" onclick="openDetail('${h.id}')">${ROLE==='sacyr' ? 'Completar' : 'Ver detalle'}</button></td>
+      <td><button class="btn btn-ghost btn-sm" onclick="openDetail('${h.id}')">${ROLE==='singemelec' ? 'Completar' : 'Ver detalle'}</button></td>
     </tr>`;
   }
 
@@ -1488,7 +1488,7 @@ function openDetail(id){
       ${h.ideal_lat?'<span><i style="background:#3B6E8F"></i>Ubicación ideal</span>':''}
     </div>
 
-    ${ROLE==='sacyr' && h.estado ? `
+    ${ROLE==='singemelec' && h.estado ? `
     <div class="panel" style="margin-top:16px;">
       <h3>Actualizar estado</h3>
       <div class="field">
