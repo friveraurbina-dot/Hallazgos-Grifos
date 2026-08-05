@@ -1903,30 +1903,23 @@ function construirReporteHallazgosHTML(soloIds){
     return `<div class="foto-galeria">${items.map(f=>`<a href="${f.url}" target="_blank" rel="noopener" class="foto-item" title="${f.label}"><img src="${f.url}" alt="${f.label}" loading="lazy"><span>${f.label}</span></a>`).join('')}</div>`;
   }
 
-  /* Todas las fotos de un hallazgo en una sola galería y en orden
-     cronológico: primero las del hallazgo tal como se ingresó, después
-     cada foto de respaldo de solución que se haya subido en el historial
-     (fecha incluida en la etiqueta, para que no se confunda con la del
-     hallazgo). Evita mostrar la misma información dos veces. */
-  function fotosCompletas(h){
-    const items = fotosHallazgoIniciales(h);
-    (h.comentarios||[]).forEach(c=>{
-      if(c.foto_despues) items.push({url:c.foto_despues, label:`Solución (${fmtDate(c.fecha)})`});
-      else if(c.foto_antes) items.push({url:c.foto_antes, label:`Avance (${fmtDate(c.fecha)})`});
-      else if(c.foto) items.push({url:c.foto, label:`Respaldo (${fmtDate(c.fecha)})`});
-    });
-    return items;
-  }
-
   /* El "proceso de solución": la traza completa de comentarios/avances de
-     este hallazgo, en orden cronológico, en texto — las fotos de cada
-     avance ya se muestran arriba en la galería, así que acá no se repiten. */
+     este hallazgo, en orden cronológico — cada entrada con su propia foto
+     de respaldo (la de "después"/solución ejecutada de esa actualización
+     puntual; en registros antiguos puede además traer una de "antes"). */
   function bloqueProcesoSolucion(h){
     if(!h.comentarios || !h.comentarios.length) return '<p class="sin-historial">Sin avances registrados todavía.</p>';
-    return `<div class="timeline">${h.comentarios.map(c=>`<div class="tl-item">
+    return `<div class="timeline">${h.comentarios.map(c=>{
+      const fotos = [];
+      if(c.foto_antes) fotos.push({url:c.foto_antes, label:'Antes'});
+      if(c.foto_despues) fotos.push({url:c.foto_despues, label:'Después'});
+      if(!c.foto_antes && !c.foto_despues && c.foto) fotos.push({url:c.foto, label:'Respaldo'});
+      return `<div class="tl-item">
         <div class="tl-head"><strong>${c.autor || '—'}</strong> <span class="mono">· ${fmtDate(c.fecha)}</span>${c.estado_nuevo ? ` <span class="badge ${c.estado_nuevo}">${ESTADO_LABEL[c.estado_nuevo]}</span>` : ''}</div>
         ${c.texto ? `<div class="tl-txt">${c.texto}</div>` : ''}
-      </div>`).join('')}</div>`;
+        ${fotos.length ? galeriaFotos(fotos) : ''}
+      </div>`;
+    }).join('')}</div>`;
   }
 
   /* Agrupa los registros de una zona por código de grifo, para que la
@@ -1975,11 +1968,11 @@ function construirReporteHallazgosHTML(soloIds){
           <span class="hc-meta">${fmtDate(f.h.fecha_creacion)} · ${f.h.creado_por || '—'}</span>
         </div>
         <div class="hc-section">
-          <h5>Fotografías</h5>
-          ${galeriaFotos(fotosCompletas(f.h))}
+          <h5>Hallazgo detectado en terreno</h5>
+          ${galeriaFotos(fotosHallazgoIniciales(f.h))}
         </div>
         <div class="hc-section">
-          <h5>Historial de avances</h5>
+          <h5>Proceso de solución</h5>
           ${bloqueProcesoSolucion(f.h)}
         </div>
       </div>`;}).join('');
@@ -2003,9 +1996,17 @@ function construirReporteHallazgosHTML(soloIds){
   const metro = conHallazgoRep.filter(h=>zonaDeHallazgo(h)==='metropolitana');
   const sinZona = conHallazgoRep.filter(h=>zonaDeHallazgo(h)==='sin_zona');
 
+  // Datos livianos para el mapa general del informe (un punto por registro)
+  const mapData = conHallazgoRep
+    .filter(h=>typeof h.lat==='number' && typeof h.lng==='number')
+    .map(h=>({lat:h.lat, lng:h.lng, direccion:h.direccion||'Sin dirección', codigo:h.codigo_grifo||null, criticidad:criticidadDeRegistro(h), estado:h.estado}));
+  const mapDataJson = JSON.stringify(mapData).replace(/</g,'\\u003c');
+
   return `<!DOCTYPE html>
 <html lang="es"><head><meta charset="UTF-8"><title>Reporte de Hallazgos en Grifos — ${fechaReporte}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"><\/script>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{--ink:#16323A;--ink-2:#1F4350;--concrete:#EDE7DC;--concrete-2:#F7F4ED;--paper:#fff;--hidrante:#C8334D;--senal:#E2A33D;--tuberia:#3B6E8F;--musgo:#5C8A60;--line:#D9D2C2;--text:#1B2A2E;--text-soft:#5C6B6E;}
@@ -2028,6 +2029,10 @@ th{font-family:'IBM Plex Mono',monospace;font-size:9.5px;text-transform:uppercas
 .badge.pendiente{background:#f1eee6;color:#7a7263;}
 .badge.en_proceso{background:#eaf1ec;color:#3f6e46;}
 .badge.resuelto{background:#e3f0e4;color:var(--musgo);}
+#repMapHallazgos{height:380px;border-radius:8px;border:1px solid var(--line);}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:var(--text-soft);}
+.legend span{display:inline-flex;align-items:center;gap:6px;}
+.legend i{width:10px;height:10px;border-radius:50%;display:inline-block;}
 .grifo-block{border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:14px;background:var(--concrete-2);}
 .grifo-block h4{font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:13.5px;margin:0 0 4px;letter-spacing:.01em;color:var(--ink);}
 .grifo-block h4 .mono{color:var(--hidrante);}
@@ -2061,12 +2066,38 @@ footer{text-align:center;font-size:11px;color:var(--text-soft);font-family:'IBM 
 </header>
 <div class="wrap">
   <div class="panel">
+    <h3 style="margin-top:0;">Mapa de hallazgos</h3>
+    <div id="repMapHallazgos"></div>
+    <div class="legend">
+      <span><i style="background:#C8334D"></i>Operatividad directa</span>
+      <span><i style="background:#E2A33D"></i>Operatividad indirecta/mec.</span>
+      <span><i style="background:#3B6E8F"></i>Señalética/visibilidad</span>
+    </div>
+  </div>
+  <div class="panel">
     ${bloqueZona('Zona Lampa', lampa)}
     ${bloqueZona('Zona Metropolitana', metro)}
     ${sinZona.length ? bloqueZona('Sin zona asignada (sin código de grifo del catastro)', sinZona) : ''}
   </div>
 </div>
 <footer>Reporte completo generado desde el catastro de grifos Singemelec / Sacyr Aguas — no se actualiza automáticamente. Vuelve a generarlo para reflejar el estado más reciente.</footer>
+<script>
+const MAPDATA = ${mapDataJson};
+const PRIORIDAD_COLOR_MAP = {directa:'#C8334D', indirecta:'#E2A33D', senaletica:'#3B6E8F', inmediato:'#C8334D', corto:'#E2A33D', mediano:'#3B6E8F'};
+const ESTADO_LABEL_MAP = {pendiente:'Pendiente', en_proceso:'En proceso', resuelto:'Resuelto'};
+if(MAPDATA.length){
+  const center = [MAPDATA[0].lat, MAPDATA[0].lng];
+  const map = L.map('repMapHallazgos').setView(center, 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
+  MAPDATA.forEach(d=>{
+    const c = PRIORIDAD_COLOR_MAP[d.criticidad] || '#999';
+    L.circleMarker([d.lat, d.lng], {radius:8, color:'#fff', weight:2, fillColor:c, fillOpacity:1}).addTo(map)
+      .bindPopup('<strong>'+(d.codigo ? ('Grifo '+d.codigo+' · ') : '')+d.direccion+'</strong><br>'+(ESTADO_LABEL_MAP[d.estado]||''));
+  });
+} else {
+  document.getElementById('repMapHallazgos').outerHTML = '<p style="font-size:12.5px;color:var(--text-soft);">Sin coordenadas para mostrar en el mapa.</p>';
+}
+<\/script>
 </body></html>`;
 }
 
