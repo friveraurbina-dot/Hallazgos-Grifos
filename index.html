@@ -137,16 +137,6 @@ main{flex:1;overflow-y:auto;padding:24px 28px 60px;}
 }
 .photo-box img{max-width:100%;max-height:160px;border-radius:6px;}
 .photo-box span{font-size:11.5px;color:var(--text-soft);}
-.priority-opts{display:flex;gap:8px;}
-.priority-opts label{flex:1;}
-.priority-opts input{display:none;}
-.priority-opts .opt{
-  display:block;text-align:center;padding:9px 6px;border-radius:7px;border:2px solid var(--line);
-  font-size:12px;font-weight:600;cursor:pointer;color:var(--text-soft);background:#fff;
-}
-.priority-opts input:checked + .opt.inmediato{border-color:var(--hidrante);background:#fdecef;color:var(--hidrante);}
-.priority-opts input:checked + .opt.corto{border-color:var(--senal);background:#fdf3e1;color:#8a6109;}
-.priority-opts input:checked + .opt.mediano{border-color:var(--tuberia);background:#e9f1f5;color:var(--tuberia);}
 
 /* LIST */
 .findings-list{display:flex;flex-direction:column;gap:10px;}
@@ -185,10 +175,12 @@ main{flex:1;overflow-y:auto;padding:24px 28px 60px;}
 .chips-list{display:flex;flex-wrap:wrap;gap:0;}
 .chip{display:inline-flex;align-items:center;gap:6px;background:var(--concrete-2);border:1px solid var(--line);border-radius:16px;padding:5px 8px 5px 12px;font-size:12px;margin:0 6px 6px 0;color:var(--text);}
 .chip button{background:none;border:none;cursor:pointer;color:var(--hidrante);font-weight:700;font-size:15px;line-height:1;padding:0 2px;}
+.chip .dot{display:inline-block;width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.criticidad-auto{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-soft);margin-top:6px;}
 .badge{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:14px;text-transform:uppercase;letter-spacing:.03em;}
-.badge.inmediato{background:#fdecef;color:var(--hidrante);}
-.badge.corto{background:#fdf3e1;color:#8a6109;}
-.badge.mediano{background:#e9f1f5;color:var(--tuberia);}
+.badge.inmediato,.badge.directa{background:#fdecef;color:var(--hidrante);}
+.badge.corto,.badge.indirecta{background:#fdf3e1;color:#8a6109;}
+.badge.mediano,.badge.senaletica{background:#e9f1f5;color:var(--tuberia);}
 .badge.pendiente{background:#f1eee6;color:#7a7263;}
 .badge.en_proceso{background:#eaf1ec;color:#3f6e46;}
 .badge.resuelto{background:#e3f0e4;color:var(--musgo);}
@@ -332,11 +324,78 @@ function zonaDeHallazgo(h){
   return h.comuna === 'LAMPA' ? 'lampa' : 'metropolitana';
 }
 
-const PRIORIDAD_LABEL = {inmediato:'Inmediato', corto:'Corto plazo', mediano:'Mediano plazo'};
-const PRIORIDAD_COLOR = {inmediato:'#C8334D', corto:'#E2A33D', mediano:'#3B6E8F'};
+// Los 3 niveles de criticidad. Se incluyen también las claves antiguas
+// (inmediato/corto/mediano) apuntando a los mismos textos/colores que su
+// equivalente nuevo, para que los hallazgos guardados antes de este cambio
+// se seleccionen y muestren bien sin tener que migrar datos en Firestore.
+const PRIORIDAD_LABEL = {
+  directa:'Operatividad directa', indirecta:'Operatividad indirecta / mecánica', senaletica:'Señalética / visibilidad',
+  inmediato:'Operatividad directa', corto:'Operatividad indirecta / mecánica', mediano:'Señalética / visibilidad'
+};
+const PRIORIDAD_COLOR = {
+  directa:'#C8334D', indirecta:'#E2A33D', senaletica:'#3B6E8F',
+  inmediato:'#C8334D', corto:'#E2A33D', mediano:'#3B6E8F'
+};
+const ORDEN_CRITICIDAD = ['directa','indirecta','senaletica']; // de mayor a menor severidad
+const CRITICIDAD_LEGACY = {inmediato:'directa', corto:'indirecta', mediano:'senaletica'};
 const ESTADO_LABEL = {pendiente:'Pendiente', en_proceso:'En proceso', resuelto:'Resuelto'};
-const HALLAZGOS_GRIFO = ['Vástago agripado','Obturador agripado','Válvula de pie cerrada','Filtración agua','Robo agua','Sin observación'];
-const HALLAZGOS_CAMARA = ['Cámara no visible','Cámara con basura','Tapa cámara agripada','Cámara dañada','Cámara inundada','Sin observación'];
+
+// Catálogo único de hallazgos: cada uno ya trae fijos su criticidad y su
+// tipo de elemento, así ya no se elige "Tipo de elemento" a mano ni la
+// prioridad del registro — se calculan solas a partir de lo seleccionado.
+const CATALOGO_HALLAZGOS = [
+  {nombre:'Válvula de pie cerrada', criticidad:'directa', tipo_elemento:'grifo'},
+  {nombre:'Obturador agripado', criticidad:'directa', tipo_elemento:'grifo'},
+  {nombre:'Vástago inoperativo', criticidad:'directa', tipo_elemento:'grifo'},
+  {nombre:'Robo de agua', criticidad:'directa', tipo_elemento:'grifo'},
+  {nombre:'Vástago rodado', criticidad:'directa', tipo_elemento:'grifo'},
+  {nombre:'Filtración de agua', criticidad:'directa', tipo_elemento:'grifo'},
+  {nombre:'Grifo dañado', criticidad:'directa', tipo_elemento:'grifo'},
+  {nombre:'Tapa de cámara agripada', criticidad:'indirecta', tipo_elemento:'camara'},
+  {nombre:'Cámara no visible', criticidad:'indirecta', tipo_elemento:'camara'},
+  {nombre:'Cámara con basura', criticidad:'indirecta', tipo_elemento:'camara'},
+  {nombre:'Cámara dañada', criticidad:'indirecta', tipo_elemento:'camara'},
+  {nombre:'Cámara Inundada', criticidad:'indirecta', tipo_elemento:'camara'},
+  {nombre:'Tapa boquilla mal estado', criticidad:'indirecta', tipo_elemento:'grifo'},
+  {nombre:'Pintura en mal estado', criticidad:'senaletica', tipo_elemento:'grifo'}
+];
+const CATEGORIAS_CRITICIDAD = [
+  {clave:'directa', titulo:'OPERATIVIDAD DIRECTA'},
+  {clave:'indirecta', titulo:'OPERATIVIDAD INDIRECTA / MECÁNICA'},
+  {clave:'senaletica', titulo:'SEÑALÉTICA / VISIBILIDAD'}
+];
+function hallazgoInfo(nombre){ return CATALOGO_HALLAZGOS.find(x=>x.nombre===nombre); }
+
+/* Criticidad "peor caso" entre varios hallazgos agregados a un mismo
+   registro — así el registro completo queda con la criticidad más alta
+   entre todos sus hallazgos, sin que nadie tenga que elegirla a mano. */
+function criticidadMasSevera(lista){
+  let peor = null;
+  (lista||[]).forEach(d=>{
+    const idx = ORDEN_CRITICIDAD.indexOf(d && d.criticidad);
+    if(idx>-1 && (peor===null || idx < ORDEN_CRITICIDAD.indexOf(peor))) peor = d.criticidad;
+  });
+  return peor || 'senaletica';
+}
+
+/* Normaliza la criticidad de un registro completo (campo h.prioridad),
+   traduciendo las claves antiguas (inmediato/corto/mediano) a las nuevas,
+   para poder agrupar/contar sin duplicar categorías. */
+function criticidadDeRegistro(h){
+  return CRITICIDAD_LEGACY[h.prioridad] || h.prioridad || 'senaletica';
+}
+
+/* Criticidad de un hallazgo individual dentro de un registro: usa la que
+   quedó guardada en el propio detalle si existe: si no (hallazgos
+   guardados antes de este cambio), la busca por nombre en el catálogo
+   actual; si tampoco la encuentra, usa la del registro completo como
+   respaldo final. */
+function criticidadDeDetalle(d, h){
+  if(d && d.criticidad) return d.criticidad;
+  const info = d && hallazgoInfo(d.tipo_hallazgo);
+  if(info) return info.criticidad;
+  return criticidadDeRegistro(h);
+}
 
 function uid(){ return 'H-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2,6).toUpperCase(); }
 function fmtDate(d){ const dt=new Date(d); return dt.toLocaleString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
@@ -506,9 +565,9 @@ function render(){
 function renderDashboard(){
   const main = document.getElementById('main');
   const total = HALLAZGOS.length;
-  const counts = {inmediato:0, corto:0, mediano:0};
+  const counts = {directa:0, indirecta:0, senaletica:0};
   const estados = {pendiente:0, en_proceso:0, resuelto:0};
-  HALLAZGOS.forEach(h=>{ counts[h.prioridad]=(counts[h.prioridad]||0)+1; estados[h.estado]=(estados[h.estado]||0)+1; });
+  HALLAZGOS.forEach(h=>{ const c=criticidadDeRegistro(h); counts[c]=(counts[c]||0)+1; estados[h.estado]=(estados[h.estado]||0)+1; });
 
   main.innerHTML = `
   <div class="page">
@@ -527,9 +586,9 @@ function renderDashboard(){
 
     <div class="kpi-row">
       <div class="kpi"><div class="tab" style="background:var(--ink)"></div><div class="num">${total}</div><div class="lbl">Hallazgos totales</div></div>
-      <div class="kpi"><div class="tab" style="background:var(--hidrante)"></div><div class="num">${counts.inmediato||0}</div><div class="lbl">Prioridad inmediata</div></div>
-      <div class="kpi"><div class="tab" style="background:var(--senal)"></div><div class="num">${counts.corto||0}</div><div class="lbl">Corto plazo</div></div>
-      <div class="kpi"><div class="tab" style="background:var(--tuberia)"></div><div class="num">${counts.mediano||0}</div><div class="lbl">Mediano plazo</div></div>
+      <div class="kpi"><div class="tab" style="background:var(--hidrante)"></div><div class="num">${counts.directa||0}</div><div class="lbl">Operatividad directa</div></div>
+      <div class="kpi"><div class="tab" style="background:var(--senal)"></div><div class="num">${counts.indirecta||0}</div><div class="lbl">Operatividad indirecta/mec.</div></div>
+      <div class="kpi"><div class="tab" style="background:var(--tuberia)"></div><div class="num">${counts.senaletica||0}</div><div class="lbl">Señalética/visibilidad</div></div>
       <div class="kpi"><div class="tab" style="background:var(--musgo)"></div><div class="num">${estados.resuelto||0}</div><div class="lbl">Resueltos</div></div>
     </div>
 
@@ -538,14 +597,14 @@ function renderDashboard(){
         <h3>Mapa georeferenciado de hallazgos</h3>
         <div id="dashMap"></div>
         <div class="legend">
-          <span><i style="background:var(--hidrante)"></i>Inmediato</span>
-          <span><i style="background:var(--senal)"></i>Corto plazo</span>
-          <span><i style="background:var(--tuberia)"></i>Mediano plazo</span>
+          <span><i style="background:var(--hidrante)"></i>Operatividad directa</span>
+          <span><i style="background:var(--senal)"></i>Operatividad indirecta/mec.</span>
+          <span><i style="background:var(--tuberia)"></i>Señalética/visibilidad</span>
         </div>
       </div>
       <div>
         <div class="panel">
-          <h3>Hallazgos por prioridad</h3>
+          <h3>Hallazgos por criticidad</h3>
           <div class="chart-wrap"><canvas id="chartPrioridad"></canvas></div>
         </div>
         <div class="panel">
@@ -572,8 +631,8 @@ function renderDashboard(){
   if(dashChart2) dashChart2.destroy();
   dashChart1 = new Chart(document.getElementById('chartPrioridad'), {
     type:'doughnut',
-    data:{labels:['Inmediato','Corto plazo','Mediano plazo'],
-      datasets:[{data:[counts.inmediato||0,counts.corto||0,counts.mediano||0],
+    data:{labels:['Operatividad directa','Operatividad indirecta/mecánica','Señalética/visibilidad'],
+      datasets:[{data:[counts.directa||0,counts.indirecta||0,counts.senaletica||0],
       backgroundColor:['#C8334D','#E2A33D','#3B6E8F'],borderWidth:2,borderColor:'#fff'}]},
     options:{plugins:{legend:{position:'bottom',labels:{font:{size:11}}}},cutout:'62%',maintainAspectRatio:false}
   });
@@ -602,54 +661,28 @@ function renderNuevo(){
           <datalist id="listaCodigosGrifo">${Object.keys(CATALOGO_GRIFOS).sort().map(c=>`<option value="${c}">`).join('')}</datalist>
           <small id="catalogoInfo">${catalogoGrifosListo ? `Si el código está en el catastro (${Object.keys(CATALOGO_GRIFOS).length} grifos cargados), se completan automáticamente dirección y ubicación.` : 'Catastro de grifos no disponible sin conexión: puedes completar los datos manualmente.'}</small>
         </div>
-        <div class="form-grid">
-          <div class="field">
-            <label>Dirección</label>
-            <input type="text" id="fDireccion" placeholder="Escribe para buscar dirección…" autocomplete="off">
-            <div id="addrSuggestions" style="position:relative;"></div>
-            <small>Autocompletado vía OpenStreetMap. También puedes hacer clic directo en el mapa, o ingresar el código de grifo arriba.</small>
-          </div>
-          <div class="field">
-            <label>Clasificación de prioridad</label>
-            <div class="priority-opts">
-              <label><input type="radio" name="prioridad" value="inmediato" checked><span class="opt inmediato">Inmediato</span></label>
-              <label><input type="radio" name="prioridad" value="corto"><span class="opt corto">Corto plazo</span></label>
-              <label><input type="radio" name="prioridad" value="mediano"><span class="opt mediano">Mediano plazo</span></label>
-            </div>
-          </div>
+        <div class="field">
+          <label>Dirección</label>
+          <input type="text" id="fDireccion" placeholder="Escribe para buscar dirección…" autocomplete="off">
+          <div id="addrSuggestions" style="position:relative;"></div>
+          <small>Autocompletado vía OpenStreetMap. También puedes hacer clic directo en el mapa, o ingresar el código de grifo arriba.</small>
         </div>
 
-        <div class="form-grid">
-          <div class="field">
-            <label>Tipo de elemento</label>
-            <select id="fTipoElemento" onchange="actualizarTipoHallazgo()">
-              <option value="grifo">Grifo</option>
-              <option value="camara">Cámara</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>Hallazgo</label>
-            <select id="fTipoHallazgo"></select>
-          </div>
+        <div class="field">
+          <label>Hallazgo</label>
+          <select id="fTipoHallazgo">
+            ${CATEGORIAS_CRITICIDAD.map(cat=>`<optgroup label="${cat.titulo}">${CATALOGO_HALLAZGOS.filter(x=>x.criticidad===cat.clave).map(x=>`<option value="${x.nombre}">${x.nombre}</option>`).join('')}</optgroup>`).join('')}
+          </select>
+          <small>La criticidad del hallazgo (y del registro) se calcula automáticamente según lo que elijas acá — ya no se selecciona a mano.</small>
         </div>
         <div class="field">
           <button type="button" class="btn btn-ghost btn-sm" onclick="agregarHallazgoDetalle()">+ Agregar hallazgo a este registro</button>
-          <small>Un mismo grifo puede tener más de un hallazgo (de grifo y de cámara). Agrega cada uno y luego guarda el registro completo.</small>
-        </div>
-        <div class="field" id="campoPintura">
-          <label>¿Grifo requiere pintura?</label>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <select id="fRequierePintura" style="max-width:140px;">
-              <option value="no">No</option>
-              <option value="si">Sí</option>
-            </select>
-            <button type="button" class="btn btn-ghost btn-sm" onclick="agregarPinturaDetalle()">+ Agregar como hallazgo</button>
-          </div>
-          <small>El estado de pintura se agrega como un hallazgo del grifo independiente, no ligado a otro hallazgo seleccionado.</small>
+          <small>Un mismo grifo puede tener más de un hallazgo. Agrega cada uno y luego guarda el registro completo.</small>
         </div>
         <div class="field">
           <label>Hallazgos agregados a este registro</label>
           <div id="listaHallazgosAgregados" class="chips-list"></div>
+          <div class="criticidad-auto" id="criticidadAutoInfo"></div>
         </div>
 
         <div class="field">
@@ -740,49 +773,21 @@ function renderNuevo(){
     e.target.value = e.target.value.trim().toUpperCase();
   });
 
-  actualizarTipoHallazgo();
   renderListaHallazgosAgregados();
-}
-
-/* Llena el menú desplegable "Hallazgo" según el tipo de elemento elegido
-   (Grifo o Cámara) y muestra/oculta la pregunta de pintura, que solo
-   aplica a grifos. */
-function actualizarTipoHallazgo(){
-  const tipo = document.getElementById('fTipoElemento').value;
-  const sel = document.getElementById('fTipoHallazgo');
-  const opciones = tipo === 'grifo' ? HALLAZGOS_GRIFO : HALLAZGOS_CAMARA;
-  sel.innerHTML = opciones.map(o=>`<option value="${o}">${o}</option>`).join('');
-  const campoPintura = document.getElementById('campoPintura');
-  if(campoPintura) campoPintura.style.display = (tipo==='grifo') ? '' : 'none';
 }
 
 /* Un mismo registro (una misma visita a un grifo) puede tener más de un
-   hallazgo — por ejemplo uno de grifo y otro de cámara. Cada clic en
-   "+ Agregar hallazgo a este registro" suma la combinación tipo+hallazgo
-   actualmente seleccionada a `hallazgosAgregados`, que se guarda completa
-   al presionar "Guardar hallazgo". El estado de pintura NO se adjunta acá:
-   se agrega aparte, como su propio hallazgo (ver agregarPinturaDetalle). */
+   hallazgo. Cada clic en "+ Agregar hallazgo a este registro" suma el
+   hallazgo actualmente seleccionado a `hallazgosAgregados` (junto con su
+   tipo de elemento y su criticidad, ambos ya fijos en CATALOGO_HALLAZGOS,
+   no elegidos a mano), y se guarda completo al presionar "Guardar hallazgo". */
 function agregarHallazgoDetalle(){
-  const tipo_elemento = document.getElementById('fTipoElemento').value;
   const tipo_hallazgo = document.getElementById('fTipoHallazgo').value;
-  const yaExiste = hallazgosAgregados.some(h=>h.tipo_elemento===tipo_elemento && h.tipo_hallazgo===tipo_hallazgo);
+  const info = hallazgoInfo(tipo_hallazgo);
+  if(!info) return;
+  const yaExiste = hallazgosAgregados.some(h=>h.tipo_hallazgo===tipo_hallazgo);
   if(yaExiste){ toast('Ese hallazgo ya fue agregado a este registro'); return; }
-  hallazgosAgregados.push({tipo_elemento, tipo_hallazgo, requiere_pintura:null});
-  renderListaHallazgosAgregados();
-  toast('Hallazgo agregado al registro');
-}
-
-/* Agrega el estado de pintura del grifo como un hallazgo propio e
-   independiente (p.ej. "Grifo · Requiere pintura"), sin mezclarlo con
-   ningún otro hallazgo de grifo que se haya agregado (Vástago agripado,
-   Filtración agua, etc.). Solo puede haber un estado de pintura por
-   registro — para cambiarlo, se quita el chip existente y se agrega de nuevo. */
-function agregarPinturaDetalle(){
-  const valor = document.getElementById('fRequierePintura').value; // 'si' | 'no'
-  const tipo_hallazgo = valor === 'si' ? 'Requiere pintura' : 'No requiere pintura';
-  const yaExiste = hallazgosAgregados.some(h=>h.tipo_hallazgo==='Requiere pintura' || h.tipo_hallazgo==='No requiere pintura');
-  if(yaExiste){ toast('Ya agregaste el estado de pintura a este registro; quítalo si quieres cambiarlo'); return; }
-  hallazgosAgregados.push({tipo_elemento:'grifo', tipo_hallazgo, requiere_pintura:valor});
+  hallazgosAgregados.push({tipo_elemento: info.tipo_elemento, tipo_hallazgo, criticidad: info.criticidad});
   renderListaHallazgosAgregados();
   toast('Hallazgo agregado al registro');
 }
@@ -794,16 +799,22 @@ function quitarHallazgoDetalle(i){
 
 function renderListaHallazgosAgregados(){
   const cont = document.getElementById('listaHallazgosAgregados');
+  const info = document.getElementById('criticidadAutoInfo');
   if(!cont) return;
   if(hallazgosAgregados.length===0){
     cont.innerHTML = '<em style="font-size:12px;color:var(--text-soft);">Aún no se ha agregado ningún hallazgo. Agrega al menos uno antes de guardar.</em>';
+    if(info) info.innerHTML = '';
     return;
   }
   cont.innerHTML = hallazgosAgregados.map((h,i)=>`
-    <span class="chip">${h.tipo_elemento==='camara'?'Cámara':'Grifo'} · ${h.tipo_hallazgo}
+    <span class="chip"><i class="dot" style="background:${PRIORIDAD_COLOR[h.criticidad]}"></i>${h.tipo_elemento==='camara'?'Cámara':'Grifo'} · ${h.tipo_hallazgo}
       <button type="button" onclick="quitarHallazgoDetalle(${i})" title="Quitar">&times;</button>
     </span>
   `).join('');
+  if(info){
+    const peor = criticidadMasSevera(hallazgosAgregados);
+    info.innerHTML = `Criticidad de este registro (automática): <span class="badge ${peor}">${PRIORIDAD_LABEL[peor]}</span>`;
+  }
 }
 
 /* Devuelve la lista de hallazgos (grifo/cámara) de un registro, sea que
@@ -938,7 +949,9 @@ async function guardarHallazgo(){
   if(hallazgosAgregados.length===0){ toast('Agrega al menos un hallazgo (grifo o cámara) antes de guardar'); return; }
   if(!document.getElementById('fRevisionOk').checked){ toast('Marca la casilla de revisión antes de guardar'); return; }
   if(!formMarkerActual){ toast('Marca la ubicación real del grifo en el mapa'); return; }
-  const prioridad = document.querySelector('input[name="prioridad"]:checked').value;
+  // La criticidad ya no se elige a mano: es automática, la peor (más
+  // severa) entre todos los hallazgos agregados a este registro.
+  const prioridad = criticidadMasSevera(hallazgosAgregados);
   const llActual = formMarkerActual.getLatLng();
   const llIdeal = formMarkerIdeal ? formMarkerIdeal.getLatLng() : null;
   const id = uid();
@@ -1177,7 +1190,7 @@ function openDetail(id){
       <span class="badge ${h.estado}">${ESTADO_LABEL[h.estado]}</span>
     </div>
     ${h.codigo_grifo ? `<div class="mono" style="font-size:12px;color:var(--text-soft);margin-bottom:8px;">Grifo ${h.codigo_grifo}${h.modelo_grifo?` · ${h.modelo_grifo}`:''}${h.diametro_conexion?` · Ø${h.diametro_conexion}mm`:''}${h.localidad||h.comuna?` · ${[h.localidad,h.comuna].filter(Boolean).join(', ')}`:''}${h.ano_instalacion?` · instalado ${h.ano_instalacion}`:''}</div>` : ''}
-    ${obtenerDetalleHallazgos(h).length ? `<div class="chips-list" style="margin-bottom:8px;">${obtenerDetalleHallazgos(h).map(d=>`<span class="chip" style="cursor:default;">${d.tipo_elemento==='camara'?'Cámara':'Grifo'} · ${d.tipo_hallazgo}</span>`).join('')}</div>` : ''}
+    ${obtenerDetalleHallazgos(h).length ? `<div class="chips-list" style="margin-bottom:8px;">${obtenerDetalleHallazgos(h).map(d=>`<span class="chip" style="cursor:default;"><i class="dot" style="background:${PRIORIDAD_COLOR[criticidadDeDetalle(d,h)]}"></i>${d.tipo_elemento==='camara'?'Cámara':'Grifo'} · ${d.tipo_hallazgo}</span>`).join('')}</div>` : ''}
     <p style="font-size:13.5px;color:var(--text);">${h.descripcion || '<em>Sin descripción</em>'}</p>
 
     <div class="detail-imgs">
@@ -1331,19 +1344,19 @@ async function actualizarHallazgo(id){
    descarga en HTML como para la generación de PDF vía impresión). */
 function construirReporteHTML(){
   const total = HALLAZGOS.length;
-  const counts = {inmediato:0, corto:0, mediano:0};
+  const counts = {directa:0, indirecta:0, senaletica:0};
   const estados = {pendiente:0, en_proceso:0, resuelto:0};
-  HALLAZGOS.forEach(h=>{ counts[h.prioridad]=(counts[h.prioridad]||0)+1; estados[h.estado]=(estados[h.estado]||0)+1; });
+  HALLAZGOS.forEach(h=>{ const c=criticidadDeRegistro(h); counts[c]=(counts[c]||0)+1; estados[h.estado]=(estados[h.estado]||0)+1; });
   const fechaReporte = fmtDate(new Date());
   const pctResuelto = total ? Math.round((estados.resuelto||0)/total*100) : 0;
   const dataJson = JSON.stringify(HALLAZGOS).replace(/</g,'\\u003c');
 
   // Texto de introducción
-  const introTexto = `Singemelec, en su rol de empresa de servicio de inspección de grifos, ha desarrollado un proceso sistemático de levantamiento de hallazgos en terreno para la red de grifos contraparte de Sacyr Aguas. El presente informe resume el estado del catastro a la fecha de emisión, presentando la categorización y priorización de los hallazgos detectados, así como el avance en su resolución por parte de la empresa mandante.`;
+  const introTexto = `Singemelec, en su rol de empresa de servicio de inspección de grifos, ha desarrollado un proceso sistemático de levantamiento de hallazgos en terreno para la red de grifos contraparte de Sacyr Aguas. El presente informe resume el estado del catastro a la fecha de emisión, presentando la categorización y criticidad de los hallazgos detectados, así como el avance en su resolución por parte de la empresa mandante.`;
 
-  // Tablas por prioridad para el desarrollo
+  // Tablas por criticidad para el desarrollo
   function bloquePrioridad(clave, etiqueta, color){
-    const items = HALLAZGOS.filter(h=>h.prioridad===clave);
+    const items = HALLAZGOS.filter(h=>criticidadDeRegistro(h)===clave);
     if(items.length===0) return `<h3 style="color:${color}">${etiqueta} <span class="mono" style="font-size:12px;color:var(--text-soft);font-weight:400;">(0 hallazgos)</span></h3><p style="font-size:13px;color:var(--text-soft);">Sin hallazgos registrados en esta categoría.</p>`;
     const rows = items.map(h=>{
       const detalle = obtenerDetalleHallazgos(h);
@@ -1389,12 +1402,12 @@ function construirReporteHTML(){
 
   // Texto de conclusión, generado a partir del estado real del catastro
   let conclusionTexto = `Del total de ${total} hallazgo${total===1?'':'s'} registrado${total===1?'':'s'} en el catastro, ${estados.resuelto||0} (${pctResuelto}%) se encuentra${(estados.resuelto||0)===1?'':'n'} resuelto${(estados.resuelto||0)===1?'':'s'} por Sacyr Aguas, mientras que ${(estados.pendiente||0)+(estados.en_proceso||0)} permanece${((estados.pendiente||0)+(estados.en_proceso||0))===1?'':'n'} en gestión. `;
-  if((counts.inmediato||0) > 0){
-    conclusionTexto += `Se identifican ${counts.inmediato} hallazgo${counts.inmediato===1?'':'s'} de prioridad inmediata, los cuales requieren atención prioritaria por el riesgo operacional que representan para la red. `;
+  if((counts.directa||0) > 0){
+    conclusionTexto += `Se identifican ${counts.directa} hallazgo${counts.directa===1?'':'s'} de operatividad directa, los cuales requieren atención prioritaria por el riesgo operacional que representan para la red. `;
   } else {
-    conclusionTexto += `No se registran hallazgos de prioridad inmediata pendientes a la fecha. `;
+    conclusionTexto += `No se registran hallazgos de operatividad directa pendientes a la fecha. `;
   }
-  conclusionTexto += `Se recomienda mantener la actualización periódica del catastro y dar seguimiento continuo a los hallazgos de corto y mediano plazo para evitar su escalamiento.`;
+  conclusionTexto += `Se recomienda mantener la actualización periódica del catastro y dar seguimiento continuo a los hallazgos de operatividad indirecta/mecánica y de señalética/visibilidad para evitar su escalamiento.`;
 
   const html = `<!DOCTYPE html>
 <html lang="es"><head><meta charset="UTF-8"><title>Informe Ejecutivo de Hallazgos en Grifos — ${fechaReporte}</title>
@@ -1465,13 +1478,13 @@ footer{text-align:center;font-size:11px;color:var(--text-soft);font-family:'IBM 
   <section>
     <div class="eyebrow">2. Desarrollo</div>
     <h2 class="section-title">Desarrollo, categorización y priorización de hallazgos</h2>
-    <p class="lead">Los hallazgos levantados en terreno se clasifican en tres niveles de prioridad — <strong>Inmediato</strong>, <strong>Corto plazo</strong> y <strong>Mediano plazo</strong> — según la urgencia de intervención requerida. A continuación se presenta el estado general del catastro, su distribución geográfica y el detalle por categoría.</p>
+    <p class="lead">Los hallazgos levantados en terreno se clasifican automáticamente en tres niveles de criticidad — <strong>Operatividad directa</strong>, <strong>Operatividad indirecta / mecánica</strong> y <strong>Señalética / visibilidad</strong> — según el hallazgo puntual detectado, no a criterio manual del inspector. A continuación se presenta el estado general del catastro, su distribución geográfica y el detalle por categoría.</p>
 
     <div class="kpi-row">
       <div class="kpi"><div class="tab" style="background:var(--ink)"></div><div class="num">${total}</div><div class="lbl">Hallazgos totales</div></div>
-      <div class="kpi"><div class="tab" style="background:var(--hidrante)"></div><div class="num">${counts.inmediato||0}</div><div class="lbl">Prioridad inmediata</div></div>
-      <div class="kpi"><div class="tab" style="background:var(--senal)"></div><div class="num">${counts.corto||0}</div><div class="lbl">Corto plazo</div></div>
-      <div class="kpi"><div class="tab" style="background:var(--tuberia)"></div><div class="num">${counts.mediano||0}</div><div class="lbl">Mediano plazo</div></div>
+      <div class="kpi"><div class="tab" style="background:var(--hidrante)"></div><div class="num">${counts.directa||0}</div><div class="lbl">Operatividad directa</div></div>
+      <div class="kpi"><div class="tab" style="background:var(--senal)"></div><div class="num">${counts.indirecta||0}</div><div class="lbl">Operatividad indirecta/mec.</div></div>
+      <div class="kpi"><div class="tab" style="background:var(--tuberia)"></div><div class="num">${counts.senaletica||0}</div><div class="lbl">Señalética/visibilidad</div></div>
       <div class="kpi"><div class="tab" style="background:var(--musgo)"></div><div class="num">${estados.resuelto||0}</div><div class="lbl">Resueltos (${pctResuelto}%)</div></div>
     </div>
 
@@ -1480,13 +1493,13 @@ footer{text-align:center;font-size:11px;color:var(--text-soft);font-family:'IBM 
         <h3 style="margin-top:0;">Mapa georeferenciado de hallazgos</h3>
         <div id="repMap"></div>
         <div class="legend">
-          <span><i style="background:#C8334D"></i>Inmediato</span>
-          <span><i style="background:#E2A33D"></i>Corto plazo</span>
-          <span><i style="background:#3B6E8F"></i>Mediano plazo</span>
+          <span><i style="background:#C8334D"></i>Operatividad directa</span>
+          <span><i style="background:#E2A33D"></i>Operatividad indirecta/mec.</span>
+          <span><i style="background:#3B6E8F"></i>Señalética/visibilidad</span>
         </div>
       </div>
       <div>
-        <div class="panel"><h3 style="margin-top:0;">Por prioridad</h3><div class="chart-wrap"><canvas id="repChart1"></canvas></div></div>
+        <div class="panel"><h3 style="margin-top:0;">Por criticidad</h3><div class="chart-wrap"><canvas id="repChart1"></canvas></div></div>
         <div class="panel"><h3 style="margin-top:0;">Avance de resolución</h3><div class="chart-wrap"><canvas id="repChart2"></canvas></div></div>
       </div>
     </div>
@@ -1494,9 +1507,9 @@ footer{text-align:center;font-size:11px;color:var(--text-soft);font-family:'IBM 
     ${bloqueResumenPorGrifo()}
 
     <div class="panel">
-      ${bloquePrioridad('inmediato','Prioridad inmediata','var(--hidrante)')}
-      ${bloquePrioridad('corto','Corto plazo','#8a6109')}
-      ${bloquePrioridad('mediano','Mediano plazo','var(--tuberia)')}
+      ${bloquePrioridad('directa','Operatividad directa','var(--hidrante)')}
+      ${bloquePrioridad('indirecta','Operatividad indirecta / mecánica','#8a6109')}
+      ${bloquePrioridad('senaletica','Señalética / visibilidad','var(--tuberia)')}
     </div>
   </section>
 
@@ -1510,11 +1523,12 @@ footer{text-align:center;font-size:11px;color:var(--text-soft);font-family:'IBM 
 <footer>Informe estático generado desde el catastro de grifos Singemelec / Sacyr Aguas — no se actualiza automáticamente. Vuelve a generarlo para reflejar el estado más reciente.</footer>
 <script>
 const DATA = ${dataJson};
-const PRIORIDAD_COLOR = {inmediato:'#C8334D', corto:'#E2A33D', mediano:'#3B6E8F'};
-const PRIORIDAD_LABEL = {inmediato:'Inmediato', corto:'Corto plazo', mediano:'Mediano plazo'};
+const PRIORIDAD_COLOR = {directa:'#C8334D', indirecta:'#E2A33D', senaletica:'#3B6E8F', inmediato:'#C8334D', corto:'#E2A33D', mediano:'#3B6E8F'};
+const PRIORIDAD_LABEL = {directa:'Operatividad directa', indirecta:'Operatividad indirecta / mecánica', senaletica:'Señalética / visibilidad', inmediato:'Operatividad directa', corto:'Operatividad indirecta / mecánica', mediano:'Señalética / visibilidad'};
+const CRITICIDAD_LEGACY = {inmediato:'directa', corto:'indirecta', mediano:'senaletica'};
 const ESTADO_LABEL = {pendiente:'Pendiente', en_proceso:'En proceso', resuelto:'Resuelto'};
-const counts = {inmediato:0,corto:0,mediano:0}, estados={pendiente:0,en_proceso:0,resuelto:0};
-DATA.forEach(h=>{counts[h.prioridad]=(counts[h.prioridad]||0)+1; estados[h.estado]=(estados[h.estado]||0)+1;});
+const counts = {directa:0,indirecta:0,senaletica:0}, estados={pendiente:0,en_proceso:0,resuelto:0};
+DATA.forEach(h=>{const c=CRITICIDAD_LEGACY[h.prioridad]||h.prioridad; counts[c]=(counts[c]||0)+1; estados[h.estado]=(estados[h.estado]||0)+1;});
 const center = DATA.length ? [DATA[0].lat, DATA[0].lng] : [-33.0245,-71.5518];
 const map = L.map('repMap').setView(center, DATA.length?12:13);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
@@ -1524,7 +1538,7 @@ DATA.forEach(h=>{
     .bindPopup('<strong>'+h.direccion+'</strong><br>'+PRIORIDAD_LABEL[h.prioridad]+' · '+ESTADO_LABEL[h.estado]);
 });
 new Chart(document.getElementById('repChart1'), {type:'doughnut',
-  data:{labels:['Inmediato','Corto plazo','Mediano plazo'],datasets:[{data:[counts.inmediato||0,counts.corto||0,counts.mediano||0],backgroundColor:['#C8334D','#E2A33D','#3B6E8F'],borderWidth:2,borderColor:'#fff'}]},
+  data:{labels:['Operatividad directa','Operatividad indirecta/mecánica','Señalética/visibilidad'],datasets:[{data:[counts.directa||0,counts.indirecta||0,counts.senaletica||0],backgroundColor:['#C8334D','#E2A33D','#3B6E8F'],borderWidth:2,borderColor:'#fff'}]},
   options:{plugins:{legend:{position:'bottom',labels:{font:{size:11}}}},cutout:'62%',maintainAspectRatio:false}});
 new Chart(document.getElementById('repChart2'), {type:'bar',
   data:{labels:['Pendiente','En proceso','Resuelto'],datasets:[{data:[estados.pendiente||0,estados.en_proceso||0,estados.resuelto||0],backgroundColor:['#cabfa1','#7fa688','#5C8A60'],borderRadius:6}]},
@@ -1609,21 +1623,23 @@ function construirReporteHallazgosHTML(){
     const direccion = primero.direccion || '—';
     const titulo = grupo.codigo ? grupo.codigo : `Sin código de grifo (registro ${primero.id})`;
 
-    const filasHtml = filas.map((f,i)=>`<tr>
+    const filasHtml = filas.map((f,i)=>{
+      const crit = criticidadDeDetalle(f.d, f.h);
+      return `<tr>
       <td class="mono">#${i+1}</td>
       <td>${f.d.tipo_elemento==='camara'?'Cámara':(f.d.tipo_elemento==='grifo'?'Grifo':'—')}</td>
       <td>${f.d.tipo_hallazgo}</td>
-      <td><span class="badge ${f.h.prioridad}">${PRIORIDAD_LABEL[f.h.prioridad]}</span></td>
+      <td><span class="badge ${crit}">${PRIORIDAD_LABEL[crit]}</span></td>
       <td><span class="badge ${f.h.estado}">${ESTADO_LABEL[f.h.estado]}</span></td>
       <td>${fmtDate(f.h.fecha_creacion)}</td>
       <td>${f.h.creado_por || '—'}</td>
       <td class="fotos-cell">${fotosThumbs(f.h)}</td>
-    </tr>`).join('');
+    </tr>`;}).join('');
 
     return `<div class="grifo-block">
       <h4>Grifo <span class="mono">${titulo}</span> <span class="contador">(${filas.length} hallazgo${filas.length===1?'':'s'})</span></h4>
       <div class="grifo-meta">Ubicación catastro: <strong>${ubicacion}</strong> &nbsp;·&nbsp; Dirección: <strong>${direccion}</strong></div>
-      <table><thead><tr><th>#</th><th>Tipo</th><th>Hallazgo</th><th>Prioridad</th><th>Estado</th><th>Registrado</th><th>Creado por</th><th>Fotos</th></tr></thead>
+      <table><thead><tr><th>#</th><th>Tipo</th><th>Hallazgo</th><th>Criticidad</th><th>Estado</th><th>Registrado</th><th>Creado por</th><th>Fotos</th></tr></thead>
       <tbody>${filasHtml}</tbody></table>
     </div>`;
   }
@@ -1659,9 +1675,9 @@ table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:6px;}
 th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;}
 th{font-family:'IBM Plex Mono',monospace;font-size:9.5px;text-transform:uppercase;color:var(--text-soft);letter-spacing:.03em;}
 .badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:12px;text-transform:uppercase;}
-.badge.inmediato{background:#fdecef;color:var(--hidrante);}
-.badge.corto{background:#fdf3e1;color:#8a6109;}
-.badge.mediano{background:#e9f1f5;color:var(--tuberia);}
+.badge.inmediato,.badge.directa{background:#fdecef;color:var(--hidrante);}
+.badge.corto,.badge.indirecta{background:#fdf3e1;color:#8a6109;}
+.badge.mediano,.badge.senaletica{background:#e9f1f5;color:var(--tuberia);}
 .badge.pendiente{background:#f1eee6;color:#7a7263;}
 .badge.en_proceso{background:#eaf1ec;color:#3f6e46;}
 .badge.resuelto{background:#e3f0e4;color:var(--musgo);}
@@ -1731,17 +1747,17 @@ function construirFilasExcel(){
       'Año instalación': h.ano_instalacion || '',
       'Latitud': h.lat || '', 'Longitud': h.lng || '',
       'Latitud ideal': h.ideal_lat || '', 'Longitud ideal': h.ideal_lng || '',
-      'Prioridad': PRIORIDAD_LABEL[h.prioridad] || h.prioridad || '',
       'Estado': ESTADO_LABEL[h.estado] || h.estado || '',
       'Descripción': h.descripcion || '',
       'Último comentario': (h.comentarios && h.comentarios.length) ? h.comentarios[h.comentarios.length-1].texto : '',
       'Fotos adjuntas': [h.foto_grifo,h.foto_hallazgo,h.foto_respaldo].filter(Boolean).length
     };
     if(detalle.length===0){
-      filas.push(Object.assign({}, base, {'Tipo de elemento':'', 'Hallazgo':''}));
+      filas.push(Object.assign({}, base, {'Tipo de elemento':'', 'Hallazgo':'', 'Criticidad': PRIORIDAD_LABEL[criticidadDeRegistro(h)]}));
     } else {
       detalle.forEach(d=>{
-        filas.push(Object.assign({}, base, {'Tipo de elemento': d.tipo_elemento==='camara'?'Cámara':'Grifo', 'Hallazgo': d.tipo_hallazgo}));
+        const crit = criticidadDeDetalle(d, h);
+        filas.push(Object.assign({}, base, {'Tipo de elemento': d.tipo_elemento==='camara'?'Cámara':'Grifo', 'Hallazgo': d.tipo_hallazgo, 'Criticidad': PRIORIDAD_LABEL[crit]}));
       });
     }
   });
@@ -1828,7 +1844,7 @@ function handleCSVImport(evt){
       const lng = parseFloat(cols[idx.lng]);
       if(isNaN(lat) || isNaN(lng)) continue;
       const prioridadRaw = (idx.prioridad>-1 ? cols[idx.prioridad] : '').trim().toLowerCase();
-      const prioridad = ['inmediato','corto','mediano'].includes(prioridadRaw) ? prioridadRaw : 'mediano';
+      const prioridad = ['directa','indirecta','senaletica','inmediato','corto','mediano'].includes(prioridadRaw) ? prioridadRaw : 'indirecta';
       const estadoRaw = (idx.estado>-1 ? cols[idx.estado] : '').trim().toLowerCase();
       const estado = ['pendiente','en_proceso','resuelto'].includes(estadoRaw) ? estadoRaw : 'pendiente';
       nuevos.push({
