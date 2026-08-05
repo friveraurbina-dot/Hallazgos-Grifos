@@ -1499,23 +1499,14 @@ function openDetail(id){
           <option value="resuelto" ${h.estado==='resuelto'?'selected':''}>Resuelto</option>
         </select>
       </div>
-      <div class="form-grid">
-        <div class="field">
-          <label>Foto de respaldo — ANTES de la solución</label>
-          <div class="photo-box" id="boxRespaldoAntes" onclick="document.getElementById('inputRespaldoAntes').click()">
-            <span>Toca para tomar / subir foto</span>
-          </div>
-          <input type="file" id="inputRespaldoAntes" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoRespaldo(event,'antes')">
+      <div class="field">
+        <label>Foto de respaldo — solución ejecutada</label>
+        <div class="photo-box" id="boxRespaldoDespues" onclick="document.getElementById('inputRespaldoDespues').click()">
+          <span>Toca para tomar / subir foto</span>
         </div>
-        <div class="field">
-          <label>Foto de respaldo — DESPUÉS / solución ejecutada</label>
-          <div class="photo-box" id="boxRespaldoDespues" onclick="document.getElementById('inputRespaldoDespues').click()">
-            <span>Toca para tomar / subir foto</span>
-          </div>
-          <input type="file" id="inputRespaldoDespues" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoRespaldo(event,'despues')">
-        </div>
+        <input type="file" id="inputRespaldoDespues" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoRespaldo(event,'despues')">
       </div>
-      <small>Ambas fotos son opcionales e independientes — súbelas cuando correspondan según el avance que estés registrando. Quedan guardadas para siempre en el historial, junto al resto de la traza.</small>
+      <small>La foto del hallazgo ya quedó registrada al ingresarlo — acá solo se sube la foto de respaldo de la solución ya ejecutada. Queda guardada para siempre en el historial, junto al resto de la traza.</small>
       <div class="field">
         <label>Agregar avance / comentario</label>
         <textarea id="nuevoComentario" placeholder="Describe el avance realizado…"></textarea>
@@ -1912,22 +1903,30 @@ function construirReporteHallazgosHTML(soloIds){
     return `<div class="foto-galeria">${items.map(f=>`<a href="${f.url}" target="_blank" rel="noopener" class="foto-item" title="${f.label}"><img src="${f.url}" alt="${f.label}" loading="lazy"><span>${f.label}</span></a>`).join('')}</div>`;
   }
 
+  /* Todas las fotos de un hallazgo en una sola galería y en orden
+     cronológico: primero las del hallazgo tal como se ingresó, después
+     cada foto de respaldo de solución que se haya subido en el historial
+     (fecha incluida en la etiqueta, para que no se confunda con la del
+     hallazgo). Evita mostrar la misma información dos veces. */
+  function fotosCompletas(h){
+    const items = fotosHallazgoIniciales(h);
+    (h.comentarios||[]).forEach(c=>{
+      if(c.foto_despues) items.push({url:c.foto_despues, label:`Solución (${fmtDate(c.fecha)})`});
+      else if(c.foto_antes) items.push({url:c.foto_antes, label:`Avance (${fmtDate(c.fecha)})`});
+      else if(c.foto) items.push({url:c.foto, label:`Respaldo (${fmtDate(c.fecha)})`});
+    });
+    return items;
+  }
+
   /* El "proceso de solución": la traza completa de comentarios/avances de
-     este hallazgo, en orden cronológico, con sus fotos de antes/después
-     (o la foto de respaldo única, para registros antiguos). */
+     este hallazgo, en orden cronológico, en texto — las fotos de cada
+     avance ya se muestran arriba en la galería, así que acá no se repiten. */
   function bloqueProcesoSolucion(h){
     if(!h.comentarios || !h.comentarios.length) return '<p class="sin-historial">Sin avances registrados todavía.</p>';
-    return `<div class="timeline">${h.comentarios.map(c=>{
-      const fotos = [];
-      if(c.foto_antes) fotos.push({url:c.foto_antes, label:'Antes'});
-      if(c.foto_despues) fotos.push({url:c.foto_despues, label:'Después'});
-      if(!c.foto_antes && !c.foto_despues && c.foto) fotos.push({url:c.foto, label:'Respaldo'});
-      return `<div class="tl-item">
+    return `<div class="timeline">${h.comentarios.map(c=>`<div class="tl-item">
         <div class="tl-head"><strong>${c.autor || '—'}</strong> <span class="mono">· ${fmtDate(c.fecha)}</span>${c.estado_nuevo ? ` <span class="badge ${c.estado_nuevo}">${ESTADO_LABEL[c.estado_nuevo]}</span>` : ''}</div>
         ${c.texto ? `<div class="tl-txt">${c.texto}</div>` : ''}
-        ${fotos.length ? galeriaFotos(fotos) : ''}
-      </div>`;
-    }).join('')}</div>`;
+      </div>`).join('')}</div>`;
   }
 
   /* Agrupa los registros de una zona por código de grifo, para que la
@@ -1975,15 +1974,13 @@ function construirReporteHallazgosHTML(soloIds){
           <span class="badge ${f.h.estado}">${ESTADO_LABEL[f.h.estado]}</span>
           <span class="hc-meta">${fmtDate(f.h.fecha_creacion)} · ${f.h.creado_por || '—'}</span>
         </div>
-        <div class="hc-body">
-          <div class="hc-col">
-            <h5>Proceso del hallazgo</h5>
-            ${galeriaFotos(fotosHallazgoIniciales(f.h))}
-          </div>
-          <div class="hc-col">
-            <h5>Proceso de solución</h5>
-            ${bloqueProcesoSolucion(f.h)}
-          </div>
+        <div class="hc-section">
+          <h5>Fotografías</h5>
+          ${galeriaFotos(fotosCompletas(f.h))}
+        </div>
+        <div class="hc-section">
+          <h5>Historial de avances</h5>
+          ${bloqueProcesoSolucion(f.h)}
         </div>
       </div>`;}).join('');
 
@@ -2042,9 +2039,9 @@ th{font-family:'IBM Plex Mono',monospace;font-size:9.5px;text-transform:uppercas
 .hc-head{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--line);font-size:12px;}
 .hc-titulo{font-weight:600;}
 .hc-meta{margin-left:auto;font-size:11px;color:var(--text-soft);}
-.hc-body{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-@media(max-width:720px){.hc-body{grid-template-columns:1fr;}}
-.hc-col h5{font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:11px;letter-spacing:.04em;color:var(--text-soft);margin:0 0 6px;}
+.hc-section{margin-top:12px;}
+.hc-section:first-of-type{margin-top:0;}
+.hc-section h5{font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:11px;letter-spacing:.04em;color:var(--text-soft);margin:0 0 6px;}
 .foto-galeria{display:flex;flex-wrap:wrap;gap:8px;}
 .foto-item{display:block;text-align:center;text-decoration:none;color:var(--text-soft);font-size:9.5px;width:70px;}
 .foto-item img{width:70px;height:70px;object-fit:cover;border-radius:6px;border:1px solid var(--line);display:block;margin-bottom:3px;}
