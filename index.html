@@ -274,10 +274,13 @@ function verificarAcceso(){
     document.getElementById('accessError').style.display = 'block';
   }
 }
-if(sessionStorage.getItem('grifos_access_ok')==='1'){
-  document.getElementById('lockScreen').style.display = 'none';
-  document.getElementById('app').style.display = '';
-}
+/* OJO: la restauración automática de sesión (si sessionStorage ya tiene
+   'grifos_access_ok') se hace en el SEGUNDO bloque <script>, más abajo —
+   NO acá. En este punto del HTML el <div id="app"> todavía no existe (se
+   define después de este script), así que intentar hacer
+   document.getElementById('app').style.display aquí devuelve null y
+   revienta con "Cannot read properties of null (reading 'style')" cada vez
+   que un usuario que ya inició sesión antes recarga la página. */
 </script>
 <div id="app" style="display:none;">
 
@@ -310,6 +313,21 @@ if(sessionStorage.getItem('grifos_access_ok')==='1'){
 <div class="toast" id="toast"></div>
 
 <script>
+/* Restaura la sesión si ya se inició acceso antes en esta pestaña
+   (sessionStorage sobrevive a un refresco de página, incluso uno forzado
+   con Ctrl+Shift+R). Tiene que ir acá, en este segundo bloque <script> —
+   en este punto del HTML el <div id="app"> ya existe (se define arriba,
+   antes de este script), así que es seguro tocar su .style. Ver la nota en
+   el primer <script> de más arriba: hacer esto ahí revienta con
+   "Cannot read properties of null (reading 'style')" porque #app todavía
+   no existía en el DOM en ese punto. */
+if(sessionStorage.getItem('grifos_access_ok')==='1'){
+  const lockScreenEl = document.getElementById('lockScreen');
+  const appEl = document.getElementById('app');
+  if(lockScreenEl) lockScreenEl.style.display = 'none';
+  if(appEl) appEl.style.display = '';
+}
+
 /* ---------------- STATE ---------------- */
 let ROLE = localStorage.getItem('grifos_role') || 'singemelec';
 let HALLAZGOS = [];
@@ -1362,6 +1380,7 @@ function renderLista(){
         <button class="btn btn-amber btn-sm" onclick="descargarReporteHallazgos()">📄 Reporte de hallazgos (HTML)</button>
         <button class="btn btn-amber btn-sm" onclick="exportarExcel()">📊 Exportar a Excel</button>
         <button class="btn btn-amber btn-sm" onclick="exportarExcelReducido()">📊 Excel reducido</button>
+        <button class="btn btn-amber btn-sm" onclick="exportarExcelSacyr()">📊 Excel SACYR</button>
       </div>
     </div>
     <div class="zone-tabs">
@@ -1544,6 +1563,7 @@ async function borrarFotosHallazgo(id){
 function openDetail(id){
   const h = HALLAZGOS.find(x=>x.id===id);
   if(!h) return;
+  limpiarMiniMapasModal();
   pendingFotosMulti = {grifo:[], hallazgo:[], despues:[]};
   const modalBg = document.getElementById('modalBg');
   const modal = document.getElementById('modalContent');
@@ -1633,13 +1653,23 @@ function openDetail(id){
   modalBg.classList.add('open');
   renderGridFotosMulti('despues');
   setTimeout(()=>{
-    const dm = L.map('detailMap').setView([h.lat,h.lng], 16);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(dm);
-    L.circleMarker([h.lat,h.lng],{radius:8,color:'#fff',weight:2,fillColor:'#C8334D',fillOpacity:1}).addTo(dm).bindPopup('Ubicación real');
-    if(h.ideal_lat) L.circleMarker([h.ideal_lat,h.ideal_lng],{radius:8,color:'#fff',weight:2,fillColor:'#3B6E8F',fillOpacity:1}).addTo(dm).bindPopup('Ubicación ideal');
+    // El modal pudo haberse cerrado o reemplazado (p.ej. clic rápido en
+    // "Editar" u otro hallazgo) antes de que este timeout se ejecutara —
+    // si el contenedor ya no está, no hay nada que inicializar.
+    if(!document.getElementById('detailMap')) return;
+    if(typeof h.lat !== 'number' || typeof h.lng !== 'number') return;
+    if(detailMap){ detailMap.remove(); detailMap=null; }
+    detailMap = L.map('detailMap').setView([h.lat,h.lng], 16);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(detailMap);
+    L.circleMarker([h.lat,h.lng],{radius:8,color:'#fff',weight:2,fillColor:'#C8334D',fillOpacity:1}).addTo(detailMap).bindPopup('Ubicación real');
+    if(h.ideal_lat) L.circleMarker([h.ideal_lat,h.ideal_lng],{radius:8,color:'#fff',weight:2,fillColor:'#3B6E8F',fillOpacity:1}).addTo(detailMap).bindPopup('Ubicación ideal');
   }, 50);
 }
-function closeModal(){ const m = document.getElementById('modalBg'); if(m) m.classList.remove('open'); }
+function closeModal(){
+  const m = document.getElementById('modalBg');
+  if(m) m.classList.remove('open');
+  limpiarMiniMapasModal();
+}
 
 async function actualizarHallazgo(id){
   const h = HALLAZGOS.find(x=>x.id===id);
@@ -1708,10 +1738,24 @@ async function actualizarHallazgo(id){
    ingresa los hallazgos en terreno. */
 let editHallazgosDetalle = [];
 let editMarkerActual = null, editMarkerIdeal = null, editMap = null;
+let detailMap = null;
+
+/* Cualquier función que reemplace el contenido del modal (detalle,
+   edición) o lo cierre debe llamar esto primero: si queda un mapa Leaflet
+   "vivo" apuntando a un contenedor que el innerHTML ya destruyó (porque no
+   se limpió a tiempo), Leaflet puede fallar más tarde al intentar
+   reposicionar un tile/marker sobre un elemento que ya no existe
+   ("Cannot read properties of null (reading 'style')"). Se limpia siempre
+   de forma síncrona ANTES de reemplazar el HTML, nunca después. */
+function limpiarMiniMapasModal(){
+  if(detailMap){ detailMap.remove(); detailMap=null; }
+  if(editMap){ editMap.remove(); editMap=null; }
+}
 
 function abrirEdicionHallazgo(id){
   const h = HALLAZGOS.find(x=>x.id===id);
   if(!h) return;
+  limpiarMiniMapasModal();
   editHallazgosDetalle = (h.hallazgos_detalle || []).slice();
   const modal = document.getElementById('modalContent');
   if(!modal) return;
@@ -1760,6 +1804,9 @@ function abrirEdicionHallazgo(id){
   `;
   renderListaHallazgosEdicion();
   setTimeout(()=>{
+    // El modal pudo haberse cerrado o reemplazado (p.ej. "Cancelar" o
+    // "Guardar cambios" ya volvieron al detalle) antes de que esto corriera.
+    if(!document.getElementById('editMiniMap')) return;
     if(editMap){ editMap.remove(); editMap=null; }
     const centro = (typeof h.lat==='number' && typeof h.lng==='number') ? [h.lat,h.lng] : [-33.0245,-71.5518];
     editMap = L.map('editMiniMap').setView(centro, (typeof h.lat==='number')?16:13);
@@ -2127,24 +2174,19 @@ function construirReporteHallazgosHTML(soloIds){
     return `<div class="foto-galeria">${items.map(f=>`<a href="${f.url}" target="_blank" rel="noopener" class="foto-item" title="${f.label}"><img src="${f.url}" alt="${f.label}" loading="lazy"><span>${f.label}</span></a>`).join('')}</div>`;
   }
 
-  /* El "proceso de solución": la traza completa de comentarios/avances de
-     este hallazgo, en orden cronológico — cada entrada con su propia foto
-     de respaldo (la de "después"/solución ejecutada de esa actualización
-     puntual; en registros antiguos puede además traer una de "antes"). */
-  function bloqueProcesoSolucion(h){
-    if(!h.comentarios || !h.comentarios.length) return '<p class="sin-historial">Sin avances registrados todavía.</p>';
-    return `<div class="timeline">${h.comentarios.map(c=>{
-      const fotos = [];
-      if(c.foto_antes) fotos.push({url:c.foto_antes, label:'Antes'});
-      const fotosDespues = (c.fotos_despues && c.fotos_despues.length) ? c.fotos_despues : (c.foto_despues ? [c.foto_despues] : []);
-      fotosDespues.forEach((url,i)=> fotos.push({url, label: fotosDespues.length>1 ? `Después ${i+1}` : 'Después'}));
-      if(!c.foto_antes && fotosDespues.length===0 && c.foto) fotos.push({url:c.foto, label:'Respaldo'});
-      return `<div class="tl-item">
-        <div class="tl-head"><strong>${c.autor || '—'}</strong> <span class="mono">· ${fmtDate(c.fecha)}</span>${c.estado_nuevo ? ` <span class="badge ${c.estado_nuevo}">${ESTADO_LABEL[c.estado_nuevo]}</span>` : ''}</div>
-        ${c.texto ? `<div class="tl-txt">${c.texto}</div>` : ''}
-        ${fotos.length ? galeriaFotos(fotos) : ''}
-      </div>`;
-    }).join('')}</div>`;
+  /* La "solución ejecutada en terreno": solo el último avance registrado
+     (el más reciente comentario/actualización), no la traza completa —
+     así el informe queda limpio con la solución final, en vez de mezclarla
+     con entradas intermedias como el log automático de "ingresado en
+     terreno". Trae su propia foto de respaldo ("después" de la solución). */
+  function bloqueSolucionFinal(h){
+    if(!h.comentarios || !h.comentarios.length) return '<p class="sin-historial">Sin solución registrada todavía.</p>';
+    const ultimo = h.comentarios[h.comentarios.length-1];
+    const fotos = [];
+    const fotosDespues = (ultimo.fotos_despues && ultimo.fotos_despues.length) ? ultimo.fotos_despues : (ultimo.foto_despues ? [ultimo.foto_despues] : []);
+    fotosDespues.forEach((url,i)=> fotos.push({url, label: fotosDespues.length>1 ? `Foto de la solución ${i+1}` : 'Foto de la solución'}));
+    if(!fotosDespues.length && ultimo.foto) fotos.push({url:ultimo.foto, label:'Foto de la solución'});
+    return `<div><span class="gi-label">Solución ejecutada en terreno</span><p class="hc-desc" style="margin:2px 0 8px;">${ultimo.texto || 'Sin descripción registrada.'}</p></div>${galeriaFotos(fotos)}`;
   }
 
   /* Agrupa los registros de una zona por código de grifo, para que la
@@ -2206,19 +2248,21 @@ function construirReporteHallazgosHTML(soloIds){
       return `<div class="hallazgo-card">
         <div class="hc-head">
           <span class="mono">#${i+1}</span>
-          <span class="hc-titulo">${f.d.tipo_elemento==='camara'?'Cámara':(f.d.tipo_elemento==='grifo'?'Grifo':'—')} · ${f.d.tipo_hallazgo}</span>
-          <span class="badge ${crit}">${PRIORIDAD_LABEL[crit]}</span>
           <span class="badge ${f.h.estado}">${ESTADO_LABEL[f.h.estado]}</span>
           <span class="hc-meta">${fmtDate(f.h.fecha_creacion)} · ${f.h.creado_por || '—'}</span>
         </div>
         <div class="hc-section hc-encontrado">
-          <h5>① Hallazgo</h5>
-          ${f.h.descripcion ? `<p class="hc-desc">${f.h.descripcion}</p>` : ''}
-          ${galeriaFotos(fotosHallazgoIniciales(f.h))}
+          <h5>① Detección</h5>
+          <div class="det-fields">
+            <div><span class="gi-label">Hallazgo</span><span class="gi-val">${f.d.tipo_elemento==='camara'?'Cámara':(f.d.tipo_elemento==='grifo'?'Grifo':'—')} · ${f.d.tipo_hallazgo}</span></div>
+            <div><span class="gi-label">Criticidad</span><span class="gi-val"><span class="badge ${crit}">${PRIORIDAD_LABEL[crit]}</span></span></div>
+          </div>
+          ${f.h.descripcion ? `<div style="margin-top:8px;"><span class="gi-label">Descripción</span><p class="hc-desc" style="margin:2px 0 0;">${f.h.descripcion}</p></div>` : ''}
+          <div style="margin-top:10px;"><span class="gi-label">Fotos de la detección</span><div style="margin-top:4px;">${galeriaFotos(fotosHallazgoIniciales(f.h))}</div></div>
         </div>
         ${tieneSolucion ? `<div class="hc-section hc-solucion">
           <h5>② Solución</h5>
-          ${bloqueProcesoSolucion(f.h)}
+          ${bloqueSolucionFinal(f.h)}
         </div>` : ''}
       </div>`;}).join('');
 
@@ -2286,6 +2330,7 @@ th{font-family:'IBM Plex Mono',monospace;font-size:9.5px;text-transform:uppercas
 .hc-head{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--line);font-size:12px;}
 .hc-titulo{font-weight:600;}
 .hc-meta{margin-left:auto;font-size:11px;color:var(--text-soft);}
+.det-fields{display:flex;flex-wrap:wrap;gap:8px 24px;}
 .hc-section{margin-top:12px;padding-left:10px;border-left:3px solid var(--line);}
 .hc-section:first-of-type{margin-top:0;}
 .hc-section h5{font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:11px;letter-spacing:.04em;color:var(--text-soft);margin:0 0 6px;}
@@ -2486,6 +2531,48 @@ function exportarExcelReducido(){
   const stamp = new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
   XLSX.writeFile(wb, `hallazgos-grifos-reducido-${stamp}.xlsx`);
   toast('Excel reducido generado');
+}
+
+const ZONA_LABEL = {lampa:'Lampa', metropolitana:'Metropolitana', sin_zona:'Sin zona'};
+
+/* Excel SACYR: otra variante reducida, pensada para el cliente, con las
+   columnas Código Grifo, Zona, Comuna, Localidad, Dirección, Modelo,
+   Hallazgo, Criticidad y el último comentario/avance registrado — en
+   este orden exacto. Una fila por cada hallazgo detectado del registro. */
+function construirFilasExcelSacyr(){
+  const filas = [];
+  HALLAZGOS.filter(tieneHallazgoReal).forEach(h=>{
+    const detalle = obtenerDetalleHallazgos(h);
+    const ultimoComentario = h.comentarios && h.comentarios.length ? h.comentarios[h.comentarios.length-1] : null;
+    const base = {
+      'Código Grifo': h.codigo_grifo || '',
+      'Zona': ZONA_LABEL[zonaDeHallazgo(h)] || '',
+      'Comuna': h.comuna || '',
+      'Localidad': h.localidad || '',
+      'Dirección': h.direccion || '',
+      'Modelo': h.modelo_grifo || ''
+    };
+    const ultimo = ultimoComentario ? (ultimoComentario.texto || '') : 'Sin avances registrados';
+    if(detalle.length===0){
+      filas.push(Object.assign({}, base, {'Hallazgo':'', 'Criticidad': PRIORIDAD_LABEL[criticidadDeRegistro(h)] || '', 'Último comentario': ultimo}));
+    } else {
+      detalle.forEach(d=>{
+        filas.push(Object.assign({}, base, {'Hallazgo': d.tipo_hallazgo, 'Criticidad': PRIORIDAD_LABEL[criticidadDeDetalle(d,h)] || '', 'Último comentario': ultimo}));
+      });
+    }
+  });
+  return filas;
+}
+
+function exportarExcelSacyr(){
+  if(typeof XLSX === 'undefined'){ toast('No se pudo cargar el módulo de Excel. Revisa tu conexión e intenta nuevamente.'); return; }
+  if(HALLAZGOS.length===0){ toast('No hay hallazgos para exportar'); return; }
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(construirFilasExcelSacyr(), {header:['Código Grifo','Zona','Comuna','Localidad','Dirección','Modelo','Hallazgo','Criticidad','Último comentario']});
+  XLSX.utils.book_append_sheet(wb, ws, 'Hallazgos');
+  const stamp = new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
+  XLSX.writeFile(wb, `hallazgos-grifos-sacyr-${stamp}.xlsx`);
+  toast('Excel SACYR generado');
 }
 
 /* Genera el informe ejecutivo en PDF: abre el mismo informe en una pestaña
