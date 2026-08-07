@@ -310,7 +310,7 @@ function verificarAcceso(){
   <div class="body-grid">
     <nav class="rail">
       <button class="navbtn active" data-page="dashboard" onclick="goPage('dashboard')">Tablero ejecutivo</button>
-      <button class="navbtn" data-page="inspecciones" onclick="goPage('inspecciones')">Inspecciones</button>
+      <button class="navbtn" data-page="inspecciones" id="navInspecciones" onclick="goPage('inspecciones')">Inspecciones</button>
       <button class="navbtn" data-page="nuevo" id="navNuevo" onclick="goPage('nuevo')">Nuevo hallazgo</button>
       <button class="navbtn" data-page="lista" onclick="goPage('lista')">Hallazgos</button>
       <div class="rail-foot" id="railFoot">v1.0 · datos compartidos<br>entre ambas empresas</div>
@@ -593,8 +593,14 @@ function setRole(r){
   updateRolePills();
   const navNuevo = document.getElementById('navNuevo');
   navNuevo.style.display = (r==='singemelec') ? 'block' : 'none';
-  // if sacyr was on nuevo, kick back to dashboard
-  if(r==='sacyr' && currentPage==='nuevo') goPage('dashboard');
+  // Sacyr es de solo lectura sobre hallazgos y no participa de las
+  // inspecciones diarias de terreno (eso es un flujo interno de Singemelec)
+  // — pedido explícito del usuario: Sacyr solo debe ver Tablero ejecutivo y
+  // Hallazgos.
+  const navInspecciones = document.getElementById('navInspecciones');
+  navInspecciones.style.display = (r==='singemelec') ? 'block' : 'none';
+  // if sacyr was on nuevo o inspecciones, kick back to dashboard
+  if(r==='sacyr' && (currentPage==='nuevo' || currentPage==='inspecciones')) goPage('dashboard');
   else render();
 }
 function updateRolePills(){
@@ -1543,7 +1549,7 @@ function renderLista(){
       <span id="seleccionCount"></span>
       <button class="btn btn-amber btn-sm" onclick="descargarReporteHallazgos(Array.from(SELECCION_LISTA))">⬇ Descargar seleccionados (HTML)</button>
       <button class="btn btn-amber btn-sm" onclick="imprimirReporteSeleccionados()">🖨️ Imprimir seleccionados</button>
-      <button class="btn btn-danger btn-sm" onclick="confirmarEliminacion()">🗑 Eliminar seleccionados</button>
+      ${ROLE==='singemelec' ? `<button class="btn btn-danger btn-sm" onclick="confirmarEliminacion()">🗑 Eliminar seleccionados</button>` : ''}
       <button class="btn btn-ghost btn-sm" onclick="limpiarSeleccion()">Cancelar selección</button>
     </div>
     <div class="estado-board" id="findingsList"></div>
@@ -1563,9 +1569,9 @@ function renderLista(){
   // plana, para poder ver de un vistazo cuántos van en cada etapa. Al abrir
   // el detalle y guardar una actualización, el hallazgo cambia de tabla solo.
   const COLUMNAS_ESTADO = [
-    {clave:'pendiente', titulo:'🆕 Nuevos', sub:'Recién ingresados por Singemelec, sin avance de Sacyr aún.'},
-    {clave:'en_proceso', titulo:'🔧 En proceso', sub:'Con avance registrado, todavía no resueltos.'},
-    {clave:'resuelto', titulo:'✅ Ejecutados', sub:'Resueltos, con respaldo de la solución.'}
+    {clave:'pendiente', titulo:'🆕 Nuevos', tituloPlano:'Nuevos', sub:'Recién ingresados por Singemelec, sin avance de Sacyr aún.'},
+    {clave:'en_proceso', titulo:'🔧 En proceso', tituloPlano:'En proceso', sub:'Con avance registrado, todavía no resueltos.'},
+    {clave:'resuelto', titulo:'✅ Ejecutados', tituloPlano:'Ejecutados', sub:'Resueltos, con respaldo de la solución.'}
   ];
 
   // Código de grifo primero: es el dato principal para Singemelec/Sacyr,
@@ -1587,12 +1593,20 @@ function renderLista(){
 
   board.innerHTML = COLUMNAS_ESTADO.map(col=>{
     const items = hallazgosFiltrados.filter(h=>h.estado===col.clave);
+    // Checkbox "por bloque" en el encabezado de cada tabla (Nuevos/En
+    // proceso/Ejecutados): selecciona o quita de la selección solo los
+    // hallazgos de ESA columna (con los filtros activos), sin tocar la
+    // selección de las otras dos columnas — pedido explícito del usuario,
+    // además de "seleccionar todo" (las tres tablas juntas) y la selección
+    // individual fila por fila.
+    const idsBloque = items.map(h=>h.id);
+    const bloqueSeleccionado = idsBloque.length>0 && idsBloque.every(id=>SELECCION_LISTA.has(id));
     return `<div class="estado-col">
       <h2>${col.titulo} <span class="count">${items.length}</span></h2>
       <p class="sub">${col.sub}</p>
       <div class="estado-table-wrap">
         <table class="estado-table">
-          <thead><tr><th></th><th>Código</th><th>Comuna</th><th>Dirección</th><th>Prioridad</th><th>Hallazgos</th><th>Registrado</th><th></th></tr></thead>
+          <thead><tr><th><input type="checkbox" title="Seleccionar todo este bloque (${col.tituloPlano})" ${idsBloque.length===0?'disabled':''} onchange="toggleSeleccionarBloque('${col.clave}', this.checked)" ${bloqueSeleccionado?'checked':''}></th><th>Código</th><th>Comuna</th><th>Dirección</th><th>Prioridad</th><th>Hallazgos</th><th>Registrado</th><th></th></tr></thead>
           <tbody>${items.length ? items.map(filaHallazgo).join('') : `<tr class="empty-row"><td colspan="8">Sin hallazgos aquí con los filtros activos.</td></tr>`}</tbody>
         </table>
       </div>
@@ -1620,6 +1634,18 @@ function toggleSeleccionarTodo(marcar){
   const idsFiltrados = HALLAZGOS.filter(tieneHallazgoReal).filter(pasaFiltrosLista).map(h=>h.id);
   if(marcar) idsFiltrados.forEach(id=>SELECCION_LISTA.add(id));
   else idsFiltrados.forEach(id=>SELECCION_LISTA.delete(id));
+  renderLista();
+}
+
+// Selección "por bloque": marca/desmarca solo los hallazgos de UNA de las
+// tres tablas (Nuevos / En proceso / Ejecutados), respetando los filtros
+// activos, sin tocar lo que esté seleccionado en las otras dos tablas. Útil
+// para, por ejemplo, imprimir/descargar solo los hallazgos "Ejecutados" de
+// un sector como respaldo, sin mezclarlos con los pendientes.
+function toggleSeleccionarBloque(estado, marcar){
+  const idsBloque = HALLAZGOS.filter(tieneHallazgoReal).filter(pasaFiltrosLista).filter(h=>h.estado===estado).map(h=>h.id);
+  if(marcar) idsBloque.forEach(id=>SELECCION_LISTA.add(id));
+  else idsBloque.forEach(id=>SELECCION_LISTA.delete(id));
   renderLista();
 }
 
@@ -1706,6 +1732,10 @@ function actualizarBarraSeleccion(){
    explícito, que es el que realmente dispara el borrado. Así se evita un
    clic accidental que elimine hallazgos sin querer. */
 function confirmarEliminacion(){
+  // Defensa adicional además de ocultar el botón: Sacyr es de solo lectura
+  // y nunca debería poder disparar un borrado, ni siquiera si quedó algún
+  // rastro de este flujo abierto desde antes de cambiar de rol.
+  if(ROLE!=='singemelec') return;
   if(SELECCION_LISTA.size===0) return;
   const modalBg = document.getElementById('modalBg');
   const modal = document.getElementById('modalContent');
@@ -2948,6 +2978,7 @@ function handleCSVImport(evt){
     initFirebase();
     updateRolePills();
     document.getElementById('navNuevo').style.display = (ROLE==='singemelec') ? 'block' : 'none';
+    document.getElementById('navInspecciones').style.display = (ROLE==='singemelec') ? 'block' : 'none';
     cargarCatalogoGrifos();
 
     suscribirHallazgos(()=>{
