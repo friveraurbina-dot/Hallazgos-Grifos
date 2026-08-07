@@ -162,6 +162,12 @@ main{flex:1;overflow-y:auto;padding:24px 28px 60px;}
 .zone-tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
 .zone-tab{font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:12.5px;padding:8px 14px;border-radius:20px;border:1px solid var(--line);background:#fff;color:var(--text-soft);cursor:pointer;transition:.15s;}
 .zone-tab.active{background:var(--ink);border-color:var(--ink);color:#fff;}
+.list-filters{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
+.list-filters label{font-size:11.5px;font-weight:600;color:var(--ink);text-transform:uppercase;letter-spacing:.03em;}
+.list-filters input[type="text"],.list-filters select{
+  font-family:'IBM Plex Sans',sans-serif;padding:8px 12px;border:1px solid var(--line);
+  border-radius:6px;font-size:13px;background:#fff;color:var(--text);min-width:220px;
+}
 .btn-danger{background:var(--hidrante);color:#fff;}
 .btn-danger:hover{background:#a82440;}
 .estado-board{display:flex;flex-direction:column;gap:24px;}
@@ -341,6 +347,8 @@ let catalogoMatchActual = null; // datos del catastro para el código de grifo i
 let SELECCION_LISTA = new Set(); // ids de hallazgos marcados para eliminar en la lista
 let hallazgosAgregados = []; // hallazgos (grifo/cámara) agregados al registro que se está creando
 let FILTRO_ZONA = 'todos'; // 'todos' | 'lampa' | 'metropolitana' — filtro de la pestaña Hallazgos
+let FILTRO_CODIGO = ''; // texto libre para filtrar la pestaña Hallazgos por código de grifo
+let FILTRO_SECTOR_DASHBOARD = 'todos'; // comuna seleccionada (o 'todos') en el Tablero ejecutivo
 
 /* Determina la zona de un hallazgo según la comuna del grifo en el catastro
    (LAMPA => zona Lampa; LO BARNECHEA / COLINA => zona Metropolitana).
@@ -601,14 +609,45 @@ function render(){
 }
 
 /* ================= DASHBOARD ================= */
+// Recuadro amplio que cubre toda la zona de concesión (Lampa, Colina,
+// Santiago) — el mapa del tablero ejecutivo siempre parte con esta vista
+// general como mínimo, y solo se amplía más si hay hallazgos fuera de ella.
+// Referencial (no exacto): esquina suroeste ~ Santiago poniente, esquina
+// noreste ~ Lampa/Colina norte.
+const ZONA_CONCESION_BOUNDS = [[-33.62, -71.02], [-33.05, -70.48]];
+
 function renderDashboard(){
   const main = document.getElementById('main');
   const conHallazgo = HALLAZGOS.filter(tieneHallazgoReal);
-  const total = conHallazgo.length;
-  const totalInspecciones = HALLAZGOS.filter(esInspeccion).length;
+
+  // Sectores (comunas) disponibles para el filtro del tablero — se calculan
+  // desde los datos reales, no están fijos, porque el catastro de grifos se
+  // carga dinámicamente desde Firestore/CSV.
+  const sectores = Array.from(new Set(conHallazgo.map(h=>h.comuna).filter(Boolean))).sort();
+  if(FILTRO_SECTOR_DASHBOARD!=='todos' && !sectores.includes(FILTRO_SECTOR_DASHBOARD)) FILTRO_SECTOR_DASHBOARD='todos';
+
+  // Todo el tablero (KPIs, mapa, gráficos y el TOP de críticos) respeta el
+  // sector elegido, igual que las pestañas de zona en Hallazgos.
+  const hallazgosSector = FILTRO_SECTOR_DASHBOARD==='todos' ? conHallazgo : conHallazgo.filter(h=>h.comuna===FILTRO_SECTOR_DASHBOARD);
+  const total = hallazgosSector.length;
+  const totalInspecciones = HALLAZGOS.filter(h => esInspeccion(h) && (FILTRO_SECTOR_DASHBOARD==='todos' || h.comuna===FILTRO_SECTOR_DASHBOARD)).length;
   const counts = {directa:0, indirecta:0, senaletica:0};
   const estados = {pendiente:0, en_proceso:0, resuelto:0};
-  conHallazgo.forEach(h=>{ const c=criticidadDeRegistro(h); counts[c]=(counts[c]||0)+1; estados[h.estado]=(estados[h.estado]||0)+1; });
+  hallazgosSector.forEach(h=>{ const c=criticidadDeRegistro(h); counts[c]=(counts[c]||0)+1; estados[h.estado]=(estados[h.estado]||0)+1; });
+
+  // TOP críticos a resolver: hallazgos aún no resueltos, ordenados primero
+  // por severidad (directa > indirecta > señalética) y luego por antigüedad
+  // (los pendientes desde hace más tiempo primero dentro de cada severidad).
+  const topCriticos = hallazgosSector
+    .filter(h=>h.estado!=='resuelto')
+    .slice()
+    .sort((a,b)=>{
+      const ca = ORDEN_CRITICIDAD.indexOf(criticidadDeRegistro(a));
+      const cb = ORDEN_CRITICIDAD.indexOf(criticidadDeRegistro(b));
+      if(ca!==cb) return ca-cb;
+      return new Date(a.fecha_creacion) - new Date(b.fecha_creacion);
+    })
+    .slice(0,8);
 
   main.innerHTML = `
   <div class="page">
@@ -625,6 +664,14 @@ function renderDashboard(){
       </div>
     </div>
 
+    <div class="list-filters">
+      <label for="filtroSectorSelect">Sector</label>
+      <select id="filtroSectorSelect" onchange="cambiarFiltroSectorDashboard(this.value)">
+        <option value="todos" ${FILTRO_SECTOR_DASHBOARD==='todos'?'selected':''}>Todos los sectores (${conHallazgo.length})</option>
+        ${sectores.map(s=>`<option value="${s}" ${FILTRO_SECTOR_DASHBOARD===s?'selected':''}>${s} (${conHallazgo.filter(h=>h.comuna===s).length})</option>`).join('')}
+      </select>
+    </div>
+
     <div class="kpi-row">
       <div class="kpi"><div class="tab" style="background:var(--ink)"></div><div class="num">${total}</div><div class="lbl">Hallazgos totales</div></div>
       <div class="kpi"><div class="tab" style="background:var(--hidrante)"></div><div class="num">${counts.directa||0}</div><div class="lbl">Operatividad directa</div></div>
@@ -632,6 +679,23 @@ function renderDashboard(){
       <div class="kpi"><div class="tab" style="background:var(--tuberia)"></div><div class="num">${counts.senaletica||0}</div><div class="lbl">Señalética/visibilidad</div></div>
       <div class="kpi"><div class="tab" style="background:var(--musgo)"></div><div class="num">${estados.resuelto||0}</div><div class="lbl">Resueltos</div></div>
       <div class="kpi"><div class="tab" style="background:var(--acero,#5a7d9a)"></div><div class="num">${totalInspecciones}</div><div class="lbl">Inspecciones registradas</div></div>
+    </div>
+
+    <div class="panel">
+      <h3>🔴 TOP Críticos a resolver</h3>
+      <div class="estado-table-wrap">
+        <table class="estado-table">
+          <thead><tr><th>Código</th><th>Comuna</th><th>Dirección</th><th>Criticidad</th><th>Estado</th><th></th></tr></thead>
+          <tbody>${topCriticos.length ? topCriticos.map(h=>`<tr>
+            <td class="mono" style="font-weight:700;color:var(--ink);">${h.codigo_grifo || '—'}</td>
+            <td>${h.comuna || '—'}</td>
+            <td class="faddr-cell">${h.direccion || 'Sin dirección registrada'}</td>
+            <td><span class="badge ${criticidadDeRegistro(h)}">${PRIORIDAD_LABEL[criticidadDeRegistro(h)]}</span></td>
+            <td><span class="badge ${h.estado}">${ESTADO_LABEL[h.estado]}</span></td>
+            <td><button class="btn btn-ghost btn-sm" onclick="openDetail('${h.id}')">Ver</button></td>
+          </tr>`).join('') : `<tr class="empty-row"><td colspan="6">Sin hallazgos críticos pendientes${FILTRO_SECTOR_DASHBOARD!=='todos' ? ` en ${FILTRO_SECTOR_DASHBOARD}` : ''}.</td></tr>`}</tbody>
+        </table>
+      </div>
     </div>
 
     <div class="grid-2">
@@ -657,12 +721,26 @@ function renderDashboard(){
     </div>
   </div>`;
 
-  // Map
+  // Map — parte siempre con una vista amplia que cubre toda la zona de
+  // concesión (Lampa / Colina / Santiago), no centrada/ajustada al primer
+  // hallazgo como antes. Si hay un sector específico seleccionado, en vez
+  // de la vista amplia se acerca a los puntos de ese sector — así el filtro
+  // realmente sirve para "ir visualizando" sector por sector.
   if(dashMapInstance){ dashMapInstance.remove(); dashMapInstance=null; }
-  const center = conHallazgo.length ? [conHallazgo[0].lat, conHallazgo[0].lng] : [-33.0245, -71.5518]; // Viña del Mar default
-  dashMapInstance = L.map('dashMap').setView(center, conHallazgo.length?12:13);
+  dashMapInstance = L.map('dashMap').setView([-33.33, -70.75], 10); // vista provisoria; se reemplaza abajo con fitBounds
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(dashMapInstance);
-  conHallazgo.forEach(h=>{
+  const puntosSector = hallazgosSector.filter(h=>typeof h.lat==='number' && typeof h.lng==='number');
+  let bounds;
+  if(FILTRO_SECTOR_DASHBOARD==='todos'){
+    bounds = L.latLngBounds(ZONA_CONCESION_BOUNDS);
+    puntosSector.forEach(h=>bounds.extend([h.lat,h.lng]));
+  } else if(puntosSector.length){
+    bounds = L.latLngBounds(puntosSector.map(h=>[h.lat,h.lng]));
+  } else {
+    bounds = L.latLngBounds(ZONA_CONCESION_BOUNDS);
+  }
+  dashMapInstance.fitBounds(bounds, {padding:[30,30], maxZoom:16});
+  puntosSector.forEach(h=>{
     const color = PRIORIDAD_COLOR[h.prioridad] || '#999';
     const marker = L.circleMarker([h.lat,h.lng],{radius:9,color:'#fff',weight:2,fillColor:color,fillOpacity:1}).addTo(dashMapInstance);
     marker.bindPopup(`<strong>${h.direccion||'Sin dirección'}</strong><br>${PRIORIDAD_LABEL[h.prioridad]||'Sin criticidad'} · ${ESTADO_LABEL[h.estado]||'Sin estado'}<br><span style="font-family:monospace;font-size:11px">${h.id}</span>`);
@@ -685,6 +763,11 @@ function renderDashboard(){
       backgroundColor:['#cabfa1','#7fa688','#5C8A60'],borderRadius:6}]},
     options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}},maintainAspectRatio:false}
   });
+}
+
+function cambiarFiltroSectorDashboard(valor){
+  FILTRO_SECTOR_DASHBOARD = valor;
+  renderDashboard();
 }
 
 /* ================= NUEVO HALLAZGO ================= */
@@ -1388,6 +1471,10 @@ function renderLista(){
       <button class="zone-tab ${FILTRO_ZONA==='lampa'?'active':''}" onclick="cambiarFiltroZona('lampa')">Lampa (${countLampa})</button>
       <button class="zone-tab ${FILTRO_ZONA==='metropolitana'?'active':''}" onclick="cambiarFiltroZona('metropolitana')">Metropolitana (${countMetro})</button>
     </div>
+    <div class="list-filters">
+      <label for="filtroCodigoInput">Código de grifo</label>
+      <input type="text" id="filtroCodigoInput" placeholder="Ej: LAM001…" autocomplete="off" value="${FILTRO_CODIGO}" oninput="filtrarPorCodigo(this.value)">
+    </div>
     <div class="list-actions" id="listActions" style="display:none;">
       <span id="seleccionCount"></span>
       <button class="btn btn-amber btn-sm" onclick="descargarReporteHallazgos(Array.from(SELECCION_LISTA))">⬇ Descargar seleccionados (HTML)</button>
@@ -1398,7 +1485,9 @@ function renderLista(){
     <div class="estado-board" id="findingsList"></div>
   </div>`;
   const board = document.getElementById('findingsList');
-  const hallazgosFiltrados = FILTRO_ZONA==='todos' ? conHallazgo : conHallazgo.filter(h=>zonaDeHallazgo(h)===FILTRO_ZONA);
+  const codigoBuscado = FILTRO_CODIGO.trim().toUpperCase();
+  const hallazgosFiltrados = (FILTRO_ZONA==='todos' ? conHallazgo : conHallazgo.filter(h=>zonaDeHallazgo(h)===FILTRO_ZONA))
+    .filter(h => !codigoBuscado || (h.codigo_grifo || '').toUpperCase().includes(codigoBuscado));
   if(conHallazgo.length===0){
     board.innerHTML = `<div class="empty"><div class="display">Sin hallazgos</div>Aún no hay hallazgos en el catastro.</div>`;
     actualizarBarraSeleccion();
@@ -1418,16 +1507,20 @@ function renderLista(){
     {clave:'resuelto', titulo:'✅ Ejecutados', sub:'Resueltos, con respaldo de la solución.'}
   ];
 
+  // Código de grifo primero: es el dato principal para Singemelec/Sacyr,
+  // luego comuna y dirección — "Creado por" se quitó por no ser necesario
+  // de momento, y el botón de acción ahora dice "Editar" en vez de "Completar".
   function filaHallazgo(h){
     const nHallazgos = obtenerDetalleHallazgos(h).length;
     return `<tr data-id="${h.id}" class="${SELECCION_LISTA.has(h.id)?'selected':''}">
       <td><input type="checkbox" title="Seleccionar para eliminar" onchange="toggleSeleccion('${h.id}')" ${SELECCION_LISTA.has(h.id)?'checked':''}></td>
-      <td class="faddr-cell">${h.direccion || 'Sin dirección registrada'}${h.codigo_grifo ? `<div class="mono" style="font-size:10.5px;color:var(--text-soft);font-weight:400;">Grifo ${h.codigo_grifo}</div>` : ''}</td>
+      <td class="mono" style="font-weight:700;color:var(--ink);">${h.codigo_grifo || '—'}</td>
+      <td>${h.comuna || '—'}</td>
+      <td class="faddr-cell">${h.direccion || 'Sin dirección registrada'}</td>
       <td><span class="badge ${h.prioridad}">${PRIORIDAD_LABEL[h.prioridad]}</span></td>
       <td>${nHallazgos ? `${nHallazgos} hallazgo${nHallazgos===1?'':'s'}` : '—'}</td>
       <td>${fmtDate(h.fecha_creacion)}</td>
-      <td>${h.creado_por || '—'}</td>
-      <td><button class="btn btn-ghost btn-sm" onclick="openDetail('${h.id}')">${ROLE==='singemelec' ? 'Completar' : 'Ver detalle'}</button></td>
+      <td><button class="btn btn-ghost btn-sm" onclick="openDetail('${h.id}')">${ROLE==='singemelec' ? 'Editar' : 'Ver detalle'}</button></td>
     </tr>`;
   }
 
@@ -1438,8 +1531,8 @@ function renderLista(){
       <p class="sub">${col.sub}</p>
       <div class="estado-table-wrap">
         <table class="estado-table">
-          <thead><tr><th></th><th>Dirección / Grifo</th><th>Prioridad</th><th>Hallazgos</th><th>Registrado</th><th>Creado por</th><th></th></tr></thead>
-          <tbody>${items.length ? items.map(filaHallazgo).join('') : `<tr class="empty-row"><td colspan="7">Sin hallazgos aquí${FILTRO_ZONA!=='todos' ? ' en esta zona' : ''}.</td></tr>`}</tbody>
+          <thead><tr><th></th><th>Código</th><th>Comuna</th><th>Dirección</th><th>Prioridad</th><th>Hallazgos</th><th>Registrado</th><th></th></tr></thead>
+          <tbody>${items.length ? items.map(filaHallazgo).join('') : `<tr class="empty-row"><td colspan="8">Sin hallazgos aquí${FILTRO_ZONA!=='todos' ? ' en esta zona' : ''}${codigoBuscado ? ` con código "${FILTRO_CODIGO}"` : ''}.</td></tr>`}</tbody>
         </table>
       </div>
     </div>`;
@@ -1464,6 +1557,22 @@ function limpiarSeleccion(){
 function cambiarFiltroZona(zona){
   FILTRO_ZONA = zona;
   renderLista();
+}
+
+// Filtro de texto libre por código de grifo en la pestaña Hallazgos. Como
+// renderLista() vuelve a armar todo el HTML en cada tecla, hay que
+// restaurar manualmente el foco y la posición del cursor del input después
+// de re-renderizar, o el usuario perdería el foco a cada letra escrita.
+function filtrarPorCodigo(valor){
+  FILTRO_CODIGO = valor;
+  const activo = document.activeElement;
+  const teniaFoco = activo && activo.id === 'filtroCodigoInput';
+  const cursor = teniaFoco ? activo.selectionStart : null;
+  renderLista();
+  if(teniaFoco){
+    const el = document.getElementById('filtroCodigoInput');
+    if(el){ el.focus(); if(cursor!=null) el.setSelectionRange(cursor, cursor); }
+  }
 }
 
 function actualizarBarraSeleccion(){
