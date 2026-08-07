@@ -138,6 +138,14 @@ main{flex:1;overflow-y:auto;padding:24px 28px 60px;}
 .photo-box img{max-width:100%;max-height:160px;border-radius:6px;}
 .photo-box span{font-size:11.5px;color:var(--text-soft);}
 
+.multi-foto-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;}
+.multi-foto-item{position:relative;width:88px;height:88px;border-radius:8px;overflow:hidden;border:1px solid var(--line);}
+.multi-foto-item img{width:100%;height:100%;object-fit:cover;display:block;}
+.multi-foto-x{position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,0.65);color:#fff;border:none;font-size:14px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
+.multi-foto-x:hover{background:var(--hidrante);}
+.multi-foto-add{width:88px;height:88px;border-radius:8px;border:1.5px dashed var(--line);background:var(--concrete-2);display:flex;align-items:center;justify-content:center;text-align:center;font-size:11px;color:var(--text-soft);cursor:pointer;padding:4px;}
+.multi-foto-add:hover{border-color:var(--tuberia);color:var(--tuberia);}
+
 /* LIST */
 .findings-list{display:flex;flex-direction:column;gap:10px;}
 .fcard{display:flex;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;}
@@ -717,18 +725,16 @@ function renderNuevo(){
 
         <div class="form-grid">
           <div class="field">
-            <label>Fotografía del grifo</label>
-            <div class="photo-box" id="boxGrifo" onclick="document.getElementById('inputGrifo').click()">
-              <span>Toca para tomar / subir foto</span>
-            </div>
-            <input type="file" id="inputGrifo" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(event,'grifo')">
+            <label>Fotografías del grifo</label>
+            <div id="gridMulti_grifo" class="multi-foto-grid"></div>
+            <input type="file" id="inputMulti_grifo" accept="image/*" capture="environment" multiple style="display:none" onchange="handleFotoMulti(event,'grifo')">
+            <small>Puedes agregar varias fotos.</small>
           </div>
           <div class="field">
-            <label>Fotografía del hallazgo</label>
-            <div class="photo-box" id="boxHallazgo" onclick="document.getElementById('inputHallazgo').click()">
-              <span>Toca para tomar / subir foto</span>
-            </div>
-            <input type="file" id="inputHallazgo" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(event,'hallazgo')">
+            <label>Fotografías del hallazgo</label>
+            <div id="gridMulti_hallazgo" class="multi-foto-grid"></div>
+            <input type="file" id="inputMulti_hallazgo" accept="image/*" capture="environment" multiple style="display:none" onchange="handleFotoMulti(event,'hallazgo')">
+            <small>Puedes agregar varias fotos.</small>
           </div>
         </div>
 
@@ -760,6 +766,9 @@ function renderNuevo(){
    evita mantener dos copias del mismo código. */
 function inicializarFormularioGrifo(fotosIniciales){
   pendingFotos = fotosIniciales;
+  pendingFotosMulti = {grifo:[], hallazgo:[], despues:[]};
+  renderGridFotosMulti('grifo');
+  renderGridFotosMulti('hallazgo');
   formMarkerActual = null; formMarkerIdeal = null;
   catalogoMatchActual = null;
   hallazgosAgregados = [];
@@ -1189,37 +1198,86 @@ function useGPS(){
   }, ()=>toast('No se pudo obtener la ubicación GPS'));
 }
 
+/* Lee un archivo de imagen, le estampa la fecha/hora encima y devuelve el
+   dataURL resultante. Factorizado como Promise para poder reutilizarlo
+   tanto en la carga de una sola foto (handlePhoto) como en la de varias
+   fotos a la vez (handleFotoMulti). */
+function procesarFotoArchivo(file){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = function(e){
+      const img = new Image();
+      img.onload = function(){
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width; canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img,0,0);
+        const stamp = fmtDate(new Date());
+        const fontSize = Math.max(18, Math.round(img.width/40));
+        ctx.font = `600 ${fontSize}px IBM Plex Mono, monospace`;
+        const padding = fontSize*0.6;
+        const textW = ctx.measureText(stamp).width;
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.fillRect(0, img.height-fontSize-padding*2, textW+padding*2, fontSize+padding*2);
+        ctx.fillStyle = '#fff';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(stamp, padding, img.height-fontSize/2-padding);
+        resolve(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.onerror = () => reject(new Error('No se pudo leer la imagen'));
+      img.src = e.target.result;
+    };
+    reader.onerror = () => reject(new Error('No se pudo leer el archivo'));
+    reader.readAsDataURL(file);
+  });
+}
+
 function handlePhoto(evt, tipo){
   const file = evt.target.files[0];
   if(!file) return;
-  const reader = new FileReader();
-  reader.onload = function(e){
-    const img = new Image();
-    img.onload = function(){
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width; canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img,0,0);
-      // stamp timestamp
-      const stamp = fmtDate(new Date());
-      const fontSize = Math.max(18, Math.round(img.width/40));
-      ctx.font = `600 ${fontSize}px IBM Plex Mono, monospace`;
-      const padding = fontSize*0.6;
-      const textW = ctx.measureText(stamp).width;
-      ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      ctx.fillRect(0, img.height-fontSize-padding*2, textW+padding*2, fontSize+padding*2);
-      ctx.fillStyle = '#fff';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(stamp, padding, img.height-fontSize/2-padding);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
-      pendingFotos[tipo] = dataUrl;
-      const BOX_IDS = {grifo:'boxGrifo', hallazgo:'boxHallazgo', operativo:'boxOperativo', presion:'boxPresion', camara:'boxCamara'};
-      const box = document.getElementById(BOX_IDS[tipo] || ('box'+tipo));
-      if(box) box.innerHTML = `<img src="${dataUrl}">`;
-    };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
+  procesarFotoArchivo(file).then(dataUrl=>{
+    pendingFotos[tipo] = dataUrl;
+    const BOX_IDS = {grifo:'boxGrifo', hallazgo:'boxHallazgo', operativo:'boxOperativo', presion:'boxPresion', camara:'boxCamara'};
+    const box = document.getElementById(BOX_IDS[tipo] || ('box'+tipo));
+    if(box) box.innerHTML = `<img src="${dataUrl}">`;
+  });
+}
+
+/* Selector de VARIAS fotos para un mismo campo (a diferencia de
+   pendingFotos/handlePhoto, que guardan una sola). Se usa al ingresar un
+   hallazgo (fotos del grifo y del hallazgo) y al registrar una solución
+   (fotos de respaldo). Cada campo acumula un arreglo de dataURLs en
+   pendingFotosMulti[tipo], mostrado como una grilla de miniaturas con una
+   casilla "+ Agregar foto" y una "x" para quitar cada una antes de guardar. */
+let pendingFotosMulti = {grifo:[], hallazgo:[], despues:[]};
+
+function handleFotoMulti(evt, tipo){
+  const files = Array.from(evt.target.files || []);
+  if(!files.length) return;
+  Promise.all(files.map(procesarFotoArchivo)).then(urls=>{
+    if(!pendingFotosMulti[tipo]) pendingFotosMulti[tipo] = [];
+    pendingFotosMulti[tipo].push(...urls);
+    renderGridFotosMulti(tipo);
+  }).catch(()=> toast('No se pudo procesar una de las fotos'));
+  evt.target.value = '';
+}
+
+function quitarFotoMulti(tipo, idx){
+  if(!pendingFotosMulti[tipo]) return;
+  pendingFotosMulti[tipo].splice(idx,1);
+  renderGridFotosMulti(tipo);
+}
+
+function renderGridFotosMulti(tipo){
+  const cont = document.getElementById('gridMulti_'+tipo);
+  if(!cont) return;
+  const items = pendingFotosMulti[tipo] || [];
+  cont.innerHTML = items.map((url,i)=>`
+    <div class="multi-foto-item">
+      <img src="${url}">
+      <button type="button" class="multi-foto-x" onclick="quitarFotoMulti('${tipo}', ${i})" title="Quitar foto">&times;</button>
+    </div>`).join('') +
+    `<div class="multi-foto-add" onclick="document.getElementById('inputMulti_${tipo}').click()">+ Agregar<br>foto</div>`;
 }
 
 async function guardarHallazgo(){
@@ -1235,9 +1293,9 @@ async function guardarHallazgo(){
   const btn = document.querySelector('#formNuevo button.btn-primary');
   if(btn){ btn.disabled = true; btn.textContent = 'Guardando…'; }
 
-  const [fotoGrifoUrl, fotoHallazgoUrl] = await Promise.all([
-    subirFoto(pendingFotos.grifo, `hallazgos/${id}/grifo.jpg`),
-    subirFoto(pendingFotos.hallazgo, `hallazgos/${id}/hallazgo.jpg`)
+  const [fotosGrifoUrls, fotosHallazgoUrls] = await Promise.all([
+    Promise.all((pendingFotosMulti.grifo||[]).map((url,i)=> subirFoto(url, `hallazgos/${id}/grifo_${i}.jpg`))),
+    Promise.all((pendingFotosMulti.hallazgo||[]).map((url,i)=> subirFoto(url, `hallazgos/${id}/hallazgo_${i}.jpg`)))
   ]);
 
   const codigoGrifo = document.getElementById('fCodigoGrifo').value.trim().toUpperCase() || null;
@@ -1256,8 +1314,10 @@ async function guardarHallazgo(){
     direccion: document.getElementById('fDireccion').value || 'Sin dirección registrada',
     lat: llActual.lat, lng: llActual.lng,
     ideal_lat: llIdeal? llIdeal.lat : null, ideal_lng: llIdeal? llIdeal.lng : null,
-    foto_grifo: fotoGrifoUrl,
-    foto_hallazgo: fotoHallazgoUrl,
+    foto_grifo: fotosGrifoUrls[0] || null,
+    fotos_grifo: fotosGrifoUrls,
+    foto_hallazgo: fotosHallazgoUrls[0] || null,
+    fotos_hallazgo: fotosHallazgoUrls,
     foto_respaldo: null,
     descripcion: document.getElementById('fDescripcion').value,
     prioridad,
@@ -1301,6 +1361,7 @@ function renderLista(){
       <div>
         <button class="btn btn-amber btn-sm" onclick="descargarReporteHallazgos()">📄 Reporte de hallazgos (HTML)</button>
         <button class="btn btn-amber btn-sm" onclick="exportarExcel()">📊 Exportar a Excel</button>
+        <button class="btn btn-amber btn-sm" onclick="exportarExcelReducido()">📊 Excel reducido</button>
       </div>
     </div>
     <div class="zone-tabs">
@@ -1395,24 +1456,50 @@ function actualizarBarraSeleccion(){
   if(count) count.textContent = `${n} hallazgo${n===1?'':'s'} seleccionado${n===1?'':'s'}`;
 }
 
-/* Muestra un modal de confirmación (no usa confirm() nativo) antes de
-   eliminar en forma permanente los hallazgos seleccionados. */
+/* Doble confirmación (no usa confirm() nativo) antes de eliminar en forma
+   permanente los hallazgos seleccionados: un primer paso muestra qué se va
+   a borrar, y solo al confirmar ese paso aparece un segundo paso, más
+   explícito, que es el que realmente dispara el borrado. Así se evita un
+   clic accidental que elimine hallazgos sin querer. */
 function confirmarEliminacion(){
   if(SELECCION_LISTA.size===0) return;
   const modalBg = document.getElementById('modalBg');
   const modal = document.getElementById('modalContent');
   if(!modalBg || !modal) return;
   const n = SELECCION_LISTA.size;
+  const direcciones = Array.from(SELECCION_LISTA).map(id=>{
+    const h = HALLAZGOS.find(x=>x.id===id);
+    return h ? (h.codigo_grifo ? `Grifo ${h.codigo_grifo} — ${h.direccion||'sin dirección'}` : (h.direccion||'sin dirección')) : null;
+  }).filter(Boolean);
   modal.innerHTML = `
     <button class="closeX" onclick="closeModal()">&times;</button>
     <h2>Eliminar hallazgo${n===1?'':'s'}</h2>
-    <p style="font-size:13.5px;color:var(--text);">¿Confirmas eliminar ${n} hallazgo${n===1?'':'s'} seleccionado${n===1?'':'s'}? Esta acción no se puede deshacer.</p>
+    <p style="font-size:13.5px;color:var(--text);">Vas a eliminar ${n} hallazgo${n===1?'':'s'} seleccionado${n===1?'':'s'}:</p>
+    <ul style="font-size:12.5px;color:var(--text-soft);max-height:160px;overflow:auto;margin:0 0 12px;padding-left:18px;">
+      ${direcciones.map(d=>`<li>${d}</li>`).join('')}
+    </ul>
     <div style="display:flex;gap:8px;margin-top:16px;">
       <button class="btn btn-ghost btn-sm" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-danger btn-sm" onclick="ejecutarEliminacion()">Eliminar definitivamente</button>
+      <button class="btn btn-danger btn-sm" onclick="confirmarEliminacionPaso2()">Continuar</button>
     </div>
   `;
   modalBg.classList.add('open');
+}
+
+/* Segundo paso de la confirmación: recién acá se dispara el borrado real. */
+function confirmarEliminacionPaso2(){
+  const modal = document.getElementById('modalContent');
+  if(!modal) return;
+  const n = SELECCION_LISTA.size;
+  modal.innerHTML = `
+    <button class="closeX" onclick="closeModal()">&times;</button>
+    <h2 style="color:var(--hidrante);">¿Confirmas definitivamente?</h2>
+    <p style="font-size:13.5px;color:var(--text);">Esta es la confirmación final: ${n} hallazgo${n===1?'':'s'} se va${n===1?'':'n'} a eliminar de forma <strong>permanente</strong>, junto con sus fotos e historial. Esta acción no se puede deshacer.</p>
+    <div style="display:flex;gap:8px;margin-top:16px;">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-danger btn-sm" onclick="ejecutarEliminacion()">Sí, eliminar definitivamente</button>
+    </div>
+  `;
 }
 
 async function ejecutarEliminacion(){
@@ -1457,11 +1544,19 @@ async function borrarFotosHallazgo(id){
 function openDetail(id){
   const h = HALLAZGOS.find(x=>x.id===id);
   if(!h) return;
-  pendingRespaldoAntes = null;
-  pendingRespaldoDespues = null;
+  pendingFotosMulti = {grifo:[], hallazgo:[], despues:[]};
   const modalBg = document.getElementById('modalBg');
   const modal = document.getElementById('modalContent');
   if(!modalBg || !modal) return;
+
+  function figFoto(url, cap){
+    return `<figure>${url?`<img src="${url}">`:'<div style="background:var(--concrete-2);height:140px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--text-soft);font-size:12px;">Sin foto</div>'}<figcaption>${cap}</figcaption></figure>`;
+  }
+  const fotosGrifoArr = (h.fotos_grifo && h.fotos_grifo.length) ? h.fotos_grifo : (h.foto_grifo ? [h.foto_grifo] : []);
+  const fotosHallazgoArr = (h.fotos_hallazgo && h.fotos_hallazgo.length) ? h.fotos_hallazgo : (h.foto_hallazgo ? [h.foto_hallazgo] : []);
+  const figsGrifo = fotosGrifoArr.length ? fotosGrifoArr.map((u,i)=>figFoto(u, fotosGrifoArr.length>1?`Fotografía del grifo ${i+1}`:'Fotografía del grifo')).join('') : figFoto(null,'Fotografía del grifo');
+  const figsHallazgo = fotosHallazgoArr.length ? fotosHallazgoArr.map((u,i)=>figFoto(u, fotosHallazgoArr.length>1?`Fotografía del hallazgo ${i+1}`:'Fotografía del hallazgo')).join('') : figFoto(null,'Fotografía del hallazgo');
+
   modal.innerHTML = `
     <button class="closeX" onclick="closeModal()">&times;</button>
     <h2>${h.direccion}</h2>
@@ -1469,23 +1564,24 @@ function openDetail(id){
     <div style="display:flex;gap:6px;margin:10px 0;flex-wrap:wrap;">
       ${h.estado ? `<span class="badge ${h.prioridad}">${PRIORIDAD_LABEL[h.prioridad]}</span><span class="badge ${h.estado}">${ESTADO_LABEL[h.estado]}</span>` : `<span class="badge" style="background:var(--concrete-2);color:var(--text-soft);">Inspección sin hallazgo</span>`}
     </div>
-    ${tieneHallazgoReal(h) ? `
     <div style="display:flex;gap:8px;margin:0 0 10px;flex-wrap:wrap;">
+      ${tieneHallazgoReal(h) ? `
       <button class="btn btn-ghost btn-sm" onclick="descargarReporteHallazgos(['${h.id}'])">⬇ Descargar informe (HTML)</button>
-      <button class="btn btn-ghost btn-sm" onclick="imprimirReporteIndividual('${h.id}')">🖨️ Imprimir informe</button>
-    </div>` : ''}
+      <button class="btn btn-ghost btn-sm" onclick="imprimirReporteIndividual('${h.id}')">🖨️ Imprimir informe</button>` : ''}
+      ${ROLE==='singemelec' ? `<button class="btn btn-ghost btn-sm" onclick="abrirEdicionHallazgo('${h.id}')">✏️ Editar</button>` : ''}
+    </div>
     ${h.codigo_grifo ? `<div class="mono" style="font-size:12px;color:var(--text-soft);margin-bottom:8px;">Grifo ${h.codigo_grifo}${h.modelo_grifo?` · ${h.modelo_grifo}`:''}${h.diametro_conexion?` · Ø${h.diametro_conexion}mm`:''}${h.localidad||h.comuna?` · ${[h.localidad,h.comuna].filter(Boolean).join(', ')}`:''}${h.ano_instalacion?` · instalado ${h.ano_instalacion}`:''}</div>` : ''}
     ${esInspeccion(h) ? `<div class="mono" style="font-size:12px;color:var(--text-soft);margin-bottom:8px;">${h.fecha_ejecucion?`Ejecución ${h.fecha_ejecucion}`:''}${h.horario_ejecucion?` · ${h.horario_ejecucion} hrs`:''}${h.presion_grifo?` · Presión ${h.presion_grifo}`:''}</div>` : ''}
     ${obtenerDetalleHallazgos(h).length ? `<div class="chips-list" style="margin-bottom:8px;">${obtenerDetalleHallazgos(h).map(d=>`<span class="chip" style="cursor:default;"><i class="dot" style="background:${PRIORIDAD_COLOR[criticidadDeDetalle(d,h)]}"></i>${d.tipo_elemento==='camara'?'Cámara':'Grifo'} · ${d.tipo_hallazgo}</span>`).join('')}</div>` : ''}
     <p style="font-size:13.5px;color:var(--text);">${h.descripcion || '<em>Sin descripción</em>'}</p>
 
     <div class="detail-imgs">
-      <figure>${h.foto_grifo?`<img src="${h.foto_grifo}">`:'<div style="background:var(--concrete-2);height:140px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--text-soft);font-size:12px;">Sin foto</div>'}<figcaption>Fotografía del grifo</figcaption></figure>
+      ${figsGrifo}
       ${esInspeccion(h) ? `
       <figure>${h.foto_grifo_operativo?`<img src="${h.foto_grifo_operativo}">`:'<div style="background:var(--concrete-2);height:140px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--text-soft);font-size:12px;">Sin foto</div>'}<figcaption>Grifo operativo</figcaption></figure>
       <figure>${h.foto_presion?`<img src="${h.foto_presion}">`:'<div style="background:var(--concrete-2);height:140px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--text-soft);font-size:12px;">Sin foto</div>'}<figcaption>Presión del grifo</figcaption></figure>
       <figure>${h.foto_camara?`<img src="${h.foto_camara}">`:'<div style="background:var(--concrete-2);height:140px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--text-soft);font-size:12px;">Sin foto</div>'}<figcaption>Cámara</figcaption></figure>` : ''}
-      ${(!esInspeccion(h) || tieneHallazgoReal(h)) ? `<figure>${h.foto_hallazgo?`<img src="${h.foto_hallazgo}">`:'<div style="background:var(--concrete-2);height:140px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--text-soft);font-size:12px;">Sin foto</div>'}<figcaption>Fotografía del hallazgo</figcaption></figure>` : ''}
+      ${(!esInspeccion(h) || tieneHallazgoReal(h)) ? figsHallazgo : ''}
       ${h.foto_respaldo ? `<figure><img src="${h.foto_respaldo}"><figcaption>Respaldo de solución</figcaption></figure>` : ''}
     </div>
 
@@ -1506,13 +1602,11 @@ function openDetail(id){
         </select>
       </div>
       <div class="field">
-        <label>Foto de respaldo — solución ejecutada</label>
-        <div class="photo-box" id="boxRespaldoDespues" onclick="document.getElementById('inputRespaldoDespues').click()">
-          <span>Toca para tomar / subir foto</span>
-        </div>
-        <input type="file" id="inputRespaldoDespues" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoRespaldo(event,'despues')">
+        <label>Fotos de respaldo — solución ejecutada</label>
+        <div id="gridMulti_despues" class="multi-foto-grid"></div>
+        <input type="file" id="inputMulti_despues" accept="image/*" capture="environment" multiple style="display:none" onchange="handleFotoMulti(event,'despues')">
       </div>
-      <small>La foto del hallazgo ya quedó registrada al ingresarlo — acá solo se sube la foto de respaldo de la solución ya ejecutada. Queda guardada para siempre en el historial, junto al resto de la traza.</small>
+      <small>La foto del hallazgo ya quedó registrada al ingresarlo — acá se suben las fotos de respaldo de la solución ya ejecutada (puedes agregar varias). Quedan guardadas para siempre en el historial, junto al resto de la traza.</small>
       <div class="field">
         <label>Agregar avance / comentario</label>
         <textarea id="nuevoComentario" placeholder="Describe el avance realizado…"></textarea>
@@ -1526,8 +1620,9 @@ function openDetail(id){
         h.comentarios.map(c=>{
           const fotos = [];
           if(c.foto_antes) fotos.push({url:c.foto_antes, label:'Antes'});
-          if(c.foto_despues) fotos.push({url:c.foto_despues, label:'Después'});
-          if(!c.foto_antes && !c.foto_despues && c.foto) fotos.push({url:c.foto, label:'Respaldo'});
+          const fotosDespuesC = (c.fotos_despues && c.fotos_despues.length) ? c.fotos_despues : (c.foto_despues ? [c.foto_despues] : []);
+          fotosDespuesC.forEach((url,i)=> fotos.push({url, label: fotosDespuesC.length>1 ? `Después ${i+1}` : 'Después'}));
+          if(!c.foto_antes && fotosDespuesC.length===0 && c.foto) fotos.push({url:c.foto, label:'Respaldo'});
           return `<div class="comment">
           <div class="ca">${c.autor} · ${fmtDate(c.fecha)}${c.estado_nuevo ? ` · <span class="badge ${c.estado_nuevo}" style="font-size:9px;">${ESTADO_LABEL[c.estado_nuevo]}</span>` : ''}</div>
           ${c.texto}
@@ -1536,6 +1631,7 @@ function openDetail(id){
     </div>
   `;
   modalBg.classList.add('open');
+  renderGridFotosMulti('despues');
   setTimeout(()=>{
     const dm = L.map('detailMap').setView([h.lat,h.lng], 16);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(dm);
@@ -1545,39 +1641,6 @@ function openDetail(id){
 }
 function closeModal(){ const m = document.getElementById('modalBg'); if(m) m.classList.remove('open'); }
 
-let pendingRespaldoAntes = null;
-let pendingRespaldoDespues = null;
-function handlePhotoRespaldo(evt, cual){
-  const file = evt.target.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = function(e){
-    const img = new Image();
-    img.onload = function(){
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width; canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img,0,0);
-      const stamp = fmtDate(new Date());
-      const fontSize = Math.max(18, Math.round(img.width/40));
-      ctx.font = `600 ${fontSize}px IBM Plex Mono, monospace`;
-      const padding = fontSize*0.6;
-      const textW = ctx.measureText(stamp).width;
-      ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      ctx.fillRect(0, img.height-fontSize-padding*2, textW+padding*2, fontSize+padding*2);
-      ctx.fillStyle = '#fff';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(stamp, padding, img.height-fontSize/2-padding);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
-      const boxId = cual==='antes' ? 'boxRespaldoAntes' : 'boxRespaldoDespues';
-      if(cual==='antes') pendingRespaldoAntes = dataUrl; else pendingRespaldoDespues = dataUrl;
-      document.getElementById(boxId).innerHTML = `<img src="${dataUrl}">`;
-    };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
-}
-
 async function actualizarHallazgo(id){
   const h = HALLAZGOS.find(x=>x.id===id);
   if(!h) return;
@@ -1586,36 +1649,34 @@ async function actualizarHallazgo(id){
   const txt = document.getElementById('nuevoComentario').value.trim();
   const estadoCambio = nuevoEstado !== h.estado;
 
-  const [fotoAntesUrl, fotoDespuesUrl] = await Promise.all([
-    pendingRespaldoAntes ? subirFoto(pendingRespaldoAntes, `hallazgos/${id}/respaldo_antes_${Date.now()}.jpg`) : Promise.resolve(null),
-    pendingRespaldoDespues ? subirFoto(pendingRespaldoDespues, `hallazgos/${id}/respaldo_despues_${Date.now()}.jpg`) : Promise.resolve(null)
-  ]);
+  const fotosDespuesArr = pendingFotosMulti.despues || [];
+  const fotosDespuesUrls = await Promise.all(fotosDespuesArr.map((url,i)=> subirFoto(url, `hallazgos/${id}/respaldo_despues_${Date.now()}_${i}.jpg`)));
 
-  if(!txt && !fotoAntesUrl && !fotoDespuesUrl && !estadoCambio){
+  if(!txt && fotosDespuesUrls.length===0 && !estadoCambio){
     toast('No hay cambios que guardar');
     return;
   }
 
   // Cada actualización queda como una entrada nueva del historial (nunca se
   // sobrescribe ni se pierde una anterior), con su estado y sus fotos de
-  // antes/después propias, para que la traza completa (ingreso → desarrollo
-  // → ejecución) quede siempre disponible en el detalle del hallazgo.
+  // respaldo propias, para que la traza completa (ingreso → desarrollo →
+  // ejecución) quede siempre disponible en el detalle del hallazgo.
   const nuevosComentarios = h.comentarios.slice();
   nuevosComentarios.push({
-    autor: 'Sacyr Aguas',
+    autor: ROLE==='singemelec' ? 'Singemelec' : 'Sacyr Aguas',
     fecha: new Date().toISOString(),
     texto: txt || (estadoCambio ? `Estado actualizado a "${ESTADO_LABEL[nuevoEstado]}".` : 'Se agregó foto de respaldo.'),
     estado_anterior: estadoCambio ? h.estado : null,
     estado_nuevo: estadoCambio ? nuevoEstado : null,
-    foto_antes: fotoAntesUrl || null,
-    foto_despues: fotoDespuesUrl || null
+    foto_antes: null,
+    foto_despues: fotosDespuesUrls[0] || null,
+    fotos_despues: fotosDespuesUrls
   });
 
-  // foto_respaldo guarda siempre la más reciente que exista (prioriza la de
-  // "después" por ser la más representativa del estado final) — se usa como
+  // foto_respaldo guarda siempre la más reciente que exista — se usa como
   // miniatura rápida en la lista, el detalle y el reporte; el historial de
   // arriba conserva todas las fotos de respaldo anteriores, ninguna se pierde.
-  const fotoRespaldoUrl = fotoDespuesUrl || fotoAntesUrl || h.foto_respaldo;
+  const fotoRespaldoUrl = fotosDespuesUrls[0] || h.foto_respaldo;
 
   const cambios = { estado: nuevoEstado, foto_respaldo: fotoRespaldoUrl, comentarios: nuevosComentarios };
 
@@ -1633,11 +1694,167 @@ async function actualizarHallazgo(id){
     guardarLocal();
   }
 
-  pendingRespaldoAntes = null;
-  pendingRespaldoDespues = null;
+  pendingFotosMulti.despues = [];
   toast('Actualización guardada');
   closeModal();
   render();
+}
+
+/* ================= EDICIÓN DE HALLAZGOS INGRESADOS =================
+   Permite corregir datos cargados al ingresar el hallazgo (código de
+   grifo, dirección, hallazgos detectados, descripción y ubicación en el
+   mapa) sin tocar el estado, el historial de avances ni las fotos ya
+   guardadas. Solo disponible para Singemelec, que es quien registra e
+   ingresa los hallazgos en terreno. */
+let editHallazgosDetalle = [];
+let editMarkerActual = null, editMarkerIdeal = null, editMap = null;
+
+function abrirEdicionHallazgo(id){
+  const h = HALLAZGOS.find(x=>x.id===id);
+  if(!h) return;
+  editHallazgosDetalle = (h.hallazgos_detalle || []).slice();
+  const modal = document.getElementById('modalContent');
+  if(!modal) return;
+  const puedeEditarHallazgos = !esInspeccion(h) || tieneHallazgoReal(h);
+  modal.innerHTML = `
+    <button class="closeX" onclick="closeModal()">&times;</button>
+    <h2>Editar hallazgo</h2>
+    <div class="fid mono">${h.id}</div>
+    <div class="field">
+      <label>Código de grifo (catastro Sacyr)</label>
+      <input type="text" id="eCodigoGrifo" value="${(h.codigo_grifo||'').replace(/"/g,'&quot;')}" style="text-transform:uppercase;max-width:260px;">
+    </div>
+    <div class="field">
+      <label>Dirección</label>
+      <input type="text" id="eDireccion" value="${(h.direccion||'').replace(/"/g,'&quot;')}">
+    </div>
+    ${puedeEditarHallazgos ? `
+    <div class="field">
+      <label>Hallazgo</label>
+      <select id="eTipoHallazgo">
+        ${CATEGORIAS_CRITICIDAD.map(cat=>`<optgroup label="${cat.titulo}">${CATALOGO_HALLAZGOS.filter(x=>x.criticidad===cat.clave).map(x=>`<option value="${x.nombre}">${x.nombre}</option>`).join('')}</optgroup>`).join('')}
+      </select>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="agregarHallazgoDetalleEdicion()" style="margin-top:6px;">+ Agregar hallazgo</button>
+    </div>
+    <div class="field">
+      <label>Hallazgos de este registro</label>
+      <div id="listaHallazgosEdicion" class="chips-list"></div>
+    </div>` : ''}
+    <div class="field">
+      <label>Descripción / observaciones</label>
+      <textarea id="eDescripcion">${h.descripcion||''}</textarea>
+    </div>
+    <div class="field">
+      <label>Ubicación del grifo</label>
+      <small>Clic normal = ubicación real del grifo · Clic con tecla Shift = ubicación ideal</small>
+      <div id="editMiniMap" class="geo-map-mini"></div>
+      <div class="legend">
+        <span><i style="background:#C8334D"></i>Grifo (ubicación real)</span>
+        <span><i style="background:#3B6E8F"></i>Ubicación ideal</span>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="btn btn-ghost btn-sm" onclick="openDetail('${h.id}')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="guardarEdicionHallazgo('${h.id}')">Guardar cambios</button>
+    </div>
+  `;
+  renderListaHallazgosEdicion();
+  setTimeout(()=>{
+    if(editMap){ editMap.remove(); editMap=null; }
+    const centro = (typeof h.lat==='number' && typeof h.lng==='number') ? [h.lat,h.lng] : [-33.0245,-71.5518];
+    editMap = L.map('editMiniMap').setView(centro, (typeof h.lat==='number')?16:13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(editMap);
+    editMarkerActual = (typeof h.lat==='number') ? L.circleMarker(centro,{radius:8,color:'#fff',weight:2,fillColor:'#C8334D',fillOpacity:1}).addTo(editMap) : null;
+    if(editMarkerActual) editMarkerActual.bindTooltip('Grifo');
+    editMarkerIdeal = (typeof h.ideal_lat==='number') ? L.circleMarker([h.ideal_lat,h.ideal_lng],{radius:8,color:'#fff',weight:2,fillColor:'#3B6E8F',fillOpacity:1}).addTo(editMap) : null;
+    if(editMarkerIdeal) editMarkerIdeal.bindTooltip('Ideal');
+    editMap.on('click', (e)=>{
+      if(e.originalEvent.shiftKey){
+        if(editMarkerIdeal) editMap.removeLayer(editMarkerIdeal);
+        editMarkerIdeal = L.circleMarker(e.latlng,{radius:8,color:'#fff',weight:2,fillColor:'#3B6E8F',fillOpacity:1}).addTo(editMap);
+        editMarkerIdeal.bindTooltip('Ideal').openTooltip();
+      } else {
+        if(editMarkerActual) editMap.removeLayer(editMarkerActual);
+        editMarkerActual = L.circleMarker(e.latlng,{radius:8,color:'#fff',weight:2,fillColor:'#C8334D',fillOpacity:1}).addTo(editMap);
+        editMarkerActual.bindTooltip('Grifo').openTooltip();
+      }
+    });
+  }, 50);
+}
+
+function agregarHallazgoDetalleEdicion(){
+  const tipo_hallazgo = document.getElementById('eTipoHallazgo').value;
+  const info = hallazgoInfo(tipo_hallazgo);
+  if(!info) return;
+  const yaExiste = editHallazgosDetalle.some(h=>h.tipo_hallazgo===tipo_hallazgo);
+  if(yaExiste){ toast('Ese hallazgo ya está agregado a este registro'); return; }
+  editHallazgosDetalle.push({tipo_elemento: info.tipo_elemento, tipo_hallazgo, criticidad: info.criticidad});
+  renderListaHallazgosEdicion();
+}
+
+function quitarHallazgoDetalleEdicion(i){
+  editHallazgosDetalle.splice(i,1);
+  renderListaHallazgosEdicion();
+}
+
+function renderListaHallazgosEdicion(){
+  const cont = document.getElementById('listaHallazgosEdicion');
+  if(!cont) return;
+  if(editHallazgosDetalle.length===0){
+    cont.innerHTML = '<em style="font-size:12px;color:var(--text-soft);">Sin hallazgos agregados — agrega al menos uno.</em>';
+    return;
+  }
+  cont.innerHTML = editHallazgosDetalle.map((h,i)=>`
+    <span class="chip"><i class="dot" style="background:${PRIORIDAD_COLOR[h.criticidad]}"></i>${h.tipo_elemento==='camara'?'Cámara':'Grifo'} · ${h.tipo_hallazgo}
+      <button type="button" onclick="quitarHallazgoDetalleEdicion(${i})" title="Quitar">&times;</button>
+    </span>
+  `).join('');
+}
+
+async function guardarEdicionHallazgo(id){
+  const h = HALLAZGOS.find(x=>x.id===id);
+  if(!h) return;
+  const puedeEditarHallazgos = !esInspeccion(h) || tieneHallazgoReal(h);
+  if(puedeEditarHallazgos && editHallazgosDetalle.length===0){
+    toast('Debe quedar al menos un hallazgo agregado');
+    return;
+  }
+  const codigoGrifo = document.getElementById('eCodigoGrifo').value.trim().toUpperCase() || null;
+  const direccion = document.getElementById('eDireccion').value.trim() || 'Sin dirección registrada';
+  const descripcion = document.getElementById('eDescripcion').value;
+
+  const cambios = { codigo_grifo: codigoGrifo, direccion, descripcion };
+  if(puedeEditarHallazgos){
+    cambios.hallazgos_detalle = editHallazgosDetalle.slice();
+    cambios.prioridad = criticidadMasSevera(editHallazgosDetalle);
+  }
+  if(editMarkerActual){
+    const ll = editMarkerActual.getLatLng();
+    cambios.lat = ll.lat; cambios.lng = ll.lng;
+  }
+  if(editMarkerIdeal){
+    const ll = editMarkerIdeal.getLatLng();
+    cambios.ideal_lat = ll.lat; cambios.ideal_lng = ll.lng;
+  } else {
+    cambios.ideal_lat = null; cambios.ideal_lng = null;
+  }
+
+  if(STORAGE_MODE === 'remote' && firebaseReady){
+    try{
+      await db.collection('hallazgos').doc(id).update(cambios);
+    }catch(e){
+      console.error(e);
+      toast('Sin conexión: cambios guardados solo en este dispositivo');
+      Object.assign(h, cambios);
+      guardarLocal();
+    }
+  } else {
+    Object.assign(h, cambios);
+    guardarLocal();
+  }
+
+  toast('Hallazgo actualizado');
+  openDetail(id);
 }
 
 /* ---------------- REPORTE EJECUTIVO ---------------- */
@@ -1669,9 +1886,8 @@ function construirReporteHTML(soloIds){
       const fotoAvance = ultimoComentario ? (ultimoComentario.foto_despues || ultimoComentario.foto_antes || ultimoComentario.foto) : null;
       return `
       <tr>
-        <td class="mono">${h.id}</td>
-        <td class="mono">${h.codigo_grifo || '—'}</td>
-        <td>${detalleTxt}</td>
+        <td class="mono" style="font-weight:700;color:var(--ink);">${h.codigo_grifo || '—'}</td>
+        <td style="font-weight:600;">${detalleTxt}</td>
         <td class="fotos-cell">${fotoPrincipal ? `<a href="${fotoPrincipal}" target="_blank" rel="noopener"><img class="mini-foto" src="${fotoPrincipal}" alt="Foto del hallazgo"></a>` : '<span class="sinfoto">Sin foto</span>'}</td>
         <td>${h.direccion}</td>
         <td><span class="badge ${h.estado}">${ESTADO_LABEL[h.estado]}</span></td>
@@ -1679,7 +1895,7 @@ function construirReporteHTML(soloIds){
         <td>${ultimoComentario ? `${ultimoComentario.texto || '—'}${fotoAvance ? `<br><a href="${fotoAvance}" target="_blank" rel="noopener"><img class="mini-foto" src="${fotoAvance}" alt="Avance más reciente"></a>` : ''}` : 'Sin avances registrados'}</td>
       </tr>`;}).join('');
     return `<h3 style="color:${color}">${etiqueta} <span class="mono" style="font-size:12px;color:var(--text-soft);font-weight:400;">(${items.length} hallazgo${items.length===1?'':'s'})</span></h3>
-      <table><thead><tr><th>ID</th><th>Grifo</th><th>Hallazgo</th><th>Foto</th><th>Dirección</th><th>Estado</th><th>Registrado</th><th>Proceso de solución (último avance)</th></tr></thead>
+      <table><thead><tr><th>Grifo</th><th>Hallazgo</th><th>Foto</th><th>Dirección</th><th>Estado</th><th>Registrado</th><th>Proceso de solución (último avance)</th></tr></thead>
       <tbody>${rows}</tbody></table>`;
   }
 
@@ -1899,8 +2115,10 @@ function construirReporteHallazgosHTML(soloIds){
       if(h.foto_presion) items.push({url:h.foto_presion, label:'Presión del grifo'});
       if(h.foto_camara) items.push({url:h.foto_camara, label:'Cámara'});
     }
-    if(h.foto_grifo) items.push({url:h.foto_grifo, label:'Foto del grifo'});
-    if(h.foto_hallazgo) items.push({url:h.foto_hallazgo, label:'Foto del hallazgo'});
+    const fotosGrifo = (h.fotos_grifo && h.fotos_grifo.length) ? h.fotos_grifo : (h.foto_grifo ? [h.foto_grifo] : []);
+    fotosGrifo.forEach((url,i)=> items.push({url, label: fotosGrifo.length>1 ? `Foto del grifo ${i+1}` : 'Foto del grifo'}));
+    const fotosHallazgo = (h.fotos_hallazgo && h.fotos_hallazgo.length) ? h.fotos_hallazgo : (h.foto_hallazgo ? [h.foto_hallazgo] : []);
+    fotosHallazgo.forEach((url,i)=> items.push({url, label: fotosHallazgo.length>1 ? `Foto del hallazgo ${i+1}` : 'Foto del hallazgo'}));
     return items;
   }
 
@@ -1918,8 +2136,9 @@ function construirReporteHallazgosHTML(soloIds){
     return `<div class="timeline">${h.comentarios.map(c=>{
       const fotos = [];
       if(c.foto_antes) fotos.push({url:c.foto_antes, label:'Antes'});
-      if(c.foto_despues) fotos.push({url:c.foto_despues, label:'Después'});
-      if(!c.foto_antes && !c.foto_despues && c.foto) fotos.push({url:c.foto, label:'Respaldo'});
+      const fotosDespues = (c.fotos_despues && c.fotos_despues.length) ? c.fotos_despues : (c.foto_despues ? [c.foto_despues] : []);
+      fotosDespues.forEach((url,i)=> fotos.push({url, label: fotosDespues.length>1 ? `Después ${i+1}` : 'Después'}));
+      if(!c.foto_antes && fotosDespues.length===0 && c.foto) fotos.push({url:c.foto, label:'Respaldo'});
       return `<div class="tl-item">
         <div class="tl-head"><strong>${c.autor || '—'}</strong> <span class="mono">· ${fmtDate(c.fecha)}</span>${c.estado_nuevo ? ` <span class="badge ${c.estado_nuevo}">${ESTADO_LABEL[c.estado_nuevo]}</span>` : ''}</div>
         ${c.texto ? `<div class="tl-txt">${c.texto}</div>` : ''}
@@ -2232,6 +2451,41 @@ function exportarExcel(){
   const stamp = new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
   XLSX.writeFile(wb, `hallazgos-grifos-${stamp}.xlsx`);
   toast('Excel generado');
+}
+
+/* Excel reducido: solo las columnas pedidas, en este orden exacto —
+   Código de grifo, Comuna, Dirección, Modelo de grifo, Hallazgo y
+   Detección/comentario (la descripción registrada al detectar el hallazgo). */
+function construirFilasExcelReducido(){
+  const filas = [];
+  HALLAZGOS.filter(tieneHallazgoReal).forEach(h=>{
+    const detalle = obtenerDetalleHallazgos(h);
+    const base = {
+      'Código Grifo': h.codigo_grifo || '',
+      'Comuna': h.comuna || '',
+      'Dirección': h.direccion || '',
+      'Modelo de grifo': h.modelo_grifo || ''
+    };
+    if(detalle.length===0){
+      filas.push(Object.assign({}, base, {'Hallazgo':'', 'Detección / Comentario': h.descripcion || ''}));
+    } else {
+      detalle.forEach(d=>{
+        filas.push(Object.assign({}, base, {'Hallazgo': d.tipo_hallazgo, 'Detección / Comentario': h.descripcion || ''}));
+      });
+    }
+  });
+  return filas;
+}
+
+function exportarExcelReducido(){
+  if(typeof XLSX === 'undefined'){ toast('No se pudo cargar el módulo de Excel. Revisa tu conexión e intenta nuevamente.'); return; }
+  if(HALLAZGOS.length===0){ toast('No hay hallazgos para exportar'); return; }
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(construirFilasExcelReducido(), {header:['Código Grifo','Comuna','Dirección','Modelo de grifo','Hallazgo','Detección / Comentario']});
+  XLSX.utils.book_append_sheet(wb, ws, 'Hallazgos');
+  const stamp = new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
+  XLSX.writeFile(wb, `hallazgos-grifos-reducido-${stamp}.xlsx`);
+  toast('Excel reducido generado');
 }
 
 /* Genera el informe ejecutivo en PDF: abre el mismo informe en una pestaña
