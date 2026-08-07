@@ -162,11 +162,12 @@ main{flex:1;overflow-y:auto;padding:24px 28px 60px;}
 .zone-tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
 .zone-tab{font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:12.5px;padding:8px 14px;border-radius:20px;border:1px solid var(--line);background:#fff;color:var(--text-soft);cursor:pointer;transition:.15s;}
 .zone-tab.active{background:var(--ink);border-color:var(--ink);color:#fff;}
-.list-filters{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
-.list-filters label{font-size:11.5px;font-weight:600;color:var(--ink);text-transform:uppercase;letter-spacing:.03em;}
+.list-filters{display:flex;gap:18px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
+.list-filters .filter-group{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;}
+.list-filters label{font-size:11.5px;font-weight:600;color:var(--ink);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap;}
 .list-filters input[type="text"],.list-filters select{
   font-family:'IBM Plex Sans',sans-serif;padding:8px 12px;border:1px solid var(--line);
-  border-radius:6px;font-size:13px;background:#fff;color:var(--text);min-width:220px;
+  border-radius:6px;font-size:13px;background:#fff;color:var(--text);min-width:190px;
 }
 .btn-danger{background:var(--hidrante);color:#fff;}
 .btn-danger:hover{background:#a82440;}
@@ -349,6 +350,9 @@ let hallazgosAgregados = []; // hallazgos (grifo/cámara) agregados al registro 
 let FILTRO_ZONA = 'todos'; // 'todos' | 'lampa' | 'metropolitana' — filtro de la pestaña Hallazgos
 let FILTRO_CODIGO = ''; // texto libre para filtrar la pestaña Hallazgos por código de grifo
 let FILTRO_SECTOR_DASHBOARD = 'todos'; // comuna seleccionada (o 'todos') en el Tablero ejecutivo
+let FILTRO_HALLAZGO_TIPO = 'todos'; // tipo de hallazgo (p.ej. "Pintura en mal estado") en la pestaña Hallazgos
+let FILTRO_COMUNA_LISTA = 'todos'; // comuna en la pestaña Hallazgos
+let FILTRO_PRIORIDAD_LISTA = 'todos'; // criticidad (directa/indirecta/senaletica) en la pestaña Hallazgos
 
 /* Determina la zona de un hallazgo según la comuna del grifo en el catastro
    (LAMPA => zona Lampa; LO BARNECHEA / COLINA => zona Metropolitana).
@@ -445,6 +449,13 @@ function tieneHallazgoReal(h){ return obtenerDetalleHallazgos(h).length > 0; }
 
 function uid(){ return 'H-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2,6).toUpperCase(); }
 function fmtDate(d){ const dt=new Date(d); return dt.toLocaleString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
+// Días completos transcurridos desde una fecha hasta ahora — usado en el
+// Tablero ejecutivo para mostrar hace cuánto está pendiente cada hallazgo.
+function diasTranscurridos(fecha){
+  if(!fecha) return 0;
+  const ms = new Date() - new Date(fecha);
+  return Math.max(0, Math.floor(ms / (1000*60*60*24)));
+}
 function toast(msg){ const t=document.getElementById('toast'); if(!t) return; t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2600); }
 
 /* ====================================================================
@@ -635,10 +646,12 @@ function renderDashboard(){
   const estados = {pendiente:0, en_proceso:0, resuelto:0};
   hallazgosSector.forEach(h=>{ const c=criticidadDeRegistro(h); counts[c]=(counts[c]||0)+1; estados[h.estado]=(estados[h.estado]||0)+1; });
 
-  // TOP críticos a resolver: hallazgos aún no resueltos, ordenados primero
-  // por severidad (directa > indirecta > señalética) y luego por antigüedad
-  // (los pendientes desde hace más tiempo primero dentro de cada severidad).
-  const topCriticos = hallazgosSector
+  // Hallazgos pendientes por resolver: se muestran TODOS (no un "top" acotado
+  // a unos pocos) porque toda operatividad directa debe resolverse, no solo
+  // los primeros — ordenados por riesgo: severidad primero (directa >
+  // indirecta > señalética) y dentro de cada severidad, antigüedad (los
+  // pendientes desde hace más tiempo primero, porque acumulan más riesgo).
+  const pendientesPorRiesgo = hallazgosSector
     .filter(h=>h.estado!=='resuelto')
     .slice()
     .sort((a,b)=>{
@@ -646,8 +659,7 @@ function renderDashboard(){
       const cb = ORDEN_CRITICIDAD.indexOf(criticidadDeRegistro(b));
       if(ca!==cb) return ca-cb;
       return new Date(a.fecha_creacion) - new Date(b.fecha_creacion);
-    })
-    .slice(0,8);
+    });
 
   main.innerHTML = `
   <div class="page">
@@ -665,11 +677,13 @@ function renderDashboard(){
     </div>
 
     <div class="list-filters">
-      <label for="filtroSectorSelect">Sector</label>
-      <select id="filtroSectorSelect" onchange="cambiarFiltroSectorDashboard(this.value)">
-        <option value="todos" ${FILTRO_SECTOR_DASHBOARD==='todos'?'selected':''}>Todos los sectores (${conHallazgo.length})</option>
-        ${sectores.map(s=>`<option value="${s}" ${FILTRO_SECTOR_DASHBOARD===s?'selected':''}>${s} (${conHallazgo.filter(h=>h.comuna===s).length})</option>`).join('')}
-      </select>
+      <div class="filter-group">
+        <label for="filtroSectorSelect">Sector</label>
+        <select id="filtroSectorSelect" onchange="cambiarFiltroSectorDashboard(this.value)">
+          <option value="todos" ${FILTRO_SECTOR_DASHBOARD==='todos'?'selected':''}>Todos los sectores (${conHallazgo.length})</option>
+          ${sectores.map(s=>`<option value="${s}" ${FILTRO_SECTOR_DASHBOARD===s?'selected':''}>${s} (${conHallazgo.filter(h=>h.comuna===s).length})</option>`).join('')}
+        </select>
+      </div>
     </div>
 
     <div class="kpi-row">
@@ -679,23 +693,6 @@ function renderDashboard(){
       <div class="kpi"><div class="tab" style="background:var(--tuberia)"></div><div class="num">${counts.senaletica||0}</div><div class="lbl">Señalética/visibilidad</div></div>
       <div class="kpi"><div class="tab" style="background:var(--musgo)"></div><div class="num">${estados.resuelto||0}</div><div class="lbl">Resueltos</div></div>
       <div class="kpi"><div class="tab" style="background:var(--acero,#5a7d9a)"></div><div class="num">${totalInspecciones}</div><div class="lbl">Inspecciones registradas</div></div>
-    </div>
-
-    <div class="panel">
-      <h3>🔴 TOP Críticos a resolver</h3>
-      <div class="estado-table-wrap">
-        <table class="estado-table">
-          <thead><tr><th>Código</th><th>Comuna</th><th>Dirección</th><th>Criticidad</th><th>Estado</th><th></th></tr></thead>
-          <tbody>${topCriticos.length ? topCriticos.map(h=>`<tr>
-            <td class="mono" style="font-weight:700;color:var(--ink);">${h.codigo_grifo || '—'}</td>
-            <td>${h.comuna || '—'}</td>
-            <td class="faddr-cell">${h.direccion || 'Sin dirección registrada'}</td>
-            <td><span class="badge ${criticidadDeRegistro(h)}">${PRIORIDAD_LABEL[criticidadDeRegistro(h)]}</span></td>
-            <td><span class="badge ${h.estado}">${ESTADO_LABEL[h.estado]}</span></td>
-            <td><button class="btn btn-ghost btn-sm" onclick="openDetail('${h.id}')">Ver</button></td>
-          </tr>`).join('') : `<tr class="empty-row"><td colspan="6">Sin hallazgos críticos pendientes${FILTRO_SECTOR_DASHBOARD!=='todos' ? ` en ${FILTRO_SECTOR_DASHBOARD}` : ''}.</td></tr>`}</tbody>
-        </table>
-      </div>
     </div>
 
     <div class="grid-2">
@@ -717,6 +714,27 @@ function renderDashboard(){
           <h3>Avance de resolución</h3>
           <div class="chart-wrap"><canvas id="chartEstado"></canvas></div>
         </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>⚠️ Hallazgos pendientes por resolver, ordenados por riesgo</h3>
+      <p class="sub">Todos los hallazgos aún no resueltos (no solo un "top") — primero los de operatividad directa, ya que todos deben resolverse; dentro de cada criticidad, los pendientes desde hace más tiempo primero.</p>
+      <div class="estado-table-wrap">
+        <table class="estado-table">
+          <thead><tr><th>Código</th><th>Comuna</th><th>Dirección</th><th>Criticidad</th><th>Estado</th><th>Pendiente hace</th><th></th></tr></thead>
+          <tbody>${pendientesPorRiesgo.length ? pendientesPorRiesgo.map(h=>{
+            const dias = diasTranscurridos(h.fecha_creacion);
+            return `<tr>
+            <td class="mono" style="font-weight:700;color:var(--ink);">${h.codigo_grifo || '—'}</td>
+            <td>${h.comuna || '—'}</td>
+            <td class="faddr-cell">${h.direccion || 'Sin dirección registrada'}</td>
+            <td><span class="badge ${criticidadDeRegistro(h)}">${PRIORIDAD_LABEL[criticidadDeRegistro(h)]}</span></td>
+            <td><span class="badge ${h.estado}">${ESTADO_LABEL[h.estado]}</span></td>
+            <td>${dias} día${dias===1?'':'s'}</td>
+            <td><button class="btn btn-ghost btn-sm" onclick="openDetail('${h.id}')">Ver</button></td>
+          </tr>`;}).join('') : `<tr class="empty-row"><td colspan="7">Sin hallazgos pendientes${FILTRO_SECTOR_DASHBOARD!=='todos' ? ` en ${FILTRO_SECTOR_DASHBOARD}` : ''}.</td></tr>`}</tbody>
+        </table>
       </div>
     </div>
   </div>`;
@@ -1455,6 +1473,12 @@ function renderLista(){
   const conHallazgo = HALLAZGOS.filter(tieneHallazgoReal);
   const countLampa = conHallazgo.filter(h=>zonaDeHallazgo(h)==='lampa').length;
   const countMetro = conHallazgo.filter(h=>zonaDeHallazgo(h)==='metropolitana').length;
+
+  // Comunas reales presentes en los datos (no una lista fija — el catastro se
+  // carga dinámicamente), para el <select> de filtro por comuna.
+  const comunasDisponibles = Array.from(new Set(conHallazgo.map(h=>h.comuna).filter(Boolean))).sort();
+  if(FILTRO_COMUNA_LISTA!=='todos' && !comunasDisponibles.includes(FILTRO_COMUNA_LISTA)) FILTRO_COMUNA_LISTA='todos';
+
   main.innerHTML = `
   <div class="page">
     <div class="page-head">
@@ -1472,8 +1496,31 @@ function renderLista(){
       <button class="zone-tab ${FILTRO_ZONA==='metropolitana'?'active':''}" onclick="cambiarFiltroZona('metropolitana')">Metropolitana (${countMetro})</button>
     </div>
     <div class="list-filters">
-      <label for="filtroCodigoInput">Código de grifo</label>
-      <input type="text" id="filtroCodigoInput" placeholder="Ej: LAM001…" autocomplete="off" value="${FILTRO_CODIGO}" oninput="filtrarPorCodigo(this.value)">
+      <div class="filter-group">
+        <label for="filtroCodigoInput">Código de grifo</label>
+        <input type="text" id="filtroCodigoInput" placeholder="Ej: LAM001…" autocomplete="off" value="${FILTRO_CODIGO}" oninput="filtrarPorCodigo(this.value)">
+      </div>
+      <div class="filter-group">
+        <label for="filtroComunaSelect">Comuna</label>
+        <select id="filtroComunaSelect" onchange="cambiarFiltroComunaLista(this.value)">
+          <option value="todos" ${FILTRO_COMUNA_LISTA==='todos'?'selected':''}>Todas</option>
+          ${comunasDisponibles.map(c=>`<option value="${c}" ${FILTRO_COMUNA_LISTA===c?'selected':''}>${c}</option>`).join('')}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="filtroHallazgoSelect">Hallazgo</label>
+        <select id="filtroHallazgoSelect" onchange="cambiarFiltroHallazgoTipo(this.value)">
+          <option value="todos" ${FILTRO_HALLAZGO_TIPO==='todos'?'selected':''}>Todos</option>
+          ${CATEGORIAS_CRITICIDAD.map(cat=>`<optgroup label="${cat.titulo}">${CATALOGO_HALLAZGOS.filter(x=>x.criticidad===cat.clave).map(x=>`<option value="${x.nombre}" ${FILTRO_HALLAZGO_TIPO===x.nombre?'selected':''}>${x.nombre}</option>`).join('')}</optgroup>`).join('')}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="filtroPrioridadSelect">Prioridad</label>
+        <select id="filtroPrioridadSelect" onchange="cambiarFiltroPrioridadLista(this.value)">
+          <option value="todos" ${FILTRO_PRIORIDAD_LISTA==='todos'?'selected':''}>Todas</option>
+          ${CATEGORIAS_CRITICIDAD.map(cat=>`<option value="${cat.clave}" ${FILTRO_PRIORIDAD_LISTA===cat.clave?'selected':''}>${cat.titulo}</option>`).join('')}
+        </select>
+      </div>
     </div>
     <div class="list-actions" id="listActions" style="display:none;">
       <span id="seleccionCount"></span>
@@ -1485,9 +1532,7 @@ function renderLista(){
     <div class="estado-board" id="findingsList"></div>
   </div>`;
   const board = document.getElementById('findingsList');
-  const codigoBuscado = FILTRO_CODIGO.trim().toUpperCase();
-  const hallazgosFiltrados = (FILTRO_ZONA==='todos' ? conHallazgo : conHallazgo.filter(h=>zonaDeHallazgo(h)===FILTRO_ZONA))
-    .filter(h => !codigoBuscado || (h.codigo_grifo || '').toUpperCase().includes(codigoBuscado));
+  const hallazgosFiltrados = conHallazgo.filter(pasaFiltrosLista);
   if(conHallazgo.length===0){
     board.innerHTML = `<div class="empty"><div class="display">Sin hallazgos</div>Aún no hay hallazgos en el catastro.</div>`;
     actualizarBarraSeleccion();
@@ -1532,7 +1577,7 @@ function renderLista(){
       <div class="estado-table-wrap">
         <table class="estado-table">
           <thead><tr><th></th><th>Código</th><th>Comuna</th><th>Dirección</th><th>Prioridad</th><th>Hallazgos</th><th>Registrado</th><th></th></tr></thead>
-          <tbody>${items.length ? items.map(filaHallazgo).join('') : `<tr class="empty-row"><td colspan="8">Sin hallazgos aquí${FILTRO_ZONA!=='todos' ? ' en esta zona' : ''}${codigoBuscado ? ` con código "${FILTRO_CODIGO}"` : ''}.</td></tr>`}</tbody>
+          <tbody>${items.length ? items.map(filaHallazgo).join('') : `<tr class="empty-row"><td colspan="8">Sin hallazgos aquí con los filtros activos.</td></tr>`}</tbody>
         </table>
       </div>
     </div>`;
@@ -1559,6 +1604,21 @@ function cambiarFiltroZona(zona){
   renderLista();
 }
 
+function cambiarFiltroComunaLista(valor){
+  FILTRO_COMUNA_LISTA = valor;
+  renderLista();
+}
+
+function cambiarFiltroHallazgoTipo(valor){
+  FILTRO_HALLAZGO_TIPO = valor;
+  renderLista();
+}
+
+function cambiarFiltroPrioridadLista(valor){
+  FILTRO_PRIORIDAD_LISTA = valor;
+  renderLista();
+}
+
 // Filtro de texto libre por código de grifo en la pestaña Hallazgos. Como
 // renderLista() vuelve a armar todo el HTML en cada tecla, hay que
 // restaurar manualmente el foco y la posición del cursor del input después
@@ -1573,6 +1633,33 @@ function filtrarPorCodigo(valor){
     const el = document.getElementById('filtroCodigoInput');
     if(el){ el.focus(); if(cursor!=null) el.setSelectionRange(cursor, cursor); }
   }
+}
+
+// Un solo lugar que decide si un hallazgo pasa TODOS los filtros activos de
+// la pestaña Hallazgos (zona, código, comuna, tipo de hallazgo y prioridad).
+// Se usa tanto para pintar la lista como para saber qué exportar (informe
+// HTML y los tres Excel) cuando hay filtros aplicados.
+function pasaFiltrosLista(h){
+  if(FILTRO_ZONA!=='todos' && zonaDeHallazgo(h)!==FILTRO_ZONA) return false;
+  const codigoBuscado = FILTRO_CODIGO.trim().toUpperCase();
+  if(codigoBuscado && !(h.codigo_grifo||'').toUpperCase().includes(codigoBuscado)) return false;
+  if(FILTRO_COMUNA_LISTA!=='todos' && h.comuna!==FILTRO_COMUNA_LISTA) return false;
+  if(FILTRO_PRIORIDAD_LISTA!=='todos' && criticidadDeRegistro(h)!==FILTRO_PRIORIDAD_LISTA) return false;
+  if(FILTRO_HALLAZGO_TIPO!=='todos'){
+    const tieneEseTipo = obtenerDetalleHallazgos(h).some(d=>d.tipo_hallazgo===FILTRO_HALLAZGO_TIPO);
+    if(!tieneEseTipo) return false;
+  }
+  return true;
+}
+
+// Ids de los hallazgos que cumplen los filtros activos de la pestaña
+// Hallazgos, o null si no hay ningún filtro aplicado (todos los filtros en
+// su valor por defecto) — en ese caso el informe/Excel se genera con todo,
+// igual que antes de que existieran estos filtros.
+function idsSegunFiltrosActivos(){
+  const sinFiltros = FILTRO_ZONA==='todos' && !FILTRO_CODIGO.trim() && FILTRO_COMUNA_LISTA==='todos' && FILTRO_PRIORIDAD_LISTA==='todos' && FILTRO_HALLAZGO_TIPO==='todos';
+  if(sinFiltros) return null;
+  return HALLAZGOS.filter(tieneHallazgoReal).filter(pasaFiltrosLista).map(h=>h.id);
 }
 
 function actualizarBarraSeleccion(){
@@ -2490,18 +2577,13 @@ PUNTOS.forEach(p=>{
 </body></html>`;
 }
 
-/* Respeta la pestaña de zona activa (Todos/Lampa/Metropolitana): si no estás
-   en "Todos", el reporte descargado incluye solo esa zona. */
-function idsSegunFiltroZona(){
-  if(FILTRO_ZONA==='todos') return null;
-  return HALLAZGOS.filter(tieneHallazgoReal).filter(h=>zonaDeHallazgo(h)===FILTRO_ZONA).map(h=>h.id);
-}
-
 /* soloIds: si se pasa (array), descarga el informe solo con esos hallazgos
-   (selección múltiple, o uno solo). Si no se pasa, respeta la pestaña de
-   zona activa — comportamiento del botón general "Reporte de hallazgos". */
+   (selección múltiple, o uno solo). Si no se pasa, respeta TODOS los
+   filtros activos de la pestaña Hallazgos (zona, código, comuna, tipo de
+   hallazgo, prioridad) — comportamiento del botón general "Reporte de
+   hallazgos" y de los tres botones de Excel. */
 function descargarReporteHallazgos(soloIds){
-  const ids = soloIds || idsSegunFiltroZona();
+  const ids = soloIds || idsSegunFiltrosActivos();
   const html = construirReporteHallazgosHTML(ids);
   const blob = new Blob([html], {type:'text/html'});
   const url = URL.createObjectURL(blob);
@@ -2545,10 +2627,15 @@ function imprimirReporteIndividual(id){
 /* ---------------- EXPORTAR A EXCEL ----------------
    La construcción de las filas está separada de la llamada a la librería
    XLSX a propósito, para poder probar (offline, sin la librería real) que
-   los datos quedan bien armados antes de generar el archivo. */
-function construirFilasExcel(){
+   los datos quedan bien armados antes de generar el archivo.
+   soloIds (opcional, en las tres variantes de abajo): si se pasa, solo se
+   incluyen esos hallazgos — se usa para que los tres Excel respeten los
+   filtros activos de la pestaña Hallazgos (zona, código, comuna, tipo de
+   hallazgo, prioridad), igual que ya hacía el informe HTML. */
+function construirFilasExcel(soloIds){
+  const idsSet = soloIds ? new Set(soloIds) : null;
   const filas = [];
-  HALLAZGOS.filter(tieneHallazgoReal).forEach(h=>{
+  HALLAZGOS.filter(tieneHallazgoReal).filter(h => !idsSet || idsSet.has(h.id)).forEach(h=>{
     const detalle = obtenerDetalleHallazgos(h);
     const zona = zonaDeHallazgo(h)==='lampa' ? 'Lampa' : zonaDeHallazgo(h)==='metropolitana' ? 'Metropolitana' : 'Sin zona';
     const base = {
@@ -2582,9 +2669,10 @@ function construirFilasExcel(){
   return filas;
 }
 
-function construirFilasResumenExcel(){
+function construirFilasResumenExcel(soloIds){
+  const idsSet = soloIds ? new Set(soloIds) : null;
   const porCodigo = {};
-  HALLAZGOS.filter(tieneHallazgoReal).forEach(h=>{
+  HALLAZGOS.filter(tieneHallazgoReal).filter(h => !idsSet || idsSet.has(h.id)).forEach(h=>{
     const cod = h.codigo_grifo || 'Sin código';
     if(!porCodigo[cod]){
       const zona = zonaDeHallazgo(h)==='lampa' ? 'Lampa' : zonaDeHallazgo(h)==='metropolitana' ? 'Metropolitana' : 'Sin zona';
@@ -2606,22 +2694,24 @@ function construirFilasResumenExcel(){
 function exportarExcel(){
   if(typeof XLSX === 'undefined'){ toast('No se pudo cargar el módulo de Excel. Revisa tu conexión e intenta nuevamente.'); return; }
   if(HALLAZGOS.length===0){ toast('No hay hallazgos para exportar'); return; }
+  const ids = idsSegunFiltrosActivos();
   const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.json_to_sheet(construirFilasExcel());
+  const ws = XLSX.utils.json_to_sheet(construirFilasExcel(ids));
   XLSX.utils.book_append_sheet(wb, ws, 'Hallazgos');
-  const wsResumen = XLSX.utils.json_to_sheet(construirFilasResumenExcel());
+  const wsResumen = XLSX.utils.json_to_sheet(construirFilasResumenExcel(ids));
   XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen por grifo');
   const stamp = new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
   XLSX.writeFile(wb, `hallazgos-grifos-${stamp}.xlsx`);
-  toast('Excel generado');
+  toast(ids ? 'Excel generado (con los filtros activos)' : 'Excel generado');
 }
 
 /* Excel reducido: solo las columnas pedidas, en este orden exacto —
    Código de grifo, Comuna, Dirección, Modelo de grifo, Hallazgo y
    Detección/comentario (la descripción registrada al detectar el hallazgo). */
-function construirFilasExcelReducido(){
+function construirFilasExcelReducido(soloIds){
+  const idsSet = soloIds ? new Set(soloIds) : null;
   const filas = [];
-  HALLAZGOS.filter(tieneHallazgoReal).forEach(h=>{
+  HALLAZGOS.filter(tieneHallazgoReal).filter(h => !idsSet || idsSet.has(h.id)).forEach(h=>{
     const detalle = obtenerDetalleHallazgos(h);
     const base = {
       'Código Grifo': h.codigo_grifo || '',
@@ -2643,24 +2733,37 @@ function construirFilasExcelReducido(){
 function exportarExcelReducido(){
   if(typeof XLSX === 'undefined'){ toast('No se pudo cargar el módulo de Excel. Revisa tu conexión e intenta nuevamente.'); return; }
   if(HALLAZGOS.length===0){ toast('No hay hallazgos para exportar'); return; }
+  const ids = idsSegunFiltrosActivos();
   const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.json_to_sheet(construirFilasExcelReducido(), {header:['Código Grifo','Comuna','Dirección','Modelo de grifo','Hallazgo','Detección / Comentario']});
+  const ws = XLSX.utils.json_to_sheet(construirFilasExcelReducido(ids), {header:['Código Grifo','Comuna','Dirección','Modelo de grifo','Hallazgo','Detección / Comentario']});
   XLSX.utils.book_append_sheet(wb, ws, 'Hallazgos');
   const stamp = new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
   XLSX.writeFile(wb, `hallazgos-grifos-reducido-${stamp}.xlsx`);
-  toast('Excel reducido generado');
+  toast(ids ? 'Excel reducido generado (con los filtros activos)' : 'Excel reducido generado');
 }
 
 const ZONA_LABEL = {lampa:'Lampa', metropolitana:'Metropolitana', sin_zona:'Sin zona'};
+// Etiquetas de estado propias del Excel SACYR (distintas de ESTADO_LABEL usado
+// en el resto de la app) — Sacyr saca esta base para ir a terreno, así que
+// pidieron específicamente "Nuevo"/"En proceso"/"Ejecutado".
+const ESTADO_LABEL_SACYR = {pendiente:'Nuevo', en_proceso:'En proceso', resuelto:'Ejecutado'};
+// Los hallazgos de pintura (p.ej. "Pintura en mal estado", señalética/visibilidad)
+// no se incluyen en el Excel SACYR — pedido explícito del usuario.
+function esHallazgoDePintura(tipoHallazgo){
+  return !!tipoHallazgo && tipoHallazgo.toUpperCase().includes('PINTURA');
+}
 
 /* Excel SACYR: otra variante reducida, pensada para el cliente, con las
    columnas Código Grifo, Zona, Comuna, Localidad, Dirección, Modelo,
-   Hallazgo, Criticidad y el último comentario/avance registrado — en
-   este orden exacto. Una fila por cada hallazgo detectado del registro. */
-function construirFilasExcelSacyr(){
+   Hallazgo, Criticidad, Estado y el último comentario/avance registrado —
+   en este orden exacto. Una fila por cada hallazgo detectado del registro
+   (salvo los hallazgos de pintura, que se excluyen). */
+function construirFilasExcelSacyr(soloIds){
+  const idsSet = soloIds ? new Set(soloIds) : null;
   const filas = [];
-  HALLAZGOS.filter(tieneHallazgoReal).forEach(h=>{
-    const detalle = obtenerDetalleHallazgos(h);
+  HALLAZGOS.filter(tieneHallazgoReal).filter(h => !idsSet || idsSet.has(h.id)).forEach(h=>{
+    const detalle = obtenerDetalleHallazgos(h).filter(d => !esHallazgoDePintura(d.tipo_hallazgo));
+    if(detalle.length===0) return; // registro que solo tenía hallazgo(s) de pintura: se omite entero del Excel SACYR
     const ultimoComentario = h.comentarios && h.comentarios.length ? h.comentarios[h.comentarios.length-1] : null;
     const base = {
       'Código Grifo': h.codigo_grifo || '',
@@ -2671,13 +2774,10 @@ function construirFilasExcelSacyr(){
       'Modelo': h.modelo_grifo || ''
     };
     const ultimo = ultimoComentario ? (ultimoComentario.texto || '') : 'Sin avances registrados';
-    if(detalle.length===0){
-      filas.push(Object.assign({}, base, {'Hallazgo Singemelec':'', 'Criticidad': PRIORIDAD_LABEL[criticidadDeRegistro(h)] || '', 'Último comentario Sacyr': ultimo}));
-    } else {
-      detalle.forEach(d=>{
-        filas.push(Object.assign({}, base, {'Hallazgo Singemelec': d.tipo_hallazgo, 'Criticidad': PRIORIDAD_LABEL[criticidadDeDetalle(d,h)] || '', 'Último comentario Sacyr': ultimo}));
-      });
-    }
+    const estado = ESTADO_LABEL_SACYR[h.estado] || '';
+    detalle.forEach(d=>{
+      filas.push(Object.assign({}, base, {'Hallazgo Singemelec': d.tipo_hallazgo, 'Criticidad': PRIORIDAD_LABEL[criticidadDeDetalle(d,h)] || '', 'Estado': estado, 'Último comentario Sacyr': ultimo}));
+    });
   });
   return filas;
 }
@@ -2685,12 +2785,13 @@ function construirFilasExcelSacyr(){
 function exportarExcelSacyr(){
   if(typeof XLSX === 'undefined'){ toast('No se pudo cargar el módulo de Excel. Revisa tu conexión e intenta nuevamente.'); return; }
   if(HALLAZGOS.length===0){ toast('No hay hallazgos para exportar'); return; }
+  const ids = idsSegunFiltrosActivos();
   const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.json_to_sheet(construirFilasExcelSacyr(), {header:['Código Grifo','Zona','Comuna','Localidad','Dirección','Modelo','Hallazgo Singemelec','Criticidad','Último comentario Sacyr']});
-  XLSX.utils.book_append_sheet(wb, ws, 'Hallazgos');
+  const ws = XLSX.utils.json_to_sheet(construirFilasExcelSacyr(ids), {header:['Código Grifo','Zona','Comuna','Localidad','Dirección','Modelo','Hallazgo Singemelec','Criticidad','Estado','Último comentario Sacyr']});
+  XLSX.utils.book_append_sheet(wb, ws, 'Hallazgos generales');
   const stamp = new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
   XLSX.writeFile(wb, `hallazgos-grifos-sacyr-${stamp}.xlsx`);
-  toast('Excel SACYR generado');
+  toast(ids ? 'Excel SACYR generado (con los filtros activos)' : 'Excel SACYR generado');
 }
 
 /* Genera el informe ejecutivo en PDF: abre el mismo informe en una pestaña
