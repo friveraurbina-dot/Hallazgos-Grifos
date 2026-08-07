@@ -2227,11 +2227,6 @@ function construirReporteHallazgosHTML(soloIds){
     const direccion = primero.direccion || '—';
     const titulo = grupo.codigo ? grupo.codigo : `Sin código de grifo (registro ${primero.id})`;
     const coordenadas = (typeof primero.lat==='number' && typeof primero.lng==='number') ? `${primero.lat.toFixed(6)}, ${primero.lng.toFixed(6)}` : '—';
-    const datosGrifo = [
-      primero.modelo_grifo ? `Modelo: <strong>${primero.modelo_grifo}</strong>` : null,
-      primero.diametro_conexion ? `Diámetro: <strong>Ø${primero.diametro_conexion}mm</strong>` : null,
-      primero.ano_instalacion ? `Instalado: <strong>${primero.ano_instalacion}</strong>` : null
-    ].filter(Boolean).join(' &nbsp;·&nbsp; ');
 
     let mapaPuntoHtml;
     if(typeof primero.lat==='number' && typeof primero.lng==='number'){
@@ -2268,15 +2263,24 @@ function construirReporteHallazgosHTML(soloIds){
 
     return `<div class="grifo-block">
       <h4>Grifo <span class="mono">${titulo}</span> <span class="contador">(${filas.length} hallazgo${filas.length===1?'':'s'})</span></h4>
-      <div class="grifo-info-grid">
-        <div><span class="gi-label">Código</span><span class="gi-val">${titulo}</span></div>
-        <div><span class="gi-label">Dirección</span><span class="gi-val">${direccion}</span></div>
-        <div><span class="gi-label">Comuna</span><span class="gi-val">${primero.comuna || '—'}</span></div>
-        <div><span class="gi-label">Localidad</span><span class="gi-val">${primero.localidad || '—'}</span></div>
-        <div><span class="gi-label">Coordenadas</span><span class="gi-val mono">${coordenadas}</span></div>
-        ${datosGrifo ? `<div><span class="gi-label">Datos técnicos</span><span class="gi-val">${datosGrifo}</span></div>` : ''}
+      <div class="grifo-header-row">
+        <table class="grifo-info-table">
+          <thead><tr><th>Código</th><th>Dirección</th><th>Comuna</th><th>Localidad</th><th>Modelo</th><th>Diámetro</th><th>Año instalación</th></tr></thead>
+          <tbody><tr>
+            <td class="mono">${titulo}</td>
+            <td>${direccion}</td>
+            <td>${primero.comuna || '—'}</td>
+            <td>${primero.localidad || '—'}</td>
+            <td>${primero.modelo_grifo || '—'}</td>
+            <td>${primero.diametro_conexion ? `Ø${primero.diametro_conexion}mm` : '—'}</td>
+            <td>${primero.ano_instalacion || '—'}</td>
+          </tr></tbody>
+        </table>
+        <div class="mapa-referencial-wrap">
+          <p class="mapa-caption">Mapa referencial del punto<br><span class="mono">${coordenadas}</span></p>
+          ${mapaPuntoHtml}
+        </div>
       </div>
-      ${mapaPuntoHtml}
       ${tarjetasHtml}
     </div>`;
   }
@@ -2319,11 +2323,16 @@ th{font-family:'IBM Plex Mono',monospace;font-size:9.5px;text-transform:uppercas
 .grifo-block h4 .mono{color:var(--hidrante);}
 .grifo-block .contador{font-size:11px;color:var(--text-soft);font-weight:400;text-transform:none;font-family:'IBM Plex Sans',sans-serif;}
 .grifo-meta{font-size:12px;color:var(--text-soft);margin-bottom:8px;}
-.grifo-info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px 18px;margin-bottom:10px;}
 .gi-label{display:block;font-family:'IBM Plex Mono',monospace;font-size:9px;text-transform:uppercase;color:var(--text-soft);letter-spacing:.03em;margin-bottom:1px;}
 .gi-val{display:block;font-size:12.5px;font-weight:600;color:var(--text);}
-.mapa-punto{height:190px;border-radius:8px;border:1px solid var(--line);margin:0 0 12px;}
-.sin-mapa{font-size:11px;color:var(--text-soft);font-style:italic;margin:0 0 12px;}
+.grifo-header-row{display:flex;gap:16px;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap;}
+.grifo-info-table{flex:1 1 320px;border-collapse:collapse;font-size:12px;}
+.grifo-info-table th{background:var(--concrete);font-family:'IBM Plex Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.03em;color:var(--text-soft);padding:6px 8px;text-align:left;border:1px solid var(--line);white-space:nowrap;}
+.grifo-info-table td{padding:6px 8px;border:1px solid var(--line);font-weight:600;color:var(--text);background:var(--paper);}
+.mapa-referencial-wrap{width:210px;flex-shrink:0;}
+.mapa-caption{font-size:9.5px;color:var(--text-soft);text-align:center;margin:0 0 4px;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.02em;line-height:1.5;}
+.mapa-punto{height:130px;width:210px;border-radius:8px;border:1px solid var(--line);margin:0;}
+.sin-mapa{font-size:11px;color:var(--text-soft);font-style:italic;margin:0;text-align:center;}
 .sinfoto{font-size:10.5px;color:var(--text-soft);}
 .hallazgo-card{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:10px;}
 .hallazgo-card:last-child{margin-bottom:0;}
@@ -2337,9 +2346,9 @@ th{font-family:'IBM Plex Mono',monospace;font-size:9.5px;text-transform:uppercas
 .hc-encontrado{border-left-color:var(--hidrante);}
 .hc-solucion{border-left-color:var(--musgo);}
 .hc-desc{font-size:12.5px;margin:0 0 8px;color:var(--text);}
-.foto-galeria{display:flex;flex-wrap:wrap;gap:8px;}
-.foto-item{display:block;text-align:center;text-decoration:none;color:var(--text-soft);font-size:9.5px;width:70px;}
-.foto-item img{width:70px;height:70px;object-fit:cover;border-radius:6px;border:1px solid var(--line);display:block;margin-bottom:3px;}
+.foto-galeria{display:flex;flex-wrap:wrap;gap:14px;}
+.foto-item{display:block;text-align:center;text-decoration:none;color:var(--text-soft);font-size:11px;width:260px;}
+.foto-item img{width:260px;height:210px;object-fit:cover;border-radius:8px;border:1px solid var(--line);display:block;margin-bottom:5px;}
 .timeline{display:flex;flex-direction:column;gap:8px;}
 .tl-item{background:var(--concrete-2);border-radius:6px;padding:8px 10px;}
 .tl-head{font-size:11.5px;margin-bottom:3px;}
@@ -2347,7 +2356,7 @@ th{font-family:'IBM Plex Mono',monospace;font-size:9.5px;text-transform:uppercas
 .tl-txt{font-size:12px;margin-bottom:6px;}
 .sin-historial{font-size:11.5px;color:var(--text-soft);font-style:italic;margin:0;}
 footer{text-align:center;font-size:11px;color:var(--text-soft);font-family:'IBM Plex Mono',monospace;padding:24px;}
-@media print{ body{background:#fff;} .wrap{padding:14px 8px 30px;} .panel{page-break-inside:avoid;} .grifo-block,.hallazgo-card{break-inside:avoid;} .mapa-punto{break-inside:avoid;} }
+@media print{ body{background:#fff;} .wrap{padding:14px 8px 30px;} .panel{page-break-inside:avoid;} .grifo-block,.hallazgo-card,.grifo-header-row{break-inside:avoid;} .mapa-punto{break-inside:avoid;} }
 </style></head>
 <body>
 <header>
@@ -2554,10 +2563,10 @@ function construirFilasExcelSacyr(){
     };
     const ultimo = ultimoComentario ? (ultimoComentario.texto || '') : 'Sin avances registrados';
     if(detalle.length===0){
-      filas.push(Object.assign({}, base, {'Hallazgo':'', 'Criticidad': PRIORIDAD_LABEL[criticidadDeRegistro(h)] || '', 'Último comentario': ultimo}));
+      filas.push(Object.assign({}, base, {'Hallazgo Singemelec':'', 'Criticidad': PRIORIDAD_LABEL[criticidadDeRegistro(h)] || '', 'Último comentario Sacyr': ultimo}));
     } else {
       detalle.forEach(d=>{
-        filas.push(Object.assign({}, base, {'Hallazgo': d.tipo_hallazgo, 'Criticidad': PRIORIDAD_LABEL[criticidadDeDetalle(d,h)] || '', 'Último comentario': ultimo}));
+        filas.push(Object.assign({}, base, {'Hallazgo Singemelec': d.tipo_hallazgo, 'Criticidad': PRIORIDAD_LABEL[criticidadDeDetalle(d,h)] || '', 'Último comentario Sacyr': ultimo}));
       });
     }
   });
@@ -2568,7 +2577,7 @@ function exportarExcelSacyr(){
   if(typeof XLSX === 'undefined'){ toast('No se pudo cargar el módulo de Excel. Revisa tu conexión e intenta nuevamente.'); return; }
   if(HALLAZGOS.length===0){ toast('No hay hallazgos para exportar'); return; }
   const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.json_to_sheet(construirFilasExcelSacyr(), {header:['Código Grifo','Zona','Comuna','Localidad','Dirección','Modelo','Hallazgo','Criticidad','Último comentario']});
+  const ws = XLSX.utils.json_to_sheet(construirFilasExcelSacyr(), {header:['Código Grifo','Zona','Comuna','Localidad','Dirección','Modelo','Hallazgo Singemelec','Criticidad','Último comentario Sacyr']});
   XLSX.utils.book_append_sheet(wb, ws, 'Hallazgos');
   const stamp = new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
   XLSX.writeFile(wb, `hallazgos-grifos-sacyr-${stamp}.xlsx`);
