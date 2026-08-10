@@ -130,6 +130,34 @@ main{flex:1;overflow-y:auto;padding:24px 28px 60px;}
 .galeria-item .gi-meta{padding:7px 9px;}
 .galeria-item .gi-cod{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:12px;color:var(--ink);}
 .galeria-item .gi-label{display:block;font-size:10.5px;color:var(--text-soft);margin-top:1px;}
+
+/* TARJETAS PLEGABLES — Nuevo hallazgo / Inspecciones en celular (ver
+   fcard()/toggleFcard() más abajo). En pantallas angostas (celular) cada
+   sección del formulario se ve como una tarjeta con encabezado tocable que
+   se expande/contrae de a una. En escritorio (>720px) el acordeón queda
+   inerte por CSS — todas las tarjetas se ven siempre abiertas, sin
+   encabezado clicable, igual que el formulario plano de antes. */
+.fcard-acc-group{display:flex;flex-direction:column;gap:10px;margin-bottom:4px;}
+.fcard-acc{border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);overflow:hidden;}
+.fcard-acc-head{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;background:none;border:none;text-align:left;font:inherit;cursor:pointer;color:var(--ink);}
+.fcard-acc-title{font-weight:700;font-size:14.5px;letter-spacing:.01em;}
+.fcard-acc-chevron{font-size:13px;color:var(--text-soft);transition:transform .2s;flex-shrink:0;}
+.fcard-acc.open .fcard-acc-chevron{transform:rotate(180deg);}
+.fcard-acc-body{display:none;padding:2px 16px 16px;}
+.fcard-acc.open .fcard-acc-body{display:block;}
+@media(min-width:721px){
+  .fcard-acc-group{display:block;}
+  .fcard-acc{border:none;background:none;border-radius:0;}
+  /* En escritorio el encabezado no se oculta del todo — pasa a ser un
+     título de sección inerte (sin clic, sin flecha), para no perder el
+     contexto que antes daba el <label> de cada bloque del formulario. */
+  .fcard-acc-head{cursor:default;pointer-events:none;padding:18px 0 8px;border-bottom:1px solid var(--line);margin-bottom:14px;}
+  .fcard-acc:first-child .fcard-acc-head{padding-top:0;}
+  .fcard-acc-title{font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-soft);font-weight:700;}
+  .fcard-acc-chevron{display:none;}
+  .fcard-acc-body{display:block !important;padding:0;}
+}
+
 .btn{
   font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13px;
   padding:10px 18px;border-radius:7px;border:none;cursor:pointer;transition:.15s;
@@ -1055,6 +1083,8 @@ function renderNuevo(){
     </div>
     <div class="panel">
       <form id="formNuevo" onsubmit="return false;">
+        <div class="fcard-acc-group">
+        ${fcard('nh_grifo', '📍 Grifo', `
         <div class="field">
           <label>Código de grifo (catastro Sacyr)</label>
           <input type="text" id="fCodigoGrifo" list="listaCodigosGrifo" placeholder="Ej: LAM001" autocomplete="off" style="text-transform:uppercase;max-width:260px;">
@@ -1066,8 +1096,9 @@ function renderNuevo(){
           <input type="text" id="fDireccion" placeholder="Escribe para buscar dirección…" autocomplete="off">
           <div id="addrSuggestions" style="position:relative;"></div>
           <small>Autocompletado vía OpenStreetMap. También puedes hacer clic directo en el mapa, o ingresar el código de grifo arriba.</small>
-        </div>
+        </div>`, true)}
 
+        ${fcard('nh_hallazgo', '⚠️ Hallazgo', `
         <div class="field">
           <label>Hallazgo</label>
           <select id="fTipoHallazgo" onchange="onCambioTipoHallazgo()">
@@ -1084,10 +1115,10 @@ function renderNuevo(){
           <label>Hallazgos agregados a este registro</label>
           <div id="listaHallazgosAgregados" class="chips-list"></div>
           <div class="criticidad-auto" id="criticidadAutoInfo"></div>
-        </div>
+        </div>`, false)}
 
+        ${fcard('nh_mapa', '🗺️ Ubicación en el mapa', `
         <div class="field">
-          <label>Ubicación del grifo (real) y ubicación ideal</label>
           <small>Clic normal = ubicación real del grifo · Clic con tecla Shift = ubicación ideal sugerida · Botón GPS usa la ubicación del dispositivo</small>
           <div style="display:flex;gap:8px;margin:6px 0;">
             <button type="button" class="btn btn-ghost btn-sm" onclick="useGPS()">📍 Usar mi ubicación GPS</button>
@@ -1098,8 +1129,9 @@ function renderNuevo(){
             <span><i style="background:#C8334D"></i>Grifo (ubicación real)</span>
             <span><i style="background:#3B6E8F"></i>Ubicación ideal</span>
           </div>
-        </div>
+        </div>`, false)}
 
+        ${fcard('nh_fotos', '📷 Fotos', `
         <div class="form-grid">
           <div class="field">
             <label>Fotografías del grifo</label>
@@ -1113,8 +1145,9 @@ function renderNuevo(){
             <input type="file" id="inputMulti_hallazgo" accept="image/*" capture="environment" multiple style="display:none" onchange="handleFotoMulti(event,'hallazgo')">
             <small>Puedes agregar varias fotos.</small>
           </div>
-        </div>
+        </div>`, false)}
 
+        ${fcard('nh_guardar', '✅ Descripción y guardar', `
         <div class="field">
           <label>Descripción / observaciones adicionales</label>
           <textarea id="fDescripcion" placeholder="Detalle adicional lo observado en terreno (opcional)…"></textarea>
@@ -1127,12 +1160,51 @@ function renderNuevo(){
           </label>
         </div>
 
-        <button class="btn btn-primary" id="btnGuardarHallazgo" disabled onclick="guardarHallazgo()">Guardar hallazgo</button>
+        <button class="btn btn-primary" id="btnGuardarHallazgo" disabled onclick="guardarHallazgo()">Guardar hallazgo</button>`, false)}
+        </div>
       </form>
     </div>
   </div>`;
 
   inicializarFormularioGrifo({grifo:null, hallazgo:null});
+}
+
+/* Envoltorio de "tarjeta plegable" para los formularios de terreno (Nuevo
+   hallazgo / Inspecciones): agrupa una sección del formulario bajo un
+   encabezado tocable que se expande/contrae. Pensado para celular —
+   evita que el técnico tenga que hacer scroll por un formulario largo de
+   una sola vez — pero en escritorio el CSS lo deja inerte (ver
+   `.fcard-acc` en la hoja de estilos) y se ve exactamente como el
+   formulario plano de siempre. `abiertaPorDefecto` solo importa en
+   celular (en escritorio todas quedan visibles igual). */
+function fcard(id, titulo, contenidoHtml, abiertaPorDefecto){
+  return `<div class="fcard-acc${abiertaPorDefecto ? ' open' : ''}" id="card_${id}">
+    <button type="button" class="fcard-acc-head" onclick="toggleFcard('${id}')">
+      <span class="fcard-acc-title">${titulo}</span>
+      <span class="fcard-acc-chevron">▾</span>
+    </button>
+    <div class="fcard-acc-body">${contenidoHtml}</div>
+  </div>`;
+}
+
+/* Acordeón: al abrir una tarjeta se cierran las demás del mismo grupo (una
+   abierta a la vez, para minimizar scroll en celular). El mapa Leaflet del
+   formulario (`formMap`) se crea con el HTML ya en el DOM — si su tarjeta
+   empieza cerrada, el contenedor tiene ancho/alto 0 en ese momento y el
+   mapa se ve mal (tiles a medio cargar) hasta que se le avisa que su
+   tamaño cambió; por eso se llama `invalidateSize()` cada vez que se abre
+   cualquier tarjeta (no solo la del mapa — es una operación barata y evita
+   tener que saber desde acá cuál tarjeta es la del mapa). */
+function toggleFcard(id){
+  const el = document.getElementById('card_'+id);
+  if(!el) return;
+  const willOpen = !el.classList.contains('open');
+  const group = el.closest('.fcard-acc-group');
+  if(group) group.querySelectorAll('.fcard-acc.open').forEach(c=>{ if(c!==el) c.classList.remove('open'); });
+  el.classList.toggle('open', willOpen);
+  if(willOpen && formMap){
+    setTimeout(()=>{ try{ formMap.invalidateSize(); }catch(e){} }, 80);
+  }
 }
 
 /* Wiring compartido entre "Nuevo hallazgo" e "Inspecciones": ambas páginas
@@ -1348,6 +1420,8 @@ function renderInspecciones(){
   const formHtml = ROLE==='singemelec' ? `
     <div class="panel">
       <form id="formInspeccion" onsubmit="return false;">
+        <div class="fcard-acc-group">
+        ${fcard('in_grifo', '📍 Grifo', `
         <div class="field">
           <label>Código de grifo (catastro Sacyr)</label>
           <input type="text" id="fCodigoGrifo" list="listaCodigosGrifo" placeholder="Ej: LAM001" autocomplete="off" style="text-transform:uppercase;max-width:260px;">
@@ -1359,8 +1433,9 @@ function renderInspecciones(){
           <input type="text" id="fDireccion" placeholder="Escribe para buscar dirección…" autocomplete="off">
           <div id="addrSuggestions" style="position:relative;"></div>
           <small>Autocompletado vía OpenStreetMap. También puedes hacer clic directo en el mapa, o ingresar el código de grifo arriba.</small>
-        </div>
+        </div>`, true)}
 
+        ${fcard('in_fecha', '🗓️ Fecha, horario y estado de la visita', `
         <div class="form-grid">
           <div class="field">
             <label>Fecha de ejecución</label>
@@ -1392,9 +1467,10 @@ function renderInspecciones(){
             <input type="text" id="fMotivoOtroTexto" placeholder="Especifica el motivo…">
           </div>
           <small>Queda registrado que se pasó por este grifo aunque no se haya podido inspeccionar, para no perderlo de vista.</small>
-        </div>
+        </div>`, false)}
 
         <div id="bloqueInspeccionCompleta">
+        ${fcard('in_datos', '📊 Presión y resultado', `
           <div class="field">
             <label>Presión del grifo (bar)</label>
             <input type="number" id="fPresionGrifo" placeholder="Ej: 3.2" step="0.1" min="0" style="max-width:160px;">
@@ -1426,10 +1502,10 @@ function renderInspecciones(){
               <div id="listaHallazgosAgregados" class="chips-list"></div>
               <div class="criticidad-auto" id="criticidadAutoInfo"></div>
             </div>
-          </div>
+          </div>`, false)}
 
+        ${fcard('in_mapa', '🗺️ Ubicación en el mapa', `
           <div class="field">
-            <label>Ubicación del grifo (real) y ubicación ideal</label>
             <small>Clic normal = ubicación real del grifo · Clic con tecla Shift = ubicación ideal sugerida · Botón GPS usa la ubicación del dispositivo</small>
             <div style="display:flex;gap:8px;margin:6px 0;">
               <button type="button" class="btn btn-ghost btn-sm" onclick="useGPS()">📍 Usar mi ubicación GPS</button>
@@ -1440,8 +1516,9 @@ function renderInspecciones(){
               <span><i style="background:#C8334D"></i>Grifo (ubicación real)</span>
               <span><i style="background:#3B6E8F"></i>Ubicación ideal</span>
             </div>
-          </div>
+          </div>`, false)}
 
+        ${fcard('in_fotos', '📷 Fotos', `
           <div class="form-grid">
             <div class="field">
               <label>Fotografía del grifo</label>
@@ -1465,9 +1542,10 @@ function renderInspecciones(){
               <div class="photo-box" id="boxCamara" onclick="document.getElementById('inputCamara').click()"><span>Toca para tomar / subir foto</span></div>
               <input type="file" id="inputCamara" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(event,'camara')">
             </div>
-          </div>
+          </div>`, false)}
         </div>
 
+        ${fcard('in_guardar', '✅ Descripción y guardar', `
         <div class="field">
           <label>Descripción / observaciones adicionales</label>
           <textarea id="fDescripcion" placeholder="Detalle adicional lo observado en terreno (opcional)…"></textarea>
@@ -1480,7 +1558,8 @@ function renderInspecciones(){
           </label>
         </div>
 
-        <button class="btn btn-primary" id="btnGuardarInspeccion" disabled onclick="guardarInspeccion()">Guardar inspección</button>
+        <button class="btn btn-primary" id="btnGuardarInspeccion" disabled onclick="guardarInspeccion()">Guardar inspección</button>`, false)}
+        </div>
       </form>
     </div>` : '';
 
@@ -1762,26 +1841,41 @@ function useGPS(){
    dataURL resultante. Factorizado como Promise para poder reutilizarlo
    tanto en la carga de una sola foto (handlePhoto) como en la de varias
    fotos a la vez (handleFotoMulti). */
+/* Tamaño máximo del lado más largo de cualquier foto subida (grifo,
+   hallazgo, inspección, avance de solución). Una foto de celular moderno
+   (12-48 megapíxeles) no aporta nada extra a esta resolución para verse en
+   pantalla o en un informe impreso, y reducirla a esto de entrada baja su
+   peso entre 5 y 15 veces sin pérdida perceptible de calidad — evita
+   subidas lentas en terreno con mala señal y el riesgo de superar el
+   límite de 1 MiB por documento de Firestore si llega a hacer falta el
+   respaldo local (ver "Límites del sistema" en las notas del proyecto). */
+const FOTO_LADO_MAXIMO = 1800;
+
 function procesarFotoArchivo(file){
   return new Promise((resolve, reject)=>{
     const reader = new FileReader();
     reader.onload = function(e){
       const img = new Image();
       img.onload = function(){
+        // Nunca se agranda una foto que ya es más chica que el máximo
+        // (Math.min con 1) — solo se reduce cuando hace falta.
+        const escala = Math.min(1, FOTO_LADO_MAXIMO / Math.max(img.width, img.height));
+        const w = Math.round(img.width * escala);
+        const h = Math.round(img.height * escala);
         const canvas = document.createElement('canvas');
-        canvas.width = img.width; canvas.height = img.height;
+        canvas.width = w; canvas.height = h;
         const ctx = canvas.getContext('2d');
-        ctx.drawImage(img,0,0);
+        ctx.drawImage(img,0,0,w,h);
         const stamp = fmtDate(new Date());
-        const fontSize = Math.max(18, Math.round(img.width/40));
+        const fontSize = Math.max(18, Math.round(w/40));
         ctx.font = `600 ${fontSize}px IBM Plex Mono, monospace`;
         const padding = fontSize*0.6;
         const textW = ctx.measureText(stamp).width;
         ctx.fillStyle = 'rgba(0,0,0,0.55)';
-        ctx.fillRect(0, img.height-fontSize-padding*2, textW+padding*2, fontSize+padding*2);
+        ctx.fillRect(0, h-fontSize-padding*2, textW+padding*2, fontSize+padding*2);
         ctx.fillStyle = '#fff';
         ctx.textBaseline = 'middle';
-        ctx.fillText(stamp, padding, img.height-fontSize/2-padding);
+        ctx.fillText(stamp, padding, h-fontSize/2-padding);
         resolve(canvas.toDataURL('image/jpeg', 0.82));
       };
       img.onerror = () => reject(new Error('No se pudo leer la imagen'));
