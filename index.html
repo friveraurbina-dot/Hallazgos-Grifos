@@ -118,6 +118,18 @@ main{flex:1;overflow-y:auto;padding:24px 28px 60px;}
 }
 .field textarea{resize:vertical;min-height:70px;}
 .field small{color:var(--text-soft);font-size:11px;}
+.subcampo{background:var(--concrete-2);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin:-4px 0 14px;}
+.radio-row{display:flex;gap:18px;flex-wrap:wrap;margin-top:4px;}
+.radio-row label{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--text);text-transform:none;cursor:pointer;}
+.radio-row input{width:16px;height:16px;cursor:pointer;}
+.plan-table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);margin-top:10px;}
+.galeria-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-top:14px;}
+.galeria-item{display:block;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff;text-decoration:none;color:var(--text);transition:.15s;}
+.galeria-item:hover{border-color:var(--ink);}
+.galeria-item img{width:100%;height:130px;object-fit:cover;display:block;background:var(--concrete-2);}
+.galeria-item .gi-meta{padding:7px 9px;}
+.galeria-item .gi-cod{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:12px;color:var(--ink);}
+.galeria-item .gi-label{display:block;font-size:10.5px;color:var(--text-soft);margin-top:1px;}
 .btn{
   font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13px;
   padding:10px 18px;border-radius:7px;border:none;cursor:pointer;transition:.15s;
@@ -312,6 +324,7 @@ function verificarAcceso(){
       <button class="navbtn active" data-page="dashboard" onclick="goPage('dashboard')">Tablero ejecutivo</button>
       <button class="navbtn" data-page="inspecciones" id="navInspecciones" onclick="goPage('inspecciones')">Inspecciones</button>
       <button class="navbtn" data-page="nuevo" id="navNuevo" onclick="goPage('nuevo')">Nuevo hallazgo</button>
+      <button class="navbtn" data-page="galeria" id="navGaleria" onclick="goPage('galeria')">Galería de fotos</button>
       <button class="navbtn" data-page="lista" onclick="goPage('lista')">Hallazgos</button>
       <div class="rail-foot" id="railFoot">v1.0 · datos compartidos<br>entre ambas empresas</div>
     </nav>
@@ -358,6 +371,22 @@ let FILTRO_HALLAZGO_TIPO = 'todos'; // tipo de hallazgo (p.ej. "Pintura en mal e
 let FILTRO_COMUNA_LISTA = 'todos'; // comuna en la pestaña Hallazgos
 let FILTRO_PRIORIDAD_LISTA = 'todos'; // criticidad (directa/indirecta/senaletica) en la pestaña Hallazgos
 
+// Plan de inspección diario: qué grifos hay que inspeccionar cada día,
+// cargado por quien coordina (p.ej. Felipe) y visible por cualquiera
+// logueado como Singemelec (p.ej. Francisco en terreno), para no perder de
+// vista qué falta y qué ya se revisó. Es una sola lista compartida por
+// fecha (no por técnico) — decisión explícita del usuario.
+let PLANES_INSPECCION = []; // [{id:'YYYY-MM-DD', codigos:[...], creado_por, actualizado_en}]
+let FECHA_PLAN_SELECCIONADA = null; // se inicializa a "hoy" la primera vez que se renderiza Inspecciones
+
+// Galería de fotos: acceso centralizado a todas las fotos subidas (grifo,
+// hallazgo, presión, cámara, avances de solución), con filtros propios y
+// paginación porque el catastro puede acumular cientos de fotos.
+let FILTRO_GALERIA_CODIGO = '';
+let FILTRO_GALERIA_COMUNA = 'todos';
+let GALERIA_PAGINA = 1;
+const GALERIA_POR_PAGINA = 40;
+
 /* Determina la zona de un hallazgo según la comuna del grifo en el catastro
    (LAMPA => zona Lampa; LO BARNECHEA / COLINA => zona Metropolitana).
    Los hallazgos sin código de grifo (o cuyo código no está en el catastro)
@@ -399,6 +428,7 @@ const CATALOGO_HALLAZGOS = [
   {nombre:'Cámara con basura', criticidad:'indirecta', tipo_elemento:'camara'},
   {nombre:'Cámara dañada', criticidad:'indirecta', tipo_elemento:'camara'},
   {nombre:'Cámara Inundada', criticidad:'indirecta', tipo_elemento:'camara'},
+  {nombre:'Cámara obstruida', criticidad:'indirecta', tipo_elemento:'camara'},
   {nombre:'Tapa boquilla mal estado', criticidad:'indirecta', tipo_elemento:'grifo'},
   {nombre:'Pintura en mal estado', criticidad:'senaletica', tipo_elemento:'grifo'}
 ];
@@ -541,6 +571,220 @@ function guardarLocal(){
   }catch(e){ toast('Error al guardar. Intenta nuevamente.'); console.error(e); }
 }
 
+/* ---------------- PLAN DE INSPECCIÓN DIARIO ---------------- */
+/* Colección aparte (`planes_inspeccion`), un documento por fecha, con la
+   lista de códigos de grifo que hay que inspeccionar ese día. Mismo patrón
+   de suscripción en tiempo real que `suscribirHallazgos`, para que quien
+   carga el plan (p.ej. Felipe) y quien lo consulta en terreno (p.ej.
+   Francisco) vean siempre la misma lista actualizada, sin recargar. */
+const LOCAL_KEY_PLANES = 'grifos_planes_inspeccion_local';
+let unsubscribePlanes = null;
+
+function suscribirPlanesInspeccion(onChange){
+  if(!firebaseReady){
+    try{
+      const local = localStorage.getItem(LOCAL_KEY_PLANES);
+      PLANES_INSPECCION = local ? JSON.parse(local) : [];
+    }catch(e){ PLANES_INSPECCION = []; }
+    onChange();
+    return;
+  }
+  if(unsubscribePlanes) unsubscribePlanes();
+  unsubscribePlanes = db.collection('planes_inspeccion').orderBy('actualizado_en','desc').onSnapshot(
+    (snap)=>{
+      PLANES_INSPECCION = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      onChange();
+    },
+    (err)=>{
+      console.error(err);
+      try{
+        const local = localStorage.getItem(LOCAL_KEY_PLANES);
+        PLANES_INSPECCION = local ? JSON.parse(local) : [];
+      }catch(e2){ PLANES_INSPECCION = []; }
+      onChange();
+    }
+  );
+}
+
+function guardarPlanesLocal(){
+  try{
+    localStorage.setItem(LOCAL_KEY_PLANES, JSON.stringify(PLANES_INSPECCION));
+    render();
+  }catch(e){ toast('Error al guardar el plan. Intenta nuevamente.'); console.error(e); }
+}
+
+function planDelDia(fecha){
+  return PLANES_INSPECCION.find(p=>p.id===fecha) || {id:fecha, codigos:[]};
+}
+
+/* Convierte una fecha 'YYYY-MM-DD' (la que entrega un <input type="date">)
+   a 'DD-MM-YYYY' para mostrarla, SIN pasar por new Date()/toLocaleDateString
+   — hacerlo con Date podría correr un día para atrás/adelante según la zona
+   horaria del navegador, porque 'YYYY-MM-DD' se interpreta como medianoche
+   UTC. Partiendo el string a mano se evita ese bug por completo. */
+function fmtFechaSolo(fechaStr){
+  if(!fechaStr) return '—';
+  const partes = fechaStr.split('-');
+  if(partes.length!==3) return fechaStr;
+  return `${partes[2]}-${partes[1]}-${partes[0]}`;
+}
+
+/* Agrega códigos de grifo al plan de una fecha (fusiona con lo que ya
+   hubiera ese día, no lo reemplaza — así Felipe puede seguir sumando
+   grifos a lo largo del día sin perder lo ya cargado). Acepta los códigos
+   separados por salto de línea o coma, y avisa (sin bloquear) si alguno no
+   está en el catastro cargado, igual que el resto de la app. */
+async function cargarPlanDia(fecha, codigosTexto){
+  if(!fecha){ toast('Elige la fecha del plan'); return; }
+  const codigosNuevos = Array.from(new Set(
+    (codigosTexto||'').split(/[\n,]+/).map(c=>c.trim().toUpperCase()).filter(Boolean)
+  ));
+  if(codigosNuevos.length===0){ toast('Pega o escribe al menos un código de grifo'); return; }
+
+  const actual = planDelDia(fecha);
+  const codigosFinal = Array.from(new Set([...(actual.codigos||[]), ...codigosNuevos]));
+  const desconocidos = codigosNuevos.filter(c=>!CATALOGO_GRIFOS[c]);
+
+  const doc = {
+    codigos: codigosFinal,
+    creado_por: 'Singemelec',
+    actualizado_en: new Date().toISOString()
+  };
+
+  if(STORAGE_MODE === 'remote' && firebaseReady){
+    try{
+      await db.collection('planes_inspeccion').doc(fecha).set(doc);
+    }catch(e){
+      console.error(e);
+      toast('Sin conexión: no se pudo guardar el plan del día');
+      return;
+    }
+  } else {
+    const idx = PLANES_INSPECCION.findIndex(p=>p.id===fecha);
+    const registro = {id:fecha, ...doc};
+    if(idx>=0) PLANES_INSPECCION[idx] = registro; else PLANES_INSPECCION.push(registro);
+    guardarPlanesLocal();
+  }
+
+  toast(`${codigosNuevos.length} código${codigosNuevos.length===1?'':'s'} agregado${codigosNuevos.length===1?'':'s'} al plan del ${fmtFechaSolo(fecha)}${desconocidos.length ? ` (${desconocidos.length} no está${desconocidos.length===1?'':'n'} en el catastro, se agregó${desconocidos.length===1?'':'aron'} igual)` : ''}`);
+  const input = document.getElementById('planCodigosInput');
+  if(input) input.value = '';
+  if(currentPage==='inspecciones') renderInspecciones();
+}
+
+/* Quita un único código del plan de una fecha (por si se cargó por error). */
+async function quitarCodigoDelPlan(fecha, codigo){
+  const actual = planDelDia(fecha);
+  const codigosFinal = (actual.codigos||[]).filter(c=>c!==codigo);
+  const doc = {codigos: codigosFinal, creado_por: actual.creado_por||'Singemelec', actualizado_en: new Date().toISOString()};
+  if(STORAGE_MODE === 'remote' && firebaseReady){
+    try{ await db.collection('planes_inspeccion').doc(fecha).set(doc); }
+    catch(e){ console.error(e); toast('Sin conexión: no se pudo quitar el código'); return; }
+  } else {
+    const idx = PLANES_INSPECCION.findIndex(p=>p.id===fecha);
+    const registro = {id:fecha, ...doc};
+    if(idx>=0) PLANES_INSPECCION[idx] = registro; else PLANES_INSPECCION.push(registro);
+    guardarPlanesLocal();
+  }
+  if(currentPage==='inspecciones') renderInspecciones();
+}
+
+/* Cruza el plan de una fecha con los registros de inspección ya guardados
+   ese mismo día, para saber de un vistazo qué grifos ya se revisaron, a
+   cuáles no se pudo llegar (y por qué), y cuáles siguen pendientes. */
+function estadoPlanParaCodigo(codigo, fecha){
+  const registro = HALLAZGOS.find(h => esInspeccion(h) && h.codigo_grifo === codigo && h.fecha_ejecucion === fecha);
+  if(!registro) return {estado:'pendiente'};
+  if(registro.inspeccion_realizada === 'no') return {estado:'no_realizada', registro};
+  return {estado:'realizada', registro};
+}
+
+/* Prepara el formulario de arriba para registrar la inspección de un
+   código específico del plan (autocompleta el código y hace scroll al
+   formulario) — así Francisco no tiene que volver a escribirlo a mano. */
+function registrarDesdelPlan(codigo){
+  const input = document.getElementById('fCodigoGrifo');
+  if(input){
+    input.value = codigo;
+    aplicarCatalogoGrifo(codigo);
+  }
+  const form = document.getElementById('formInspeccion');
+  if(form) form.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+/* Cambia la fecha del plan que se está visualizando (no la fecha de
+   ejecución del formulario de abajo, que es independiente) y vuelve a
+   pintar solo el panel del plan para no perder lo que el usuario tenga
+   escrito en el formulario de inspección. */
+function cambiarFechaPlan(fecha){
+  FECHA_PLAN_SELECCIONADA = fecha;
+  const cont = document.getElementById('panelPlanDia');
+  if(cont) cont.outerHTML = renderPlanDelDiaHtml();
+}
+
+/* Construye el panel de "Plan de inspección diario": quién debe cargar los
+   códigos a revisar hoy (o cualquier fecha) y un checklist en vivo que cruza
+   esos códigos con las inspecciones ya registradas, para que Francisco no
+   tenga que recordar de memoria qué grifos ya revisó. Visible para ambos
+   roles (Singemelec carga/edita, Sacyr solo consulta) porque forma parte del
+   historial operativo del día — pero el input para pegar códigos y el botón
+   de quitar solo se muestran a Singemelec. */
+function renderPlanDelDiaHtml(){
+  const fecha = FECHA_PLAN_SELECCIONADA || new Date().toISOString().slice(0,10);
+  const plan = planDelDia(fecha);
+  const codigos = (plan.codigos||[]).slice().sort();
+  const filas = codigos.map(c=>{
+    const est = estadoPlanParaCodigo(c, fecha);
+    let badge, accion;
+    if(est.estado==='realizada'){
+      badge = `<span class="badge resuelto">✅ Inspeccionado${est.registro && est.registro.tiene_hallazgo==='si' ? ' · con hallazgo' : ''}</span>`;
+      accion = `<button class="btn btn-ghost btn-sm" onclick="openDetail('${est.registro.id}')">Ver</button>`;
+    } else if(est.estado==='no_realizada'){
+      badge = `<span class="badge directa" title="${(est.registro.motivo_no_realizada_detalle)||''}">⚠️ No realizada · ${MOTIVO_NO_REALIZADA_LABEL[est.registro.motivo_no_realizada]||'Sin motivo'}</span>`;
+      accion = `<button class="btn btn-ghost btn-sm" onclick="openDetail('${est.registro.id}')">Ver</button>`;
+    } else {
+      badge = `<span class="badge pendiente" style="background:#eef1ee;color:#5c6b6e;">⏳ Pendiente</span>`;
+      accion = ROLE==='singemelec' ? `<button class="btn btn-ghost btn-sm" onclick="registrarDesdelPlan('${c}')">Registrar inspección</button>` : '';
+    }
+    const quitar = ROLE==='singemelec' ? `<button class="btn btn-ghost btn-sm" title="Quitar del plan" onclick="quitarCodigoDelPlan('${fecha}','${c}')" style="color:#a33;">&times;</button>` : '';
+    return `<tr><td class="mono">${c}</td><td>${badge}</td><td style="white-space:nowrap;">${accion} ${quitar}</td></tr>`;
+  }).join('');
+
+  const total = codigos.length;
+  const realizadas = codigos.filter(c=>estadoPlanParaCodigo(c, fecha).estado==='realizada').length;
+  const noRealizadas = codigos.filter(c=>estadoPlanParaCodigo(c, fecha).estado==='no_realizada').length;
+  const pendientes = total - realizadas - noRealizadas;
+
+  const cargaHtml = ROLE==='singemelec' ? `
+    <div class="field" style="margin-top:12px;">
+      <label>Agregar códigos al plan de este día</label>
+      <textarea id="planCodigosInput" placeholder="Pega o escribe los códigos de grifo a inspeccionar, uno por línea o separados por coma. Ej: LAM001, LAM002, LAM003"></textarea>
+      <button type="button" class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="cargarPlanDia(document.getElementById('planFecha').value, document.getElementById('planCodigosInput').value)">+ Agregar al plan</button>
+      <small>Si un código ya estaba en el plan de ese día, no se duplica. Los códigos que no estén en el catastro igual se agregan, con aviso.</small>
+    </div>` : '';
+
+  return `<div class="panel" id="panelPlanDia" style="margin-bottom:18px;">
+    <div class="page-head" style="margin-bottom:8px;">
+      <div><h3 style="margin:0;">Plan de inspección diario</h3><p style="margin:2px 0 0;">Grifos a inspeccionar en la fecha seleccionada, con su estado en vivo</p></div>
+      <div class="field" style="min-width:170px;margin:0;">
+        <label style="font-size:11px;">Fecha del plan</label>
+        <input type="date" id="planFecha" value="${fecha}" onchange="cambiarFechaPlan(this.value)">
+      </div>
+    </div>
+    ${total ? `<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--text-soft);margin-bottom:8px;">
+      <span><strong style="color:var(--ink);">${total}</strong> en el plan</span>
+      <span><strong style="color:#2f7a4d;">${realizadas}</strong> inspeccionados</span>
+      <span><strong style="color:#b3831f;">${noRealizadas}</strong> no realizados</span>
+      <span><strong style="color:#5c6b6e;">${pendientes}</strong> pendientes</span>
+    </div>` : ''}
+    ${total ? `<div class="plan-table-wrap"><table class="estado-table">
+      <thead><tr><th>Código</th><th>Estado</th><th></th></tr></thead>
+      <tbody>${filas}</tbody>
+    </table></div>` : `<p style="font-size:13px;color:var(--text-soft);margin:6px 0 0;">Aún no hay grifos cargados en el plan del ${fmtFechaSolo(fecha)}.</p>`}
+    ${cargaHtml}
+  </div>`;
+}
+
 /* Carga el catastro oficial de grifos (Sacyr) desde Firestore, una sola vez, y lo
    deja en memoria (CATALOGO_GRIFOS) para autocompletar el formulario de "Nuevo
    hallazgo" al ingresar el código de grifo. Si no hay conexión remota, el
@@ -599,8 +843,10 @@ function setRole(r){
   // Hallazgos.
   const navInspecciones = document.getElementById('navInspecciones');
   navInspecciones.style.display = (r==='singemelec') ? 'block' : 'none';
-  // if sacyr was on nuevo o inspecciones, kick back to dashboard
-  if(r==='sacyr' && (currentPage==='nuevo' || currentPage==='inspecciones')) goPage('dashboard');
+  const navGaleria = document.getElementById('navGaleria');
+  if(navGaleria) navGaleria.style.display = (r==='singemelec') ? 'block' : 'none';
+  // if sacyr was on nuevo o inspecciones o galeria, kick back to dashboard
+  if(r==='sacyr' && (currentPage==='nuevo' || currentPage==='inspecciones' || currentPage==='galeria')) goPage('dashboard');
   else render();
 }
 function updateRolePills(){
@@ -627,6 +873,7 @@ function render(){
   else if(currentPage==='nuevo') renderNuevo();
   else if(currentPage==='lista') renderLista();
   else if(currentPage==='inspecciones') renderInspecciones();
+  else if(currentPage==='galeria') renderGaleria();
 }
 
 /* ================= DASHBOARD ================= */
@@ -823,11 +1070,12 @@ function renderNuevo(){
 
         <div class="field">
           <label>Hallazgo</label>
-          <select id="fTipoHallazgo">
+          <select id="fTipoHallazgo" onchange="onCambioTipoHallazgo()">
             ${CATEGORIAS_CRITICIDAD.map(cat=>`<optgroup label="${cat.titulo}">${CATALOGO_HALLAZGOS.filter(x=>x.criticidad===cat.clave).map(x=>`<option value="${x.nombre}">${x.nombre}</option>`).join('')}</optgroup>`).join('')}
           </select>
           <small>La criticidad del hallazgo (y del registro) se calcula automáticamente según lo que elijas acá — ya no se selecciona a mano.</small>
         </div>
+        ${seccionValvulaHtml()}
         <div class="field">
           <button type="button" class="btn btn-ghost btn-sm" onclick="agregarHallazgoDetalle()">+ Agregar hallazgo a este registro</button>
           <small>Un mismo grifo puede tener más de un hallazgo. Agrega cada uno y luego guarda el registro completo.</small>
@@ -901,6 +1149,10 @@ function inicializarFormularioGrifo(fotosIniciales){
   formMarkerActual = null; formMarkerIdeal = null;
   catalogoMatchActual = null;
   hallazgosAgregados = [];
+  // Sincroniza la sección de válvula de pie con el valor por defecto del
+  // <select> de tipo de hallazgo (ver onCambioTipoHallazgo para el detalle
+  // de por qué hace falta esto además del listener onchange).
+  onCambioTipoHallazgo('f');
 
   if(formMap){ formMap.remove(); formMap=null; }
   formMap = L.map('formMiniMap').setView([-33.0245,-71.5518], 13);
@@ -940,6 +1192,92 @@ function inicializarFormularioGrifo(fotosIniciales){
   renderListaHallazgosAgregados();
 }
 
+/* "Válvula de pie cerrada" trae su propio mini-seguimiento (pedido
+   explícito del usuario): al detectar este hallazgo puntual, se prueba en
+   el momento si la válvula se puede abrir, y si se pudo, si al volverla a
+   cerrar quedó bien cerrada. Es un sub-formulario condicional que se
+   muestra/oculta según el <select> de tipo de hallazgo — reutilizado en los
+   tres lugares donde se elige un tipo de hallazgo (Nuevo hallazgo,
+   Inspecciones, Editar hallazgo), cada uno con su propio prefijo de ids
+   ('f' para los dos primeros, que nunca están montados a la vez y pueden
+   compartir ids; 'e' para el modal de edición) para no pisarse.
+   VALVULA_TIPO centraliza el nombre exacto del catálogo que lo activa. */
+const VALVULA_TIPO = 'Válvula de pie cerrada';
+
+function seccionValvulaHtml(prefix){
+  prefix = prefix || 'f';
+  return `<div class="field subcampo" id="${prefix}ValvulaSeccion" style="display:none;">
+    <label>Seguimiento de la válvula de pie (probada en esta misma visita)</label>
+    <div class="radio-row">
+      <label><input type="radio" name="${prefix}ValvulaAbrir" value="si" onchange="onCambioValvulaAbrir('${prefix}')"> Sí, se pudo abrir</label>
+      <label><input type="radio" name="${prefix}ValvulaAbrir" value="no" onchange="onCambioValvulaAbrir('${prefix}')"> No, quedó sin poder abrirse</label>
+    </div>
+    <div id="${prefix}ValvulaCerrarSub" style="display:none;margin-top:10px;">
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--ink);text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px;">¿La volvió a cerrar y quedó bien cerrada?</label>
+      <div class="radio-row">
+        <label><input type="radio" name="${prefix}ValvulaCerrar" value="si"> Sí, quedó bien cerrada</label>
+        <label><input type="radio" name="${prefix}ValvulaCerrar" value="no"> No, no quedó bien cerrada</label>
+      </div>
+    </div>
+  </div>`;
+}
+
+// Sincroniza la visibilidad de la sección de válvula con el valor actual
+// del <select> de tipo de hallazgo — se llama tanto en el onchange como
+// justo después de renderizar el formulario, porque el <select> no tiene
+// una opción marcada "selected" explícita y el navegador muestra la
+// primera por defecto (que hoy es justo "Válvula de pie cerrada").
+function onCambioTipoHallazgo(prefix){
+  prefix = prefix || 'f';
+  const select = document.getElementById(prefix+'TipoHallazgo');
+  const sec = document.getElementById(prefix+'ValvulaSeccion');
+  if(!select || !sec) return;
+  const esValvula = select.value === VALVULA_TIPO;
+  sec.style.display = esValvula ? 'block' : 'none';
+  if(!esValvula) limpiarValvulaSeccion(prefix);
+}
+
+function onCambioValvulaAbrir(prefix){
+  const val = document.querySelector(`input[name="${prefix}ValvulaAbrir"]:checked`)?.value;
+  const sub = document.getElementById(prefix+'ValvulaCerrarSub');
+  if(!sub) return;
+  sub.style.display = val==='si' ? 'block' : 'none';
+  if(val!=='si') document.querySelectorAll(`input[name="${prefix}ValvulaCerrar"]`).forEach(r=>r.checked=false);
+}
+
+function limpiarValvulaSeccion(prefix){
+  document.querySelectorAll(`input[name="${prefix}ValvulaAbrir"]`).forEach(r=>r.checked=false);
+  document.querySelectorAll(`input[name="${prefix}ValvulaCerrar"]`).forEach(r=>r.checked=false);
+  const sub = document.getElementById(prefix+'ValvulaCerrarSub');
+  if(sub) sub.style.display='none';
+}
+
+// Lee y valida las respuestas de la sección de válvula para el prefijo
+// dado. Devuelve null (y muestra un toast) si falta responder algo — así
+// "Válvula de pie cerrada" no se puede agregar sin dejar registrado el
+// resultado de la prueba hecha en terreno.
+function leerValvulaDetalle(prefix){
+  const seAbrio = document.querySelector(`input[name="${prefix}ValvulaAbrir"]:checked`)?.value;
+  if(!seAbrio){ toast('Indica si se pudo abrir la válvula antes de agregar este hallazgo'); return null; }
+  const extra = {valvula_se_pudo_abrir: seAbrio};
+  if(seAbrio==='si'){
+    const quedoCerrada = document.querySelector(`input[name="${prefix}ValvulaCerrar"]:checked`)?.value;
+    if(!quedoCerrada){ toast('Indica si la válvula quedó bien cerrada al volver a cerrarla'); return null; }
+    extra.valvula_quedo_cerrada = quedoCerrada;
+  }
+  return extra;
+}
+
+// Texto corto para mostrar el resultado de la válvula en los chips y en el
+// informe — reutilizado en varios lugares para no repetir la lógica.
+function resumenValvula(d){
+  if(!d || !d.valvula_se_pudo_abrir) return '';
+  if(d.valvula_se_pudo_abrir==='no') return 'no se pudo abrir';
+  if(d.valvula_quedo_cerrada==='si') return 'se abrió y quedó bien cerrada';
+  if(d.valvula_quedo_cerrada==='no') return 'se abrió, no quedó bien cerrada';
+  return 'se pudo abrir';
+}
+
 /* Un mismo registro (una misma visita a un grifo) puede tener más de un
    hallazgo. Cada clic en "+ Agregar hallazgo a este registro" suma el
    hallazgo actualmente seleccionado a `hallazgosAgregados` (junto con su
@@ -951,9 +1289,16 @@ function agregarHallazgoDetalle(){
   if(!info) return;
   const yaExiste = hallazgosAgregados.some(h=>h.tipo_hallazgo===tipo_hallazgo);
   if(yaExiste){ toast('Ese hallazgo ya fue agregado a este registro'); return; }
-  hallazgosAgregados.push({tipo_elemento: info.tipo_elemento, tipo_hallazgo, criticidad: info.criticidad});
+  const detalle = {tipo_elemento: info.tipo_elemento, tipo_hallazgo, criticidad: info.criticidad};
+  if(tipo_hallazgo === VALVULA_TIPO){
+    const extra = leerValvulaDetalle('f');
+    if(!extra) return;
+    Object.assign(detalle, extra);
+  }
+  hallazgosAgregados.push(detalle);
   renderListaHallazgosAgregados();
   toast('Hallazgo agregado al registro');
+  limpiarValvulaSeccion('f');
 }
 
 function quitarHallazgoDetalle(i){
@@ -970,11 +1315,12 @@ function renderListaHallazgosAgregados(){
     if(info) info.innerHTML = '';
     return;
   }
-  cont.innerHTML = hallazgosAgregados.map((h,i)=>`
-    <span class="chip"><i class="dot" style="background:${PRIORIDAD_COLOR[h.criticidad]}"></i>${h.tipo_elemento==='camara'?'Cámara':'Grifo'} · ${h.tipo_hallazgo}
+  cont.innerHTML = hallazgosAgregados.map((h,i)=>{
+    const valvulaTxt = resumenValvula(h);
+    return `<span class="chip"><i class="dot" style="background:${PRIORIDAD_COLOR[h.criticidad]}"></i>${h.tipo_elemento==='camara'?'Cámara':'Grifo'} · ${h.tipo_hallazgo}${valvulaTxt ? ` (${valvulaTxt})` : ''}
       <button type="button" onclick="quitarHallazgoDetalle(${i})" title="Quitar">&times;</button>
-    </span>
-  `).join('');
+    </span>`;
+  }).join('');
   if(info){
     const peor = criticidadMasSevera(hallazgosAgregados);
     info.innerHTML = `Criticidad de este registro (automática): <span class="badge ${peor}">${PRIORIDAD_LABEL[peor]}</span>`;
@@ -995,6 +1341,9 @@ function renderInspecciones(){
   const inspecciones = HALLAZGOS.filter(esInspeccion).slice().sort((a,b)=> new Date(b.fecha_creacion||0) - new Date(a.fecha_creacion||0));
   const hoy = new Date().toISOString().slice(0,10);
   const ahora = new Date().toTimeString().slice(0,5);
+  if(!FECHA_PLAN_SELECCIONADA) FECHA_PLAN_SELECCIONADA = hoy;
+
+  const planHtml = renderPlanDelDiaHtml();
 
   const formHtml = ROLE==='singemelec' ? `
     <div class="panel">
@@ -1022,74 +1371,100 @@ function renderInspecciones(){
             <input type="time" id="fHorarioEjecucion" value="${ahora}">
           </div>
         </div>
-        <div class="field">
-          <label>Presión del grifo (bar)</label>
-          <input type="number" id="fPresionGrifo" placeholder="Ej: 3.2" step="0.1" min="0" style="max-width:160px;">
-        </div>
 
         <div class="field">
-          <label>¿La inspección detectó algún hallazgo?</label>
-          <select id="fTieneHallazgo" onchange="toggleBloqueHallazgoInsp()" style="max-width:200px;">
-            <option value="no" selected>No — grifo operativo, sin novedad</option>
-            <option value="si">Sí — hay un hallazgo que registrar</option>
+          <label>¿Se realizó la inspección?</label>
+          <select id="fInspeccionRealizada" onchange="toggleInspeccionRealizada()" style="max-width:220px;">
+            <option value="si" selected>Sí, se realizó</option>
+            <option value="no">No, no se pudo realizar</option>
           </select>
         </div>
 
-        <div id="bloqueHallazgoInsp" style="display:none;">
+        <div id="bloqueMotivoNoRealizada" class="field subcampo" style="display:none;">
+          <label>Motivo por el que no se realizó</label>
+          <select id="fMotivoNoRealizada" onchange="toggleMotivoOtro()">
+            <option value="falta_tiempo">Falta de tiempo</option>
+            <option value="feria">Feria</option>
+            <option value="zona_roja">Zona roja / sin acceso seguro</option>
+            <option value="otro">Otro</option>
+          </select>
+          <div id="fMotivoOtroWrap" style="display:none;margin-top:6px;">
+            <input type="text" id="fMotivoOtroTexto" placeholder="Especifica el motivo…">
+          </div>
+          <small>Queda registrado que se pasó por este grifo aunque no se haya podido inspeccionar, para no perderlo de vista.</small>
+        </div>
+
+        <div id="bloqueInspeccionCompleta">
           <div class="field">
-            <label>Hallazgo</label>
-            <select id="fTipoHallazgo">
-              ${CATEGORIAS_CRITICIDAD.map(cat=>`<optgroup label="${cat.titulo}">${CATALOGO_HALLAZGOS.filter(x=>x.criticidad===cat.clave).map(x=>`<option value="${x.nombre}">${x.nombre}</option>`).join('')}</optgroup>`).join('')}
+            <label>Presión del grifo (bar)</label>
+            <input type="number" id="fPresionGrifo" placeholder="Ej: 3.2" step="0.1" min="0" style="max-width:160px;">
+          </div>
+
+          <div class="field">
+            <label>¿La inspección detectó algún hallazgo?</label>
+            <select id="fTieneHallazgo" onchange="toggleBloqueHallazgoInsp()" style="max-width:200px;">
+              <option value="no" selected>No — grifo operativo, sin novedad</option>
+              <option value="si">Sí — hay un hallazgo que registrar</option>
             </select>
-            <small>La criticidad se calcula automáticamente según lo que elijas acá.</small>
           </div>
-          <div class="field">
-            <button type="button" class="btn btn-ghost btn-sm" onclick="agregarHallazgoDetalle()">+ Agregar hallazgo a este registro</button>
-            <small>La inspección puede tener más de un hallazgo — agrega cada uno.</small>
-          </div>
-          <div class="field">
-            <label>Hallazgos agregados a esta inspección</label>
-            <div id="listaHallazgosAgregados" class="chips-list"></div>
-            <div class="criticidad-auto" id="criticidadAutoInfo"></div>
-          </div>
-        </div>
 
-        <div class="field">
-          <label>Ubicación del grifo (real) y ubicación ideal</label>
-          <small>Clic normal = ubicación real del grifo · Clic con tecla Shift = ubicación ideal sugerida · Botón GPS usa la ubicación del dispositivo</small>
-          <div style="display:flex;gap:8px;margin:6px 0;">
-            <button type="button" class="btn btn-ghost btn-sm" onclick="useGPS()">📍 Usar mi ubicación GPS</button>
-            <span class="mono" id="coordsInfo" style="font-size:11.5px;color:var(--text-soft);align-self:center;"></span>
+          <div id="bloqueHallazgoInsp" style="display:none;">
+            <div class="field">
+              <label>Hallazgo</label>
+              <select id="fTipoHallazgo" onchange="onCambioTipoHallazgo()">
+                ${CATEGORIAS_CRITICIDAD.map(cat=>`<optgroup label="${cat.titulo}">${CATALOGO_HALLAZGOS.filter(x=>x.criticidad===cat.clave).map(x=>`<option value="${x.nombre}">${x.nombre}</option>`).join('')}</optgroup>`).join('')}
+              </select>
+              <small>La criticidad se calcula automáticamente según lo que elijas acá.</small>
+            </div>
+            ${seccionValvulaHtml('f')}
+            <div class="field">
+              <button type="button" class="btn btn-ghost btn-sm" onclick="agregarHallazgoDetalle()">+ Agregar hallazgo a este registro</button>
+              <small>La inspección puede tener más de un hallazgo — agrega cada uno.</small>
+            </div>
+            <div class="field">
+              <label>Hallazgos agregados a esta inspección</label>
+              <div id="listaHallazgosAgregados" class="chips-list"></div>
+              <div class="criticidad-auto" id="criticidadAutoInfo"></div>
+            </div>
           </div>
-          <div id="formMiniMap" class="geo-map-mini"></div>
-          <div class="legend">
-            <span><i style="background:#C8334D"></i>Grifo (ubicación real)</span>
-            <span><i style="background:#3B6E8F"></i>Ubicación ideal</span>
-          </div>
-        </div>
 
-        <div class="form-grid">
           <div class="field">
-            <label>Fotografía del grifo</label>
-            <div class="photo-box" id="boxGrifo" onclick="document.getElementById('inputGrifo').click()"><span>Toca para tomar / subir foto</span></div>
-            <input type="file" id="inputGrifo" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(event,'grifo')">
+            <label>Ubicación del grifo (real) y ubicación ideal</label>
+            <small>Clic normal = ubicación real del grifo · Clic con tecla Shift = ubicación ideal sugerida · Botón GPS usa la ubicación del dispositivo</small>
+            <div style="display:flex;gap:8px;margin:6px 0;">
+              <button type="button" class="btn btn-ghost btn-sm" onclick="useGPS()">📍 Usar mi ubicación GPS</button>
+              <span class="mono" id="coordsInfo" style="font-size:11.5px;color:var(--text-soft);align-self:center;"></span>
+            </div>
+            <div id="formMiniMap" class="geo-map-mini"></div>
+            <div class="legend">
+              <span><i style="background:#C8334D"></i>Grifo (ubicación real)</span>
+              <span><i style="background:#3B6E8F"></i>Ubicación ideal</span>
+            </div>
           </div>
-          <div class="field">
-            <label>Fotografía de grifo operativo</label>
-            <div class="photo-box" id="boxOperativo" onclick="document.getElementById('inputOperativo').click()"><span>Toca para tomar / subir foto</span></div>
-            <input type="file" id="inputOperativo" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(event,'operativo')">
+
+          <div class="form-grid">
+            <div class="field">
+              <label>Fotografía del grifo</label>
+              <div class="photo-box" id="boxGrifo" onclick="document.getElementById('inputGrifo').click()"><span>Toca para tomar / subir foto</span></div>
+              <input type="file" id="inputGrifo" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(event,'grifo')">
+            </div>
+            <div class="field">
+              <label>Fotografía de grifo operativo</label>
+              <div class="photo-box" id="boxOperativo" onclick="document.getElementById('inputOperativo').click()"><span>Toca para tomar / subir foto</span></div>
+              <input type="file" id="inputOperativo" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(event,'operativo')">
+            </div>
           </div>
-        </div>
-        <div class="form-grid">
-          <div class="field">
-            <label>Fotografía de presión de grifo</label>
-            <div class="photo-box" id="boxPresion" onclick="document.getElementById('inputPresion').click()"><span>Toca para tomar / subir foto</span></div>
-            <input type="file" id="inputPresion" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(event,'presion')">
-          </div>
-          <div class="field">
-            <label>Fotografía de cámara</label>
-            <div class="photo-box" id="boxCamara" onclick="document.getElementById('inputCamara').click()"><span>Toca para tomar / subir foto</span></div>
-            <input type="file" id="inputCamara" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(event,'camara')">
+          <div class="form-grid">
+            <div class="field">
+              <label>Fotografía de presión de grifo</label>
+              <div class="photo-box" id="boxPresion" onclick="document.getElementById('inputPresion').click()"><span>Toca para tomar / subir foto</span></div>
+              <input type="file" id="inputPresion" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(event,'presion')">
+            </div>
+            <div class="field">
+              <label>Fotografía de cámara</label>
+              <div class="photo-box" id="boxCamara" onclick="document.getElementById('inputCamara').click()"><span>Toca para tomar / subir foto</span></div>
+              <input type="file" id="inputCamara" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(event,'camara')">
+            </div>
           </div>
         </div>
 
@@ -1114,22 +1489,24 @@ function renderInspecciones(){
     <div class="page-head">
       <div><h1>Inspecciones</h1><p>${ROLE==='singemelec' ? 'Registro de inspecciones diarias en terreno' : 'Historial de inspecciones diarias — Sacyr Aguas'}</p></div>
     </div>
+    ${planHtml}
     ${formHtml}
     <div class="panel" style="margin-top:${ROLE==='singemelec'?'18px':'0'};">
       <h3 style="margin-top:0;">Historial de inspecciones <span class="mono" style="font-size:12px;color:var(--text-soft);font-weight:400;">(${inspecciones.length})</span></h3>
       <div class="estado-table-wrap">
         <table class="estado-table">
-          <thead><tr><th>Fecha ejecución</th><th>Horario</th><th>Grifo</th><th>Dirección</th><th>Presión</th><th>¿Hallazgo?</th><th>Creado por</th><th></th></tr></thead>
+          <thead><tr><th>Fecha ejecución</th><th>Horario</th><th>Grifo</th><th>Dirección</th><th>Presión</th><th>¿Se realizó?</th><th>¿Hallazgo?</th><th>Creado por</th><th></th></tr></thead>
           <tbody>${inspecciones.length ? inspecciones.map(h=>`<tr>
             <td>${h.fecha_ejecucion || '—'}</td>
             <td>${h.horario_ejecucion || '—'}</td>
             <td class="faddr-cell">${h.codigo_grifo ? `<span class="mono">${h.codigo_grifo}</span>` : '—'}</td>
             <td class="faddr-cell">${h.direccion || '—'}</td>
             <td>${h.presion_grifo!=null && h.presion_grifo!=='' ? h.presion_grifo+' bar' : '—'}</td>
-            <td>${h.tiene_hallazgo==='si' ? `<span class="badge ${criticidadDeRegistro(h)}">Sí · ${PRIORIDAD_LABEL[criticidadDeRegistro(h)]}</span>` : '<span class="badge pendiente" style="background:#eef1ee;color:#5c6b6e;">No</span>'}</td>
+            <td>${h.inspeccion_realizada==='no' ? `<span class="badge directa" title="${h.motivo_no_realizada_detalle||''}">No · ${MOTIVO_NO_REALIZADA_LABEL[h.motivo_no_realizada]||'Sin motivo'}</span>` : '<span class="badge resuelto">Sí</span>'}</td>
+            <td>${h.inspeccion_realizada==='no' ? '<span style="color:var(--text-soft);">—</span>' : (h.tiene_hallazgo==='si' ? `<span class="badge ${criticidadDeRegistro(h)}">Sí · ${PRIORIDAD_LABEL[criticidadDeRegistro(h)]}</span>` : '<span class="badge pendiente" style="background:#eef1ee;color:#5c6b6e;">No</span>')}</td>
             <td>${h.creado_por || '—'}</td>
             <td><button class="btn btn-ghost btn-sm" onclick="openDetail('${h.id}')">Ver detalle</button></td>
-          </tr>`).join('') : `<tr class="empty-row"><td colspan="8">Aún no se han registrado inspecciones.</td></tr>`}</tbody>
+          </tr>`).join('') : `<tr class="empty-row"><td colspan="9">Aún no se han registrado inspecciones.</td></tr>`}</tbody>
         </table>
       </div>
     </div>
@@ -1154,32 +1531,80 @@ function toggleBloqueHallazgoInsp(){
   }
 }
 
+/* Muestra/oculta todo el bloque de "inspección completa" (presión, hallazgo,
+   mapa, fotos) y el de "motivo" según si la inspección se pudo realizar o
+   no — si el técnico no llegó a inspeccionar el grifo (falta de tiempo,
+   feria, zona roja…), no tiene sentido pedirle presión, fotos ni ubicación
+   exacta, pero igual queda un registro de que se intentó y por qué no se
+   pudo, para que el plan del día no lo siga marcando como pendiente eterno. */
+function toggleInspeccionRealizada(){
+  const val = document.getElementById('fInspeccionRealizada').value;
+  const bloqueMotivo = document.getElementById('bloqueMotivoNoRealizada');
+  const bloqueCompleta = document.getElementById('bloqueInspeccionCompleta');
+  if(bloqueMotivo) bloqueMotivo.style.display = (val==='no') ? '' : 'none';
+  if(bloqueCompleta) bloqueCompleta.style.display = (val==='no') ? 'none' : '';
+  if(val==='no' && hallazgosAgregados.length){
+    hallazgosAgregados = [];
+    renderListaHallazgosAgregados();
+  }
+}
+
+function toggleMotivoOtro(){
+  const val = document.getElementById('fMotivoNoRealizada').value;
+  const wrap = document.getElementById('fMotivoOtroWrap');
+  if(wrap) wrap.style.display = (val==='otro') ? '' : 'none';
+}
+
+const MOTIVO_NO_REALIZADA_LABEL = {falta_tiempo:'Falta de tiempo', feria:'Feria', zona_roja:'Zona roja / sin acceso seguro', otro:'Otro'};
+
 async function guardarInspeccion(){
   if(!document.getElementById('fRevisionOkInsp').checked){ toast('Marca la casilla de revisión antes de guardar'); return; }
-  if(!formMarkerActual){ toast('Marca la ubicación real del grifo en el mapa'); return; }
   const fechaEjecucion = document.getElementById('fFechaEjecucion').value;
   const horarioEjecucion = document.getElementById('fHorarioEjecucion').value;
   if(!fechaEjecucion || !horarioEjecucion){ toast('Indica la fecha y el horario de ejecución'); return; }
-  const presionRaw = document.getElementById('fPresionGrifo').value;
-  if(presionRaw===''){ toast('Indica la presión del grifo'); return; }
-  const tieneHallazgo = document.getElementById('fTieneHallazgo').value;
-  if(tieneHallazgo==='si' && hallazgosAgregados.length===0){ toast('Agrega al menos un hallazgo, o marca "No" si la inspección no encontró novedades'); return; }
 
-  const llActual = formMarkerActual.getLatLng();
-  const llIdeal = formMarkerIdeal ? formMarkerIdeal.getLatLng() : null;
+  const inspeccionRealizada = document.getElementById('fInspeccionRealizada').value; // 'si' | 'no'
+
+  let motivoNoRealizada = null, motivoNoRealizadaDetalle = null;
+  let presionRaw = '', tieneHallazgo = null;
+  let llActual = null, llIdeal = null;
+
+  if(inspeccionRealizada === 'no'){
+    // Sin inspección real no tiene sentido pedir presión, mapa ni fotos —
+    // solo el motivo, para que quede registrado que se pasó por ahí y por
+    // qué no se pudo revisar (evita que el plan del día lo siga mostrando
+    // como "pendiente" sin explicación).
+    motivoNoRealizada = document.getElementById('fMotivoNoRealizada').value;
+    if(motivoNoRealizada==='otro'){
+      motivoNoRealizadaDetalle = document.getElementById('fMotivoOtroTexto').value.trim();
+      if(!motivoNoRealizadaDetalle){ toast('Especifica el motivo por el que no se realizó'); return; }
+    }
+  } else {
+    if(!formMarkerActual){ toast('Marca la ubicación real del grifo en el mapa'); return; }
+    presionRaw = document.getElementById('fPresionGrifo').value;
+    if(presionRaw===''){ toast('Indica la presión del grifo'); return; }
+    tieneHallazgo = document.getElementById('fTieneHallazgo').value;
+    if(tieneHallazgo==='si' && hallazgosAgregados.length===0){ toast('Agrega al menos un hallazgo, o marca "No" si la inspección no encontró novedades'); return; }
+    llActual = formMarkerActual.getLatLng();
+    llIdeal = formMarkerIdeal ? formMarkerIdeal.getLatLng() : null;
+  }
+
   const id = uid();
   const btn = document.getElementById('btnGuardarInspeccion');
   if(btn){ btn.disabled = true; btn.textContent = 'Guardando…'; }
 
-  const [fotoGrifoUrl, fotoOperativoUrl, fotoPresionUrl, fotoCamaraUrl] = await Promise.all([
-    subirFoto(pendingFotos.grifo, `hallazgos/${id}/grifo.jpg`),
-    subirFoto(pendingFotos.operativo, `hallazgos/${id}/operativo.jpg`),
-    subirFoto(pendingFotos.presion, `hallazgos/${id}/presion.jpg`),
-    subirFoto(pendingFotos.camara, `hallazgos/${id}/camara.jpg`)
-  ]);
+  let fotoGrifoUrl=null, fotoOperativoUrl=null, fotoPresionUrl=null, fotoCamaraUrl=null;
+  if(inspeccionRealizada === 'si'){
+    [fotoGrifoUrl, fotoOperativoUrl, fotoPresionUrl, fotoCamaraUrl] = await Promise.all([
+      subirFoto(pendingFotos.grifo, `hallazgos/${id}/grifo.jpg`),
+      subirFoto(pendingFotos.operativo, `hallazgos/${id}/operativo.jpg`),
+      subirFoto(pendingFotos.presion, `hallazgos/${id}/presion.jpg`),
+      subirFoto(pendingFotos.camara, `hallazgos/${id}/camara.jpg`)
+    ]);
+  }
 
   const codigoGrifo = document.getElementById('fCodigoGrifo').value.trim().toUpperCase() || null;
-  const prioridad = tieneHallazgo==='si' ? criticidadMasSevera(hallazgosAgregados) : null;
+  const prioridad = (inspeccionRealizada==='si' && tieneHallazgo==='si') ? criticidadMasSevera(hallazgosAgregados) : null;
 
   const nuevo = {
     id,
@@ -1194,11 +1619,14 @@ async function guardarInspeccion(){
     ano_instalacion: catalogoMatchActual ? catalogoMatchActual.ano_instalacion : null,
     fecha_ejecucion: fechaEjecucion,
     horario_ejecucion: horarioEjecucion,
-    presion_grifo: presionRaw,
-    tiene_hallazgo: tieneHallazgo,
-    hallazgos_detalle: tieneHallazgo==='si' ? hallazgosAgregados.slice() : [],
+    inspeccion_realizada: inspeccionRealizada,
+    motivo_no_realizada: motivoNoRealizada,
+    motivo_no_realizada_detalle: motivoNoRealizadaDetalle,
+    presion_grifo: inspeccionRealizada==='si' ? presionRaw : null,
+    tiene_hallazgo: inspeccionRealizada==='si' ? tieneHallazgo : null,
+    hallazgos_detalle: (inspeccionRealizada==='si' && tieneHallazgo==='si') ? hallazgosAgregados.slice() : [],
     direccion: document.getElementById('fDireccion').value || 'Sin dirección registrada',
-    lat: llActual.lat, lng: llActual.lng,
+    lat: llActual ? llActual.lat : null, lng: llActual ? llActual.lng : null,
     ideal_lat: llIdeal? llIdeal.lat : null, ideal_lng: llIdeal? llIdeal.lng : null,
     foto_grifo: fotoGrifoUrl,
     foto_hallazgo: null,
@@ -1208,8 +1636,8 @@ async function guardarInspeccion(){
     foto_respaldo: null,
     descripcion: document.getElementById('fDescripcion').value,
     prioridad,
-    estado: tieneHallazgo==='si' ? 'pendiente' : null,
-    comentarios: tieneHallazgo==='si' ? [{autor:'Singemelec', fecha:new Date().toISOString(), texto:'Hallazgo detectado durante inspección diaria.', estado_anterior:null, estado_nuevo:'pendiente', foto_antes:null, foto_despues:null}] : []
+    estado: (inspeccionRealizada==='si' && tieneHallazgo==='si') ? 'pendiente' : null,
+    comentarios: (inspeccionRealizada==='si' && tieneHallazgo==='si') ? [{autor:'Singemelec', fecha:new Date().toISOString(), texto:'Hallazgo detectado durante inspección diaria.', estado_anterior:null, estado_nuevo:'pendiente', foto_antes:null, foto_despues:null}] : []
   };
 
   if(STORAGE_MODE === 'remote' && firebaseReady){
@@ -1227,7 +1655,10 @@ async function guardarInspeccion(){
     guardarLocal();
   }
 
-  toast(tieneHallazgo==='si' ? 'Inspección guardada — hallazgo registrado' : 'Inspección guardada — sin novedad');
+  toast(
+    inspeccionRealizada==='no' ? `Registrado: no se pudo inspeccionar (${MOTIVO_NO_REALIZADA_LABEL[motivoNoRealizada]})` :
+    (tieneHallazgo==='si' ? 'Inspección guardada — hallazgo registrado' : 'Inspección guardada — sin novedad')
+  );
   goPage('inspecciones');
 }
 
@@ -1475,6 +1906,106 @@ async function guardarHallazgo(){
 
   toast('Hallazgo guardado correctamente');
   goPage('lista');
+}
+
+/* ================= GALERÍA DE FOTOS ================= */
+
+/* Recorre TODOS los registros (hallazgos e inspecciones) y junta cada foto
+   subida en una lista plana con su metadata (código, comuna, fecha, tipo de
+   foto), para que la Galería pueda mostrarlas todas juntas y filtrarlas sin
+   tener que entrar registro por registro. Incluye tanto las fotos
+   originales (grifo, hallazgo, presión, cámara, operativo) como las de
+   avance/solución dejadas en los comentarios de seguimiento. */
+function construirListaFotos(){
+  const items = [];
+  HALLAZGOS.forEach(h=>{
+    const meta = {
+      id: h.id,
+      codigo: h.codigo_grifo || null,
+      comuna: h.comuna || null,
+      direccion: h.direccion || null,
+      fecha: h.fecha_ejecucion || (h.fecha_creacion ? h.fecha_creacion.slice(0,10) : null)
+    };
+    const fotosGrifo = (h.fotos_grifo && h.fotos_grifo.length) ? h.fotos_grifo : (h.foto_grifo ? [h.foto_grifo] : []);
+    fotosGrifo.forEach((url,i)=> items.push({...meta, url, label: fotosGrifo.length>1?`Grifo ${i+1}`:'Grifo'}));
+    const fotosHallazgo = (h.fotos_hallazgo && h.fotos_hallazgo.length) ? h.fotos_hallazgo : (h.foto_hallazgo ? [h.foto_hallazgo] : []);
+    fotosHallazgo.forEach((url,i)=> items.push({...meta, url, label: fotosHallazgo.length>1?`Hallazgo ${i+1}`:'Hallazgo'}));
+    if(h.foto_grifo_operativo) items.push({...meta, url:h.foto_grifo_operativo, label:'Grifo operativo'});
+    if(h.foto_presion) items.push({...meta, url:h.foto_presion, label:'Presión'});
+    if(h.foto_camara) items.push({...meta, url:h.foto_camara, label:'Cámara'});
+    if(h.foto_respaldo) items.push({...meta, url:h.foto_respaldo, label:'Respaldo de solución'});
+    (h.comentarios||[]).forEach(c=>{
+      if(c.foto_antes) items.push({...meta, url:c.foto_antes, label:'Antes (avance)'});
+      const fotosDespuesC = (c.fotos_despues && c.fotos_despues.length) ? c.fotos_despues : (c.foto_despues ? [c.foto_despues] : []);
+      fotosDespuesC.forEach((url,i)=> items.push({...meta, url, label: fotosDespuesC.length>1?`Después (avance ${i+1})`:'Después (avance)'}));
+      if(!c.foto_antes && fotosDespuesC.length===0 && c.foto) items.push({...meta, url:c.foto, label:'Avance'});
+    });
+  });
+  // más recientes primero
+  items.sort((a,b)=> (b.fecha||'').localeCompare(a.fecha||''));
+  return items;
+}
+
+function cambiarFiltroGaleriaCodigo(valor){
+  FILTRO_GALERIA_CODIGO = valor;
+  GALERIA_PAGINA = 1;
+  renderGaleria();
+}
+function cambiarFiltroGaleriaComuna(valor){
+  FILTRO_GALERIA_COMUNA = valor;
+  GALERIA_PAGINA = 1;
+  renderGaleria();
+}
+function verMasGaleria(){
+  GALERIA_PAGINA++;
+  renderGaleria();
+}
+
+function renderGaleria(){
+  const main = document.getElementById('main');
+  const todas = construirListaFotos();
+  const comunasDisponibles = Array.from(new Set(todas.map(f=>f.comuna).filter(Boolean))).sort();
+  if(FILTRO_GALERIA_COMUNA!=='todos' && !comunasDisponibles.includes(FILTRO_GALERIA_COMUNA)) FILTRO_GALERIA_COMUNA='todos';
+
+  const codigoBuscado = FILTRO_GALERIA_CODIGO.trim().toUpperCase();
+  const filtradas = todas.filter(f=>{
+    if(codigoBuscado && !(f.codigo||'').toUpperCase().includes(codigoBuscado)) return false;
+    if(FILTRO_GALERIA_COMUNA!=='todos' && f.comuna!==FILTRO_GALERIA_COMUNA) return false;
+    return true;
+  });
+
+  const visibles = filtradas.slice(0, GALERIA_PAGINA * GALERIA_POR_PAGINA);
+  const quedanMas = filtradas.length > visibles.length;
+
+  main.innerHTML = `
+  <div class="page">
+    <div class="page-head">
+      <div><h1>Galería de fotos</h1><p>Todas las fotografías subidas desde terreno, en un solo lugar</p></div>
+    </div>
+    <div class="list-filters">
+      <div class="filter-group">
+        <label for="filtroGaleriaCodigo">Código de grifo</label>
+        <input type="text" id="filtroGaleriaCodigo" placeholder="Ej: LAM001…" autocomplete="off" value="${FILTRO_GALERIA_CODIGO}" oninput="cambiarFiltroGaleriaCodigo(this.value)">
+      </div>
+      <div class="filter-group">
+        <label for="filtroGaleriaComuna">Comuna</label>
+        <select id="filtroGaleriaComuna" onchange="cambiarFiltroGaleriaComuna(this.value)">
+          <option value="todos" ${FILTRO_GALERIA_COMUNA==='todos'?'selected':''}>Todas</option>
+          ${comunasDisponibles.map(c=>`<option value="${c}" ${FILTRO_GALERIA_COMUNA===c?'selected':''}>${c}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <p style="font-size:12.5px;color:var(--text-soft);margin:2px 0 0;">${filtradas.length} foto${filtradas.length===1?'':'s'}${filtradas.length!==todas.length ? ` (de ${todas.length} en total)` : ''}</p>
+    ${visibles.length ? `<div class="galeria-grid">${visibles.map(f=>`
+      <a href="${f.url}" target="_blank" rel="noopener" class="galeria-item" title="${f.label}${f.direccion?' · '+f.direccion:''}">
+        <img src="${f.url}" alt="${f.label}" loading="lazy">
+        <div class="gi-meta">
+          <span class="gi-cod">${f.codigo || '—'}</span>
+          <span class="gi-label">${f.label}${f.fecha?` · ${fmtFechaSolo(f.fecha)}`:''}</span>
+        </div>
+      </a>`).join('')}</div>` : `<div class="empty" style="margin-top:20px;">Aún no hay fotos que coincidan con los filtros.</div>`}
+    ${quedanMas ? `<div style="text-align:center;margin-top:18px;"><button class="btn btn-ghost btn-sm" onclick="verMasGaleria()">Cargar más fotos (${filtradas.length - visibles.length} restantes)</button></div>` : ''}
+  </div>`;
 }
 
 /* ================= LISTA ================= */
@@ -2030,11 +2561,12 @@ function abrirEdicionHallazgo(id){
     ${puedeEditarHallazgos ? `
     <div class="field">
       <label>Hallazgo</label>
-      <select id="eTipoHallazgo">
+      <select id="eTipoHallazgo" onchange="onCambioTipoHallazgo('e')">
         ${CATEGORIAS_CRITICIDAD.map(cat=>`<optgroup label="${cat.titulo}">${CATALOGO_HALLAZGOS.filter(x=>x.criticidad===cat.clave).map(x=>`<option value="${x.nombre}">${x.nombre}</option>`).join('')}</optgroup>`).join('')}
       </select>
       <button type="button" class="btn btn-ghost btn-sm" onclick="agregarHallazgoDetalleEdicion()" style="margin-top:6px;">+ Agregar hallazgo</button>
     </div>
+    ${seccionValvulaHtml('e')}
     <div class="field">
       <label>Hallazgos de este registro</label>
       <div id="listaHallazgosEdicion" class="chips-list"></div>
@@ -2058,6 +2590,7 @@ function abrirEdicionHallazgo(id){
     </div>
   `;
   renderListaHallazgosEdicion();
+  if(puedeEditarHallazgos) onCambioTipoHallazgo('e');
   setTimeout(()=>{
     // El modal pudo haberse cerrado o reemplazado (p.ej. "Cancelar" o
     // "Guardar cambios" ya volvieron al detalle) antes de que esto corriera.
@@ -2090,8 +2623,15 @@ function agregarHallazgoDetalleEdicion(){
   if(!info) return;
   const yaExiste = editHallazgosDetalle.some(h=>h.tipo_hallazgo===tipo_hallazgo);
   if(yaExiste){ toast('Ese hallazgo ya está agregado a este registro'); return; }
-  editHallazgosDetalle.push({tipo_elemento: info.tipo_elemento, tipo_hallazgo, criticidad: info.criticidad});
+  const detalle = {tipo_elemento: info.tipo_elemento, tipo_hallazgo, criticidad: info.criticidad};
+  if(tipo_hallazgo === VALVULA_TIPO){
+    const extra = leerValvulaDetalle('e');
+    if(!extra) return;
+    Object.assign(detalle, extra);
+  }
+  editHallazgosDetalle.push(detalle);
   renderListaHallazgosEdicion();
+  limpiarValvulaSeccion('e');
 }
 
 function quitarHallazgoDetalleEdicion(i){
@@ -2106,11 +2646,11 @@ function renderListaHallazgosEdicion(){
     cont.innerHTML = '<em style="font-size:12px;color:var(--text-soft);">Sin hallazgos agregados — agrega al menos uno.</em>';
     return;
   }
-  cont.innerHTML = editHallazgosDetalle.map((h,i)=>`
-    <span class="chip"><i class="dot" style="background:${PRIORIDAD_COLOR[h.criticidad]}"></i>${h.tipo_elemento==='camara'?'Cámara':'Grifo'} · ${h.tipo_hallazgo}
+  cont.innerHTML = editHallazgosDetalle.map((h,i)=>{
+    const valvulaTxt = resumenValvula(h);
+    return `<span class="chip"><i class="dot" style="background:${PRIORIDAD_COLOR[h.criticidad]}"></i>${h.tipo_elemento==='camara'?'Cámara':'Grifo'} · ${h.tipo_hallazgo}${valvulaTxt ? ` (${valvulaTxt})` : ''}
       <button type="button" onclick="quitarHallazgoDetalleEdicion(${i})" title="Quitar">&times;</button>
-    </span>
-  `).join('');
+    </span>`;}).join('');
 }
 
 async function guardarEdicionHallazgo(id){
@@ -2979,6 +3519,7 @@ function handleCSVImport(evt){
     updateRolePills();
     document.getElementById('navNuevo').style.display = (ROLE==='singemelec') ? 'block' : 'none';
     document.getElementById('navInspecciones').style.display = (ROLE==='singemelec') ? 'block' : 'none';
+    document.getElementById('navGaleria').style.display = (ROLE==='singemelec') ? 'block' : 'none';
     cargarCatalogoGrifos();
 
     suscribirHallazgos(()=>{
@@ -2990,6 +3531,7 @@ function handleCSVImport(evt){
       }
       render();
     });
+    suscribirPlanesInspeccion(()=>{ if(currentPage==='inspecciones') render(); });
   }catch(err){
     console.error(err);
     document.getElementById('main').innerHTML = `<div class="page"><div class="empty">
