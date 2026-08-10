@@ -123,6 +123,7 @@ main{flex:1;overflow-y:auto;padding:24px 28px 60px;}
 .radio-row label{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--text);text-transform:none;cursor:pointer;}
 .radio-row input{width:16px;height:16px;cursor:pointer;}
 .plan-table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);margin-top:10px;}
+.plan-route-marker{background:transparent;border:none;}
 .galeria-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-top:14px;}
 .galeria-item{display:block;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff;text-decoration:none;color:var(--text);transition:.15s;}
 .galeria-item:hover{border-color:var(--ink);}
@@ -386,6 +387,7 @@ let HALLAZGOS = [];
 let dashMapInstance = null;
 let dashChart1 = null, dashChart2 = null;
 let formMarkerActual = null, formMarkerIdeal = null, formMap = null;
+let planRouteMap = null;
 let pendingFotos = {grifo:null, hallazgo:null};
 let CATALOGO_GRIFOS = {}; // catastro oficial de grifos (Sacyr), por código, cargado desde Firestore
 let catalogoGrifosListo = false;
@@ -740,6 +742,94 @@ function registrarDesdelPlan(codigo){
   if(form) form.scrollIntoView({behavior:'smooth', block:'start'});
 }
 
+/* Distancia aproximada entre dos coordenadas (fórmula de Haversine), en
+   kilómetros. Alcanza para ordenar visitas por cercanía — no es la
+   distancia real de manejo (no considera calles ni tránsito), pero da un
+   orden mucho más razonable que cargar los códigos en cualquier orden. */
+function distanciaKm(lat1, lng1, lat2, lng2){
+  const R = 6371;
+  const dLat = (lat2-lat1) * Math.PI/180;
+  const dLng = (lng2-lng1) * Math.PI/180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+/* Ordena los códigos de un plan por ruta sugerida: arranca en el primer
+   código que se agregó al plan ese día (codigosOriginal[0], en el orden
+   real en que Singemelec los fue cargando — no alfabético) y va
+   encadenando siempre el grifo más cercano al último visitado (heurística
+   "vecino más cercano" — simple y rápida de calcular en el navegador, sin
+   necesidad de backend ni de un servicio externo de rutas). Los códigos
+   sin coordenadas en el catastro (o que no están en el catastro) no se
+   pueden ubicar en una ruta, así que se separan aparte. */
+function ordenarRutaOptima(codigosOriginal){
+  const conCoords = [];
+  const sinCoords = [];
+  (codigosOriginal||[]).forEach(c=>{
+    const g = CATALOGO_GRIFOS[c];
+    if(g && typeof g.lat==='number' && typeof g.lng==='number') conCoords.push(c);
+    else sinCoords.push(c);
+  });
+  if(conCoords.length===0) return {orden: [], sinCoords: sinCoords.length?sinCoords:codigosOriginal.slice(), tieneRuta:false};
+
+  const restantes = conCoords.slice(1);
+  const orden = [conCoords[0]];
+  let actual = conCoords[0];
+  while(restantes.length){
+    let mejorIdx = 0, mejorDist = Infinity;
+    for(let i=0;i<restantes.length;i++){
+      const g1 = CATALOGO_GRIFOS[actual], g2 = CATALOGO_GRIFOS[restantes[i]];
+      const d = distanciaKm(g1.lat, g1.lng, g2.lat, g2.lng);
+      if(d < mejorDist){ mejorDist = d; mejorIdx = i; }
+    }
+    actual = restantes.splice(mejorIdx,1)[0];
+    orden.push(actual);
+  }
+  return {orden, sinCoords, tieneRuta:true};
+}
+
+/* Dibuja (o redibuja) el mapa con la ruta sugerida del plan del día,
+   conectando los grifos en el orden de ordenarRutaOptima() con una línea y
+   marcadores numerados. Se llama después de insertar el HTML del panel en
+   el DOM (el contenedor #planRouteMap recién existe en ese momento). */
+function initPlanRouteMap(){
+  if(planRouteMap){ planRouteMap.remove(); planRouteMap=null; }
+  const cont = document.getElementById('planRouteMap');
+  if(!cont) return;
+
+  const fecha = FECHA_PLAN_SELECCIONADA || new Date().toISOString().slice(0,10);
+  const plan = planDelDia(fecha);
+  const {orden} = ordenarRutaOptima(plan.codigos||[]);
+  const puntos = orden.map(c=>{
+    const g = CATALOGO_GRIFOS[c] || {};
+    const direccion = [g.ubicacion, g.localidad, g.comuna].filter(Boolean).join(', ');
+    return {codigo:c, lat:g.lat, lng:g.lng, direccion};
+  }).filter(p=>typeof p.lat==='number' && typeof p.lng==='number');
+  if(puntos.length===0) return;
+
+  planRouteMap = L.map('planRouteMap', {zoomControl:true}).setView([puntos[0].lat, puntos[0].lng], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(planRouteMap);
+
+  const latlngs = puntos.map(p=>[p.lat,p.lng]);
+  if(latlngs.length>=2){
+    L.polyline(latlngs, {color:'#C8334D', weight:3, opacity:0.75, dashArray:'6,6'}).addTo(planRouteMap);
+  }
+  puntos.forEach((p,i)=>{
+    const icon = L.divIcon({
+      className: 'plan-route-marker',
+      html: `<div style="background:${i===0?'#2f7a4d':'#C8334D'};color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3);">${i+1}</div>`,
+      iconSize:[24,24],
+      iconAnchor:[12,12]
+    });
+    const marker = L.marker([p.lat,p.lng], {icon}).addTo(planRouteMap);
+    marker.bindPopup(`<strong>${i+1}. ${p.codigo}</strong>${p.direccion ? `<br>${p.direccion}` : ''}`);
+  });
+
+  if(latlngs.length>=2){
+    planRouteMap.fitBounds(L.latLngBounds(latlngs), {padding:[24,24]});
+  }
+}
+
 /* Cambia la fecha del plan que se está visualizando (no la fecha de
    ejecución del formulario de abajo, que es independiente) y vuelve a
    pintar solo el panel del plan para no perder lo que el usuario tenga
@@ -748,6 +838,7 @@ function cambiarFechaPlan(fecha){
   FECHA_PLAN_SELECCIONADA = fecha;
   const cont = document.getElementById('panelPlanDia');
   if(cont) cont.outerHTML = renderPlanDelDiaHtml();
+  initPlanRouteMap();
 }
 
 /* Construye el panel de "Plan de inspección diario": quién debe cargar los
@@ -760,8 +851,11 @@ function cambiarFechaPlan(fecha){
 function renderPlanDelDiaHtml(){
   const fecha = FECHA_PLAN_SELECCIONADA || new Date().toISOString().slice(0,10);
   const plan = planDelDia(fecha);
-  const codigos = (plan.codigos||[]).slice().sort();
-  const filas = codigos.map(c=>{
+  const codigosOriginal = plan.codigos || [];
+  const {orden, sinCoords, tieneRuta} = ordenarRutaOptima(codigosOriginal);
+  const codigos = [...orden, ...sinCoords];
+
+  const filas = codigos.map((c,i)=>{
     const est = estadoPlanParaCodigo(c, fecha);
     let badge, accion;
     if(est.estado==='realizada'){
@@ -775,7 +869,11 @@ function renderPlanDelDiaHtml(){
       accion = ROLE==='singemelec' ? `<button class="btn btn-ghost btn-sm" onclick="registrarDesdelPlan('${c}')">Registrar inspección</button>` : '';
     }
     const quitar = ROLE==='singemelec' ? `<button class="btn btn-ghost btn-sm" title="Quitar del plan" onclick="quitarCodigoDelPlan('${fecha}','${c}')" style="color:#a33;">&times;</button>` : '';
-    return `<tr><td class="mono">${c}</td><td>${badge}</td><td style="white-space:nowrap;">${accion} ${quitar}</td></tr>`;
+    const esRuta = i < orden.length;
+    const numRuta = esRuta
+      ? `<span class="mono" style="color:var(--text-soft);">${i+1}</span>`
+      : `<span title="Sin coordenadas en el catastro: no se pudo ubicar en la ruta" style="color:var(--text-soft);">—</span>`;
+    return `<tr><td style="width:28px;text-align:center;">${numRuta}</td><td class="mono">${c}</td><td>${badge}</td><td style="white-space:nowrap;">${accion} ${quitar}</td></tr>`;
   }).join('');
 
   const total = codigos.length;
@@ -789,6 +887,13 @@ function renderPlanDelDiaHtml(){
       <textarea id="planCodigosInput" placeholder="Pega o escribe los códigos de grifo a inspeccionar, uno por línea o separados por coma. Ej: LAM001, LAM002, LAM003"></textarea>
       <button type="button" class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="cargarPlanDia(document.getElementById('planFecha').value, document.getElementById('planCodigosInput').value)">+ Agregar al plan</button>
       <small>Si un código ya estaba en el plan de ese día, no se duplica. Los códigos que no estén en el catastro igual se agregan, con aviso.</small>
+    </div>` : '';
+
+  const mapaHtml = (tieneRuta && orden.length>=1) ? `
+    <div style="margin:10px 0 4px;">
+      <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-soft);">Ruta sugerida en el mapa</label>
+      <div id="planRouteMap" style="height:220px;border-radius:var(--radius);overflow:hidden;margin-top:4px;border:1px solid var(--line);"></div>
+      <small>Orden calculado por cercanía entre grifos (línea recta, no considera calles ni tránsito real), arrancando desde el primer código agregado al plan del día.${sinCoords.length ? ` ${sinCoords.length} código${sinCoords.length===1?'':'s'} sin coordenadas en el catastro no se pudo${sinCoords.length===1?'':'ieron'} ubicar en la ruta.` : ''}</small>
     </div>` : '';
 
   return `<div class="panel" id="panelPlanDia" style="margin-bottom:18px;">
@@ -805,8 +910,9 @@ function renderPlanDelDiaHtml(){
       <span><strong style="color:#b3831f;">${noRealizadas}</strong> no realizados</span>
       <span><strong style="color:#5c6b6e;">${pendientes}</strong> pendientes</span>
     </div>` : ''}
+    ${mapaHtml}
     ${total ? `<div class="plan-table-wrap"><table class="estado-table">
-      <thead><tr><th>Código</th><th>Estado</th><th></th></tr></thead>
+      <thead><tr><th title="Orden sugerido de visita">#</th><th>Código</th><th>Estado</th><th></th></tr></thead>
       <tbody>${filas}</tbody>
     </table></div>` : `<p style="font-size:13px;color:var(--text-soft);margin:6px 0 0;">Aún no hay grifos cargados en el plan del ${fmtFechaSolo(fecha)}.</p>`}
     ${cargaHtml}
@@ -1591,6 +1697,8 @@ function renderInspecciones(){
     </div>
   </div>`;
 
+  initPlanRouteMap();
+
   if(ROLE==='singemelec'){
     inicializarFormularioGrifo({grifo:null, hallazgo:null, operativo:null, presion:null, camara:null});
   }
@@ -1851,6 +1959,25 @@ function useGPS(){
    respaldo local (ver "Límites del sistema" en las notas del proyecto). */
 const FOTO_LADO_MAXIMO = 1800;
 
+/* Formato de exportación de las fotos procesadas: WebP comprime bastante
+   mejor que JPEG a la misma calidad visible (típicamente 25-35% menos
+   peso), así que se usa por defecto. No todos los navegadores viejos saben
+   codificar WebP desde un canvas — se detecta una sola vez y, si no hay
+   soporte, se cae de vuelta a JPEG (comportamiento anterior) sin romper
+   nada. */
+let _SOPORTA_WEBP_CACHE = null;
+function soportaWebp(){
+  if(_SOPORTA_WEBP_CACHE !== null) return _SOPORTA_WEBP_CACHE;
+  try{
+    const c = document.createElement('canvas');
+    c.width = 1; c.height = 1;
+    _SOPORTA_WEBP_CACHE = c.toDataURL('image/webp').indexOf('data:image/webp') === 0;
+  }catch(e){
+    _SOPORTA_WEBP_CACHE = false;
+  }
+  return _SOPORTA_WEBP_CACHE;
+}
+
 function procesarFotoArchivo(file){
   return new Promise((resolve, reject)=>{
     const reader = new FileReader();
@@ -1876,7 +2003,8 @@ function procesarFotoArchivo(file){
         ctx.fillStyle = '#fff';
         ctx.textBaseline = 'middle';
         ctx.fillText(stamp, padding, h-fontSize/2-padding);
-        resolve(canvas.toDataURL('image/jpeg', 0.82));
+        const formatoFoto = soportaWebp() ? 'image/webp' : 'image/jpeg';
+        resolve(canvas.toDataURL(formatoFoto, 0.82));
       };
       img.onerror = () => reject(new Error('No se pudo leer la imagen'));
       img.src = e.target.result;
