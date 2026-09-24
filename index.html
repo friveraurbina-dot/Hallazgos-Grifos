@@ -4,6 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Catastro de Grifos — Singemelec / Sacyr Aguas</title>
+<!-- PWA: permite "Agregar a pantalla de inicio" y que la app se abra con
+     ícono propio, a pantalla completa, sin la barra del navegador. -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#16323A">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Grifos">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
@@ -317,8 +326,8 @@ function verificarAcceso(){
   const val = document.getElementById('accessInput').value;
   const rolDetectado = ACCESS_CODES[val];
   if(rolDetectado){
-    sessionStorage.setItem('grifos_access_ok','1');
-    sessionStorage.setItem('grifos_session_role', rolDetectado);
+    localStorage.setItem('grifos_access_ok','1');
+    localStorage.setItem('grifos_session_role', rolDetectado);
     localStorage.setItem('grifos_role', rolDetectado);
     document.getElementById('lockScreen').style.display = 'none';
     document.getElementById('app').style.display = '';
@@ -327,13 +336,22 @@ function verificarAcceso(){
     document.getElementById('accessError').style.display = 'block';
   }
 }
-/* OJO: la restauración automática de sesión (si sessionStorage ya tiene
+/* OJO: la restauración automática de sesión (si localStorage ya tiene
    'grifos_access_ok') se hace en el SEGUNDO bloque <script>, más abajo —
    NO acá. En este punto del HTML el <div id="app"> todavía no existe (se
    define después de este script), así que intentar hacer
    document.getElementById('app').style.display aquí devuelve null y
    revienta con "Cannot read properties of null (reading 'style')" cada vez
-   que un usuario que ya inició sesión antes recarga la página. */
+   que un usuario que ya inició sesión antes recarga la página.
+
+   Nota (2026-09-24): este acceso se guarda en localStorage, no en
+   sessionStorage — a propósito, para que la app instalada como PWA
+   ("Agregar a pantalla de inicio") recuerde el acceso entre un día de
+   trabajo y otro. sessionStorage se pierde cada vez que se abre el ícono
+   de la app de nuevo (cada apertura es un contexto de navegación nuevo),
+   así que con sessionStorage el técnico tendría que volver a escribir la
+   clave de acceso cada vez que abriera la app — justo lo contrario de lo
+   que se pidió ("que solo abra el ícono y siga trabajando"). */
 </script>
 <div id="app" style="display:none;">
 
@@ -367,15 +385,17 @@ function verificarAcceso(){
 <div class="toast" id="toast"></div>
 
 <script>
-/* Restaura la sesión si ya se inició acceso antes en esta pestaña
-   (sessionStorage sobrevive a un refresco de página, incluso uno forzado
-   con Ctrl+Shift+R). Tiene que ir acá, en este segundo bloque <script> —
-   en este punto del HTML el <div id="app"> ya existe (se define arriba,
-   antes de este script), así que es seguro tocar su .style. Ver la nota en
-   el primer <script> de más arriba: hacer esto ahí revienta con
-   "Cannot read properties of null (reading 'style')" porque #app todavía
-   no existía en el DOM en ese punto. */
-if(sessionStorage.getItem('grifos_access_ok')==='1'){
+/* Restaura la sesión si ya se inició acceso antes en este dispositivo
+   (localStorage sobrevive a un refresco de página —incluso uno forzado con
+   Ctrl+Shift+R—, a cerrar el navegador, y a abrir/cerrar la app instalada
+   como PWA cualquier cantidad de veces en días distintos; ver la nota de
+   2026-09-24 en el primer <script> de más arriba sobre por qué se usa
+   localStorage y no sessionStorage). Tiene que ir acá, en este segundo
+   bloque <script> — en este punto del HTML el <div id="app"> ya existe (se
+   define arriba, antes de este script), así que es seguro tocar su .style.
+   Hacer esto en el primer <script> revienta con "Cannot read properties of
+   null (reading 'style')" porque #app todavía no existía en el DOM ahí. */
+if(localStorage.getItem('grifos_access_ok')==='1'){
   const lockScreenEl = document.getElementById('lockScreen');
   const appEl = document.getElementById('app');
   if(lockScreenEl) lockScreenEl.style.display = 'none';
@@ -989,8 +1009,8 @@ function updateRolePills(){
   if(lbl) lbl.textContent = ROLE==='singemelec' ? 'SINGEMELEC' : 'SACYR AGUAS';
 }
 function cerrarSesion(){
-  sessionStorage.removeItem('grifos_access_ok');
-  sessionStorage.removeItem('grifos_session_role');
+  localStorage.removeItem('grifos_access_ok');
+  localStorage.removeItem('grifos_session_role');
   location.reload();
 }
 
@@ -3853,6 +3873,17 @@ function handleCSVImport(evt){
     </div></div>`;
   }
 })();
+
+/* Registro del service worker (PWA) — en un try/catch y script aparte del
+   IIFE principal de arriba a propósito: si esto fallara (navegador viejo
+   sin soporte, o service worker no disponible por algún motivo), nunca
+   debe impedir que el catastro cargue y funcione con normalidad. Sin esto
+   el navegador no ofrece "Agregar a pantalla de inicio" en Android/Chrome. */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(err=>console.error('No se pudo registrar el service worker:', err));
+  });
+}
 </script>
 </body>
 </html>
