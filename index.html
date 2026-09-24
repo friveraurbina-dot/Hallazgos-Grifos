@@ -11,6 +11,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-storage-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -3601,11 +3602,43 @@ function esHallazgoDePintura(tipoHallazgo){
   return !!tipoHallazgo && tipoHallazgo.toUpperCase().includes('PINTURA');
 }
 
+// Colores de fondo y de texto para las celdas de Criticidad del Excel
+// SACYR, calcados de los mismos badges de criticidad que se ven en la
+// propia app (.badge.directa/.indirecta/.senaletica), para que el Excel se
+// vea igual de consistente que la interfaz. Ojo: el texto NO usa
+// PRIORIDAD_COLOR (ese es el color "vivo" que se usa en mapas y marcadores,
+// pensado para verse sobre fondos claros/blancos parejos) — para "indirecta"
+// ese tono (#E2A33D, ámbar claro) se lee mal sobre el propio fondo claro de
+// su celda, así que aquí se usa el mismo texto oscuro que ya usa el badge
+// (#8a6109) para que quede legible.
+const PRIORIDAD_FONDO_EXCEL = {
+  directa:'FDECEF', indirecta:'FDF3E1', senaletica:'E9F1F5',
+  inmediato:'FDECEF', corto:'FDF3E1', mediano:'E9F1F5'
+};
+const PRIORIDAD_TEXTO_EXCEL = {
+  directa:'C8334D', indirecta:'8A6109', senaletica:'3B6E8F',
+  inmediato:'C8334D', corto:'8A6109', mediano:'3B6E8F'
+};
+
+/* Enlace de navegación GPS (Google Maps, modo "cómo llegar") a partir de
+   las coordenadas reales del grifo, para que el técnico en terreno pueda
+   tocar el enlace y partir a la dirección sin tener que copiar/pegar
+   coordenadas a mano. Si el registro no tiene lat/lng válidos (aún no se
+   capturó la ubicación real) se devuelve null y esa fila queda sin enlace. */
+function enlaceGpsHallazgo(h){
+  if(typeof h.lat !== 'number' || typeof h.lng !== 'number') return null;
+  return `https://www.google.com/maps/dir/?api=1&destination=${h.lat},${h.lng}`;
+}
+
 /* Excel SACYR: otra variante reducida, pensada para el cliente, con las
-   columnas Código Grifo, Zona, Comuna, Localidad, Dirección, Modelo,
-   Hallazgo, Criticidad, Estado y el último comentario/avance registrado —
-   en este orden exacto. Una fila por cada hallazgo detectado del registro
-   (salvo los hallazgos de pintura, que se excluyen). */
+   columnas Código Grifo, Zona, Comuna, Localidad, Dirección, Ubicación GPS,
+   Modelo, Hallazgo, Criticidad, Estado y el último comentario/avance
+   registrado — en este orden exacto. Una fila por cada hallazgo detectado
+   del registro (salvo los hallazgos de pintura, que se excluyen).
+   Cada fila lleva además, en propiedades internas (con guion bajo, no se
+   exportan como columna), la clave cruda de criticidad y el enlace GPS ya
+   resuelto, para que exportarExcelSacyr() pueda pintar la celda y armar el
+   hipervínculo sin tener que recalcular nada. */
 function construirFilasExcelSacyr(soloIds){
   const idsSet = soloIds ? new Set(soloIds) : null;
   const filas = [];
@@ -3619,27 +3652,84 @@ function construirFilasExcelSacyr(soloIds){
       'Comuna': h.comuna || '',
       'Localidad': h.localidad || '',
       'Dirección': h.direccion || '',
-      'Modelo': h.modelo_grifo || ''
+      'Modelo': h.modelo_grifo || '',
+      _gpsUrl: enlaceGpsHallazgo(h)
     };
     const ultimo = ultimoComentario ? (ultimoComentario.texto || '') : 'Sin avances registrados';
     const estado = ESTADO_LABEL_SACYR[h.estado] || '';
     detalle.forEach(d=>{
-      filas.push(Object.assign({}, base, {'Hallazgo Singemelec': d.tipo_hallazgo, 'Criticidad': PRIORIDAD_LABEL[criticidadDeDetalle(d,h)] || '', 'Estado': estado, 'Último comentario Sacyr': ultimo}));
+      const clave = criticidadDeDetalle(d,h);
+      filas.push(Object.assign({}, base, {'Hallazgo Singemelec': d.tipo_hallazgo, 'Criticidad': PRIORIDAD_LABEL[clave] || '', _criticidadClave: clave, 'Estado': estado, 'Último comentario Sacyr': ultimo}));
     });
   });
   return filas;
 }
 
+/* El Excel SACYR usa ExcelJS (a diferencia de los otros dos exportes, que
+   siguen con SheetJS) porque la versión gratuita de SheetJS cargada en la
+   app no puede escribir colores de celda ni hipervínculos en el .xlsx
+   final — eso es una función exclusiva de la versión paga (Pro). ExcelJS
+   es igual de gratuito/abierto y sí soporta ambas cosas de forma nativa,
+   así que se usa solo aquí, sin tocar los otros dos exportes. */
 function exportarExcelSacyr(){
-  if(typeof XLSX === 'undefined'){ toast('No se pudo cargar el módulo de Excel. Revisa tu conexión e intenta nuevamente.'); return; }
+  if(typeof ExcelJS === 'undefined'){ toast('No se pudo cargar el módulo de Excel. Revisa tu conexión e intenta nuevamente.'); return; }
   if(HALLAZGOS.length===0){ toast('No hay hallazgos para exportar'); return; }
   const ids = idsSegunFiltrosActivos();
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.json_to_sheet(construirFilasExcelSacyr(ids), {header:['Código Grifo','Zona','Comuna','Localidad','Dirección','Modelo','Hallazgo Singemelec','Criticidad','Estado','Último comentario Sacyr']});
-  XLSX.utils.book_append_sheet(wb, ws, 'Hallazgos generales');
+  const filas = construirFilasExcelSacyr(ids);
+  const columnas = [
+    {header:'Código Grifo', key:'codigo', width:14},
+    {header:'Zona', key:'zona', width:14},
+    {header:'Comuna', key:'comuna', width:16},
+    {header:'Localidad', key:'localidad', width:18},
+    {header:'Dirección', key:'direccion', width:32},
+    {header:'Ubicación GPS', key:'gps', width:18},
+    {header:'Modelo', key:'modelo', width:14},
+    {header:'Hallazgo Singemelec', key:'hallazgo', width:28},
+    {header:'Criticidad', key:'criticidad', width:28},
+    {header:'Estado', key:'estado', width:13},
+    {header:'Último comentario Sacyr', key:'comentario', width:36}
+  ];
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('Hallazgos generales');
+  ws.columns = columnas;
+  const filaTitulos = ws.getRow(1);
+  filaTitulos.font = {bold:true, color:{argb:'FFFFFFFF'}};
+  filaTitulos.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FF1F4350'}};
+  filaTitulos.alignment = {vertical:'middle', wrapText:true};
+  ws.views = [{state:'frozen', ySplit:1}];
+  ws.autoFilter = {from:{row:1,column:1}, to:{row:1,column:columnas.length}};
+
+  filas.forEach(f=>{
+    const fila = ws.addRow({
+      codigo: f['Código Grifo'], zona: f['Zona'], comuna: f['Comuna'], localidad: f['Localidad'],
+      direccion: f['Dirección'],
+      gps: f._gpsUrl ? {text:'📍 Cómo llegar', hyperlink:f._gpsUrl} : 'Sin coordenadas',
+      modelo: f['Modelo'], hallazgo: f['Hallazgo Singemelec'], criticidad: f['Criticidad'],
+      estado: f['Estado'], comentario: f['Último comentario Sacyr']
+    });
+    const critCell = fila.getCell('criticidad');
+    critCell.font = {bold:true, color:{argb:'FF'+(PRIORIDAD_TEXTO_EXCEL[f._criticidadClave]||'666666')}};
+    critCell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FF'+(PRIORIDAD_FONDO_EXCEL[f._criticidadClave]||'EEEEEE')}};
+    if(f._gpsUrl){
+      const gpsCell = fila.getCell('gps');
+      gpsCell.font = {color:{argb:'FF1155CC'}, underline:true};
+    }
+    fila.alignment = {vertical:'middle', wrapText:true};
+  });
+
   const stamp = new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
-  XLSX.writeFile(wb, `hallazgos-grifos-sacyr-${stamp}.xlsx`);
-  toast(ids ? 'Excel SACYR generado (con los filtros activos)' : 'Excel SACYR generado');
+  wb.xlsx.writeBuffer().then(buffer=>{
+    const blob = new Blob([buffer], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `hallazgos-grifos-sacyr-${stamp}.xlsx`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 1000);
+    toast(ids ? 'Excel SACYR generado (con los filtros activos)' : 'Excel SACYR generado');
+  }).catch(err=>{
+    console.error('Error generando Excel SACYR:', err);
+    toast('Ocurrió un error generando el Excel SACYR. Intenta nuevamente.');
+  });
 }
 
 /* Genera el informe ejecutivo en PDF: abre el mismo informe en una pestaña
