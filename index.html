@@ -274,6 +274,9 @@ main{flex:1;overflow-y:auto;padding:24px 28px 60px;}
 
 .toast{position:fixed;bottom:22px;right:22px;background:var(--ink);color:#fff;padding:12px 18px;border-radius:8px;font-size:13px;box-shadow:0 6px 18px rgba(0,0,0,.25);z-index:2000;opacity:0;transform:translateY(10px);transition:.25s;}
 .toast.show{opacity:1;transform:translateY(0);}
+.toast.error{background:#C8334D;font-weight:600;max-width:min(92vw,420px);}
+#bannerConexion{display:none;position:sticky;top:0;z-index:1500;background:#C8334D;color:#fff;padding:10px 16px;font-size:13px;font-weight:600;text-align:center;line-height:1.35;box-shadow:0 2px 8px rgba(0,0,0,.25);}
+#bannerConexion button{margin-left:10px;background:#fff;color:#C8334D;border:0;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer;}
 
 .loading{padding:40px;text-align:center;color:var(--text-soft);}
 
@@ -355,6 +358,7 @@ function verificarAcceso(){
 </script>
 <div id="app" style="display:none;">
 
+  <div id="bannerConexion" role="alert"></div>
   <header class="topbar">
     <div class="brand">
       <div class="mark">SG</div>
@@ -541,7 +545,16 @@ function diasTranscurridos(fecha){
   const ms = new Date() - new Date(fecha);
   return Math.max(0, Math.floor(ms / (1000*60*60*24)));
 }
-function toast(msg){ const t=document.getElementById('toast'); if(!t) return; t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2600); }
+let _toastTimer = null;
+function toast(msg, opts){
+  const t=document.getElementById('toast'); if(!t) return;
+  const esError = !!(opts && opts.error);
+  t.textContent=msg;
+  t.classList.toggle('error', esError);
+  t.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(()=>t.classList.remove('show'), esError ? 7000 : 2600);
+}
 
 /* ====================================================================
    CONFIGURACIÓN DE FIREBASE
@@ -587,7 +600,72 @@ function initFirebase(){
   }
 }
 
+/* Estado de la conexión con la base compartida (Firestore). Si el canal en
+   tiempo real falla, la app NO cambia a "modo local" (eso hacía que los
+   hallazgos nuevos quedaran guardados solo en ese teléfono, invisibles para
+   los demás). En cambio: se muestra un aviso rojo, se conservan los datos que
+   ya estaban en pantalla y se reintenta la conexión automáticamente. */
+let conexionPerdida = false;
+let _reintentoHallazgos = null, _reintentoPlanes = null;
+let _backoffHallazgos = 3000, _backoffPlanes = 3000;
+let _onChangeHallazgos = null;
+
+function mostrarBannerConexion(msg){
+  const b = document.getElementById('bannerConexion');
+  if(!b) return;
+  b.innerHTML = msg + ' <button type="button" onclick="reintentarConexion()">Reintentar ahora</button>';
+  b.style.display = 'block';
+}
+function ocultarBannerConexion(){
+  const b = document.getElementById('bannerConexion');
+  if(b) b.style.display = 'none';
+}
+function avisarConexionPerdida(){
+  conexionPerdida = true;
+  mostrarBannerConexion('⚠ Sin conexión con la base de datos compartida. Los datos en pantalla pueden estar desactualizados y los cambios NO se guardarán hasta que vuelva la conexión. Reintentando…');
+  if(_onChangeHallazgos) _onChangeHallazgos();
+}
+function conexionRecuperada(){
+  if(!conexionPerdida) return;
+  conexionPerdida = false;
+  ocultarBannerConexion();
+  toast('Conexión recuperada: datos al día');
+  if(_onChangeHallazgos) _onChangeHallazgos();
+}
+function reintentarConexion(){
+  if(!firebaseReady) return;
+  clearTimeout(_reintentoHallazgos); clearTimeout(_reintentoPlanes);
+  _backoffHallazgos = 3000; _backoffPlanes = 3000;
+  if(_onChangeHallazgos) suscribirHallazgos(_onChangeHallazgos);
+  suscribirPlanesInspeccion(()=>{ if(currentPage==='inspecciones') render(); });
+}
+window.addEventListener('offline', ()=>{ if(firebaseReady) avisarConexionPerdida(); });
+window.addEventListener('online', ()=>{ if(firebaseReady) reintentarConexion(); });
+
+/* Ejecuta una escritura en Firestore y devuelve true/false. Si no hay internet
+   o la escritura falla, avisa claramente que NO se guardó (nunca guarda "a
+   escondidas" solo en el dispositivo). */
+async function escribirRemoto(operacion, accionTexto){
+  const que = accionTexto || 'los cambios';
+  if(navigator.onLine === false){
+    toast(`⚠ Sin internet: ${que} NO se guardó. Intenta de nuevo cuando tengas señal.`, {error:true});
+    return false;
+  }
+  const avisoLento = setTimeout(()=>toast('Guardando… la señal está lenta, espera la confirmación'), 12000);
+  try{
+    await operacion();
+    return true;
+  }catch(e){
+    console.error(e);
+    toast(`⚠ No se pudo guardar: ${que} NO quedó registrado en la base compartida. Revisa tu señal e intenta nuevamente.`, {error:true});
+    return false;
+  }finally{
+    clearTimeout(avisoLento);
+  }
+}
+
 function suscribirHallazgos(onChange){
+  _onChangeHallazgos = onChange;
   if(!firebaseReady){
     try{
       const local = localStorage.getItem(LOCAL_KEY);
@@ -596,20 +674,22 @@ function suscribirHallazgos(onChange){
     onChange();
     return;
   }
-  if(unsubscribeHallazgos) unsubscribeHallazgos();
+  if(unsubscribeHallazgos){ try{ unsubscribeHallazgos(); }catch(e){} }
+  clearTimeout(_reintentoHallazgos);
   unsubscribeHallazgos = db.collection('hallazgos').orderBy('fecha_creacion','desc').onSnapshot(
     (snap)=>{
       HALLAZGOS = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      _backoffHallazgos = 3000;
+      if(conexionPerdida && !snap.metadata.fromCache) conexionRecuperada();
       onChange();
     },
     (err)=>{
-      console.error(err);
-      STORAGE_MODE = 'local';
-      try{
-        const local = localStorage.getItem(LOCAL_KEY);
-        HALLAZGOS = local ? JSON.parse(local) : [];
-      }catch(e2){ HALLAZGOS = []; }
-      onChange();
+      console.error('Error en el canal en tiempo real de hallazgos', err);
+      avisarConexionPerdida();
+      // Se conservan los HALLAZGOS que ya estaban en memoria y se reintenta
+      // con espera creciente (3 s, 6 s, 12 s… máx. 30 s).
+      _reintentoHallazgos = setTimeout(()=>suscribirHallazgos(onChange), _backoffHallazgos);
+      _backoffHallazgos = Math.min(_backoffHallazgos*2, 30000);
     }
   );
 }
@@ -640,19 +720,19 @@ function suscribirPlanesInspeccion(onChange){
     onChange();
     return;
   }
-  if(unsubscribePlanes) unsubscribePlanes();
+  if(unsubscribePlanes){ try{ unsubscribePlanes(); }catch(e){} }
+  clearTimeout(_reintentoPlanes);
   unsubscribePlanes = db.collection('planes_inspeccion').orderBy('actualizado_en','desc').onSnapshot(
     (snap)=>{
       PLANES_INSPECCION = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      _backoffPlanes = 3000;
       onChange();
     },
     (err)=>{
-      console.error(err);
-      try{
-        const local = localStorage.getItem(LOCAL_KEY_PLANES);
-        PLANES_INSPECCION = local ? JSON.parse(local) : [];
-      }catch(e2){ PLANES_INSPECCION = []; }
-      onChange();
+      console.error('Error en el canal en tiempo real de planes', err);
+      avisarConexionPerdida();
+      _reintentoPlanes = setTimeout(()=>suscribirPlanesInspeccion(onChange), _backoffPlanes);
+      _backoffPlanes = Math.min(_backoffPlanes*2, 30000);
     }
   );
 }
@@ -703,13 +783,8 @@ async function cargarPlanDia(fecha, codigosTexto){
   };
 
   if(STORAGE_MODE === 'remote' && firebaseReady){
-    try{
-      await db.collection('planes_inspeccion').doc(fecha).set(doc);
-    }catch(e){
-      console.error(e);
-      toast('Sin conexión: no se pudo guardar el plan del día');
-      return;
-    }
+    const okPlan = await escribirRemoto(()=>db.collection('planes_inspeccion').doc(fecha).set(doc), 'el plan del día');
+    if(!okPlan) return;
   } else {
     const idx = PLANES_INSPECCION.findIndex(p=>p.id===fecha);
     const registro = {id:fecha, ...doc};
@@ -729,8 +804,8 @@ async function quitarCodigoDelPlan(fecha, codigo){
   const codigosFinal = (actual.codigos||[]).filter(c=>c!==codigo);
   const doc = {codigos: codigosFinal, creado_por: actual.creado_por||'Singemelec', actualizado_en: new Date().toISOString()};
   if(STORAGE_MODE === 'remote' && firebaseReady){
-    try{ await db.collection('planes_inspeccion').doc(fecha).set(doc); }
-    catch(e){ console.error(e); toast('Sin conexión: no se pudo quitar el código'); return; }
+    const okQuitar = await escribirRemoto(()=>db.collection('planes_inspeccion').doc(fecha).set(doc), 'el cambio en el plan');
+    if(!okQuitar) return;
   } else {
     const idx = PLANES_INSPECCION.findIndex(p=>p.id===fecha);
     const registro = {id:fecha, ...doc};
@@ -980,8 +1055,8 @@ async function subirFoto(dataUrl, path){
     return await ref.getDownloadURL();
   }catch(e){
     console.error('Error subiendo foto a Storage', e);
-    toast('No se pudo subir la foto a la nube; se guardó solo en este dispositivo');
-    return dataUrl;
+    toast('⚠ No se pudo subir una foto a la nube. NO se guardó nada: revisa tu señal e intenta nuevamente.', {error:true});
+    throw new Error('foto-no-subida');
   }
 }
 
@@ -1803,12 +1878,14 @@ async function guardarInspeccion(){
 
   let fotoGrifoUrl=null, fotoOperativoUrl=null, fotoPresionUrl=null, fotoCamaraUrl=null;
   if(inspeccionRealizada === 'si'){
-    [fotoGrifoUrl, fotoOperativoUrl, fotoPresionUrl, fotoCamaraUrl] = await Promise.all([
-      subirFoto(pendingFotos.grifo, `hallazgos/${id}/grifo.jpg`),
-      subirFoto(pendingFotos.operativo, `hallazgos/${id}/operativo.jpg`),
-      subirFoto(pendingFotos.presion, `hallazgos/${id}/presion.jpg`),
-      subirFoto(pendingFotos.camara, `hallazgos/${id}/camara.jpg`)
-    ]);
+    try{
+      [fotoGrifoUrl, fotoOperativoUrl, fotoPresionUrl, fotoCamaraUrl] = await Promise.all([
+        subirFoto(pendingFotos.grifo, `hallazgos/${id}/grifo.jpg`),
+        subirFoto(pendingFotos.operativo, `hallazgos/${id}/operativo.jpg`),
+        subirFoto(pendingFotos.presion, `hallazgos/${id}/presion.jpg`),
+        subirFoto(pendingFotos.camara, `hallazgos/${id}/camara.jpg`)
+      ]);
+    }catch(e){ return; } // subirFoto ya avisó; el formulario queda intacto para reintentar
   }
 
   const codigoGrifo = document.getElementById('fCodigoGrifo').value.trim().toUpperCase() || null;
@@ -1849,15 +1926,9 @@ async function guardarInspeccion(){
   };
 
   if(STORAGE_MODE === 'remote' && firebaseReady){
-    try{
-      const {id: _omit, ...datos} = nuevo;
-      await db.collection('hallazgos').doc(id).set(datos);
-    }catch(e){
-      console.error(e);
-      toast('Sin conexión a la base de datos compartida: guardando solo en este dispositivo');
-      HALLAZGOS.unshift(nuevo);
-      guardarLocal();
-    }
+    const {id: _omit, ...datos} = nuevo;
+    const okInsp = await escribirRemoto(()=>db.collection('hallazgos').doc(id).set(datos), 'la inspección');
+    if(!okInsp) return; // el formulario queda intacto para reintentar
   } else {
     HALLAZGOS.unshift(nuevo);
     guardarLocal();
@@ -2096,10 +2167,13 @@ async function guardarHallazgo(){
   const btn = document.querySelector('#formNuevo button.btn-primary');
   if(btn){ btn.disabled = true; btn.textContent = 'Guardando…'; }
 
-  const [fotosGrifoUrls, fotosHallazgoUrls] = await Promise.all([
-    Promise.all((pendingFotosMulti.grifo||[]).map((url,i)=> subirFoto(url, `hallazgos/${id}/grifo_${i}.jpg`))),
-    Promise.all((pendingFotosMulti.hallazgo||[]).map((url,i)=> subirFoto(url, `hallazgos/${id}/hallazgo_${i}.jpg`)))
-  ]);
+  let fotosGrifoUrls, fotosHallazgoUrls;
+  try{
+    [fotosGrifoUrls, fotosHallazgoUrls] = await Promise.all([
+      Promise.all((pendingFotosMulti.grifo||[]).map((url,i)=> subirFoto(url, `hallazgos/${id}/grifo_${i}.jpg`))),
+      Promise.all((pendingFotosMulti.hallazgo||[]).map((url,i)=> subirFoto(url, `hallazgos/${id}/hallazgo_${i}.jpg`)))
+    ]);
+  }catch(e){ return; } // subirFoto ya avisó; el formulario queda intacto para reintentar
 
   const codigoGrifo = document.getElementById('fCodigoGrifo').value.trim().toUpperCase() || null;
 
@@ -2132,16 +2206,10 @@ async function guardarHallazgo(){
   };
 
   if(STORAGE_MODE === 'remote' && firebaseReady){
-    try{
-      const {id: _omit, ...datos} = nuevo;
-      await db.collection('hallazgos').doc(id).set(datos);
-      // el listener en tiempo real (onSnapshot) actualiza la vista en todos los dispositivos
-    }catch(e){
-      console.error(e);
-      toast('Sin conexión a la base de datos compartida: guardando solo en este dispositivo');
-      HALLAZGOS.unshift(nuevo);
-      guardarLocal();
-    }
+    const {id: _omit, ...datos} = nuevo;
+    // el listener en tiempo real (onSnapshot) actualiza la vista en todos los dispositivos
+    const okNuevo = await escribirRemoto(()=>db.collection('hallazgos').doc(id).set(datos), 'el hallazgo');
+    if(!okNuevo) return; // el formulario queda intacto para reintentar
   } else {
     HALLAZGOS.unshift(nuevo);
     guardarLocal();
@@ -2555,16 +2623,13 @@ async function ejecutarEliminacion(){
   closeModal();
   if(ids.length===0) return;
   if(STORAGE_MODE === 'remote' && firebaseReady){
-    try{
+    const okElim = await escribirRemoto(async ()=>{
       const batch = db.batch();
       ids.forEach(id => batch.delete(db.collection('hallazgos').doc(id)));
       await batch.commit();
-      ids.forEach(id => borrarFotosHallazgo(id)); // best-effort, no bloquea la UI
-    }catch(e){
-      console.error(e);
-      toast('No se pudo eliminar: revisa tu conexión e intenta nuevamente');
-      return;
-    }
+    }, 'la eliminación');
+    if(!okElim) return;
+    ids.forEach(id => borrarFotosHallazgo(id)); // best-effort, no bloquea la UI
   } else {
     HALLAZGOS = HALLAZGOS.filter(h => !ids.includes(h.id));
     guardarLocal();
@@ -2709,7 +2774,10 @@ async function actualizarHallazgo(id){
   const estadoCambio = nuevoEstado !== h.estado;
 
   const fotosDespuesArr = pendingFotosMulti.despues || [];
-  const fotosDespuesUrls = await Promise.all(fotosDespuesArr.map((url,i)=> subirFoto(url, `hallazgos/${id}/respaldo_despues_${Date.now()}_${i}.jpg`)));
+  let fotosDespuesUrls;
+  try{
+    fotosDespuesUrls = await Promise.all(fotosDespuesArr.map((url,i)=> subirFoto(url, `hallazgos/${id}/respaldo_despues_${Date.now()}_${i}.jpg`)));
+  }catch(e){ return; } // subirFoto ya avisó; el modal queda abierto para reintentar
 
   if(!txt && fotosDespuesUrls.length===0 && !estadoCambio){
     toast('No hay cambios que guardar');
@@ -2740,14 +2808,8 @@ async function actualizarHallazgo(id){
   const cambios = { estado: nuevoEstado, foto_respaldo: fotoRespaldoUrl, comentarios: nuevosComentarios };
 
   if(STORAGE_MODE === 'remote' && firebaseReady){
-    try{
-      await db.collection('hallazgos').doc(id).update(cambios);
-    }catch(e){
-      console.error(e);
-      toast('Sin conexión: actualización guardada solo en este dispositivo');
-      Object.assign(h, cambios);
-      guardarLocal();
-    }
+    const okAct = await escribirRemoto(()=>db.collection('hallazgos').doc(id).update(cambios), 'la actualización');
+    if(!okAct) return; // el modal queda abierto para reintentar
   } else {
     Object.assign(h, cambios);
     guardarLocal();
@@ -2925,14 +2987,8 @@ async function guardarEdicionHallazgo(id){
   }
 
   if(STORAGE_MODE === 'remote' && firebaseReady){
-    try{
-      await db.collection('hallazgos').doc(id).update(cambios);
-    }catch(e){
-      console.error(e);
-      toast('Sin conexión: cambios guardados solo en este dispositivo');
-      Object.assign(h, cambios);
-      guardarLocal();
-    }
+    const okEd = await escribirRemoto(()=>db.collection('hallazgos').doc(id).update(cambios), 'los cambios del hallazgo');
+    if(!okEd) return;
   } else {
     Object.assign(h, cambios);
     guardarLocal();
@@ -3816,7 +3872,7 @@ function handleCSVImport(evt){
     if(nuevos.length===0){ toast('No se encontraron filas válidas para importar'); return; }
 
     if(STORAGE_MODE === 'remote' && firebaseReady){
-      try{
+      const okImp = await escribirRemoto(async ()=>{
         const CHUNK = 400; // límite de 500 operaciones por batch en Firestore
         for(let i=0;i<nuevos.length;i+=CHUNK){
           const batch = db.batch();
@@ -3826,12 +3882,8 @@ function handleCSVImport(evt){
           });
           await batch.commit();
         }
-      }catch(e){
-        console.error(e);
-        toast('Sin conexión a la base de datos compartida: importando solo en este dispositivo');
-        HALLAZGOS.unshift(...nuevos);
-        guardarLocal();
-      }
+      }, 'la importación');
+      if(!okImp){ evt.target.value = ''; return; }
     } else {
       HALLAZGOS.unshift(...nuevos);
       guardarLocal();
@@ -3857,9 +3909,11 @@ function handleCSVImport(evt){
     suscribirHallazgos(()=>{
       const foot = document.getElementById('railFoot');
       if(foot){
-        foot.innerHTML = STORAGE_MODE === 'remote'
-          ? 'v1.0 · datos en tiempo real<br>entre ambas empresas'
-          : '⚠ modo local<br>configura Firebase para<br>compartir datos en tiempo real';
+        foot.innerHTML = conexionPerdida
+          ? '⚠ sin conexión<br>reintentando…'
+          : (STORAGE_MODE === 'remote'
+            ? 'v1.0 · datos en tiempo real<br>entre ambas empresas'
+            : '⚠ modo local<br>configura Firebase para<br>compartir datos en tiempo real');
       }
       render();
     });
