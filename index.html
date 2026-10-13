@@ -471,28 +471,106 @@ const ESTADO_LABEL = {pendiente:'Pendiente', en_proceso:'En proceso', resuelto:'
 // tipo de elemento, así ya no se elige "Tipo de elemento" a mano ni la
 // prioridad del registro — se calculan solas a partir de lo seleccionado.
 const CATALOGO_HALLAZGOS = [
-  {nombre:'Válvula de pie cerrada', criticidad:'directa', tipo_elemento:'grifo'},
-  {nombre:'Obturador agripado', criticidad:'directa', tipo_elemento:'grifo'},
-  {nombre:'Vástago inoperativo', criticidad:'directa', tipo_elemento:'grifo'},
-  {nombre:'Robo de agua', criticidad:'directa', tipo_elemento:'grifo'},
+  // Operatividad directa (nombres oficiales del Panel Grifos de Singemelec)
   {nombre:'Vástago rodado', criticidad:'directa', tipo_elemento:'grifo'},
+  {nombre:'Obturador agripado', criticidad:'directa', tipo_elemento:'grifo'},
+  {nombre:'Válvula de pie cerrada (no se logra abrir)', criticidad:'directa', tipo_elemento:'grifo'},
   {nombre:'Filtración de agua', criticidad:'directa', tipo_elemento:'grifo'},
+  {nombre:'Robo de agua', criticidad:'directa', tipo_elemento:'grifo'},
+  {nombre:'Boquilla dañada', criticidad:'directa', tipo_elemento:'grifo'},
+  {nombre:'Vástago dañado', criticidad:'directa', tipo_elemento:'grifo'},
   {nombre:'Grifo dañado', criticidad:'directa', tipo_elemento:'grifo'},
-  {nombre:'Tapa de cámara agripada', criticidad:'indirecta', tipo_elemento:'camara'},
+  {nombre:'Grifo retirado / inexistente', criticidad:'directa', tipo_elemento:'grifo'},
+  {nombre:'Sin acceso', criticidad:'directa', tipo_elemento:'grifo'},
+  // Operatividad indirecta / mecánica
   {nombre:'Cámara no visible', criticidad:'indirecta', tipo_elemento:'camara'},
   {nombre:'Cámara con basura', criticidad:'indirecta', tipo_elemento:'camara'},
+  {nombre:'Tapa de cámara agripada', criticidad:'indirecta', tipo_elemento:'camara'},
   {nombre:'Cámara dañada', criticidad:'indirecta', tipo_elemento:'camara'},
   {nombre:'Cámara Inundada', criticidad:'indirecta', tipo_elemento:'camara'},
+  // Pendiente de confirmar con Valeria (no existe en el Panel Grifos): se mantiene por ahora
   {nombre:'Cámara obstruida', criticidad:'indirecta', tipo_elemento:'camara'},
-  {nombre:'Tapa boquilla mal estado', criticidad:'indirecta', tipo_elemento:'grifo'},
+  // Señalética / visibilidad
   {nombre:'Pintura en mal estado', criticidad:'senaletica', tipo_elemento:'grifo'}
 ];
+
+/* Nombres antiguos → nombre oficial actual. La app SIEMPRE traduce estos
+   nombres al leer (en memoria), así que un registro que todavía no se haya
+   migrado en la base igualmente se ve, se filtra y se cuenta con el nombre
+   nuevo y con su criticidad correcta. El botón "Actualizar nombres" (solo
+   Singemelec) escribe esos cambios en la base, previo respaldo. */
+const NOMBRES_HALLAZGO_ANTIGUOS = {
+  'Vástago inoperativo': 'Vástago dañado',
+  'Tapa boquilla mal estado': 'Boquilla dañada',
+  'Válvula de pie cerrada': 'Válvula de pie cerrada (no se logra abrir)'
+};
+function nombreHallazgoVigente(n){ return NOMBRES_HALLAZGO_ANTIGUOS[n] || n; }
+
 const CATEGORIAS_CRITICIDAD = [
   {clave:'directa', titulo:'OPERATIVIDAD DIRECTA'},
   {clave:'indirecta', titulo:'OPERATIVIDAD INDIRECTA / MECÁNICA'},
   {clave:'senaletica', titulo:'SEÑALÉTICA / VISIBILIDAD'}
 ];
 function hallazgoInfo(nombre){ return CATALOGO_HALLAZGOS.find(x=>x.nombre===nombre); }
+
+/* ---- Normalización de nombres antiguos (lectura) y migración (escritura) ----
+   calcularMigracion(h) NO modifica h: devuelve una copia ya normalizada
+   (`registro`) y, si hay algo que cambiar en la base, el objeto `cambios` con
+   solo los campos a escribir. `renombres` lista los cambios de nombre
+   ("Vástago inoperativo → Vástago dañado") y `soloCriticidad` indica si lo
+   único que cambia es la criticidad (sin renombre). */
+function normalizarDetalle(d){
+  const nombre = nombreHallazgoVigente(d.tipo_hallazgo);
+  const info = hallazgoInfo(nombre);
+  const n = {...d, tipo_hallazgo: nombre};
+  if(info){ n.criticidad = info.criticidad; n.tipo_elemento = info.tipo_elemento; }
+  return n;
+}
+function calcularMigracion(h){
+  const out = {...h};
+  const cambios = {};
+  const renombres = [];
+  let criticidadCambiada = false;
+  const detalle = Array.isArray(h.hallazgos_detalle) ? h.hallazgos_detalle : [];
+  if(detalle.length){
+    const nd = detalle.map(d=>{
+      const n = normalizarDetalle(d);
+      if(n.tipo_hallazgo !== d.tipo_hallazgo) renombres.push(`${d.tipo_hallazgo} → ${n.tipo_hallazgo}`);
+      const critVieja = d.criticidad ? (CRITICIDAD_LEGACY[d.criticidad] || d.criticidad) : null;
+      if(critVieja && critVieja !== n.criticidad) criticidadCambiada = true;
+      return n;
+    });
+    const prio = criticidadMasSevera(nd);
+    const prioCambia = !!prio && prio !== criticidadDeRegistro(h);
+    if(renombres.length || criticidadCambiada || prioCambia){
+      cambios.hallazgos_detalle = nd;
+      cambios.prioridad = prio || h.prioridad;
+    }
+  } else if(h.tipo_hallazgo){
+    const nombre = nombreHallazgoVigente(h.tipo_hallazgo);
+    const info = hallazgoInfo(nombre);
+    if(nombre !== h.tipo_hallazgo){
+      renombres.push(`${h.tipo_hallazgo} → ${nombre}`);
+      cambios.tipo_hallazgo = nombre;
+      if(info){ cambios.prioridad = info.criticidad; cambios.tipo_elemento = info.tipo_elemento; }
+    }
+  }
+  Object.assign(out, cambios);
+  const hayCambios = Object.keys(cambios).length > 0;
+  return {registro: out, cambios: hayCambios ? cambios : null, renombres, soloCriticidad: hayCambios && renombres.length===0};
+}
+// id → true para los registros que todavía tienen nombres/criticidad por migrar en la base.
+let PENDIENTES_MIGRACION = new Set();
+function normalizarListaHallazgos(lista){
+  const pend = new Set();
+  const res = lista.map(h=>{
+    const m = calcularMigracion(h);
+    if(m.cambios) pend.add(h.id);
+    return m.registro;
+  });
+  PENDIENTES_MIGRACION = pend;
+  return res;
+}
 
 /* Criticidad "peor caso" entre varios hallazgos agregados a un mismo
    registro — así el registro completo queda con la criticidad más alta
@@ -669,7 +747,7 @@ function suscribirHallazgos(onChange){
   if(!firebaseReady){
     try{
       const local = localStorage.getItem(LOCAL_KEY);
-      HALLAZGOS = local ? JSON.parse(local) : [];
+      HALLAZGOS = local ? normalizarListaHallazgos(JSON.parse(local)) : [];
     }catch(e){ HALLAZGOS = []; }
     onChange();
     return;
@@ -678,7 +756,7 @@ function suscribirHallazgos(onChange){
   clearTimeout(_reintentoHallazgos);
   unsubscribeHallazgos = db.collection('hallazgos').orderBy('fecha_creacion','desc').onSnapshot(
     (snap)=>{
-      HALLAZGOS = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      HALLAZGOS = normalizarListaHallazgos(snap.docs.map(d=>({id:d.id, ...d.data()})));
       _backoffHallazgos = 3000;
       if(conexionPerdida && !snap.metadata.fromCache) conexionRecuperada();
       onChange();
@@ -1476,7 +1554,7 @@ function inicializarFormularioGrifo(fotosIniciales){
    ('f' para los dos primeros, que nunca están montados a la vez y pueden
    compartir ids; 'e' para el modal de edición) para no pisarse.
    VALVULA_TIPO centraliza el nombre exacto del catálogo que lo activa. */
-const VALVULA_TIPO = 'Válvula de pie cerrada';
+const VALVULA_TIPO = 'Válvula de pie cerrada (no se logra abrir)';
 
 function seccionValvulaHtml(prefix){
   prefix = prefix || 'f';
@@ -2343,6 +2421,7 @@ function renderLista(){
     <div class="page-head">
       <div><h1>Hallazgos</h1><p>${ROLE==='singemelec' ? 'Registro y resolución de hallazgos en terreno' : 'Seguimiento — Sacyr Aguas (solo lectura)'}</p></div>
       <div>
+        ${(ROLE==='singemelec' && PENDIENTES_MIGRACION.size>0) ? `<button class="btn btn-danger btn-sm" onclick="abrirMigracionNombres()">🔧 Actualizar nombres de hallazgos (${PENDIENTES_MIGRACION.size})</button>` : ''}
         <button class="btn btn-amber btn-sm" onclick="descargarReporteHallazgos()">📄 Reporte de hallazgos (HTML)</button>
         <button class="btn btn-amber btn-sm" onclick="exportarExcel()">📊 Exportar a Excel</button>
         <button class="btn btn-amber btn-sm" onclick="exportarExcelReducido()">📊 Excel reducido</button>
@@ -2759,6 +2838,109 @@ function openDetail(id){
     if(h.ideal_lat) L.circleMarker([h.ideal_lat,h.ideal_lng],{radius:8,color:'#fff',weight:2,fillColor:'#3B6E8F',fillOpacity:1}).addTo(detailMap).bindPopup('Ubicación ideal');
   }, 50);
 }
+/* ---------------- MIGRACIÓN DE NOMBRES DE HALLAZGOS (solo Singemelec) ----------------
+   Flujo seguro en 3 pasos dentro de un modal:
+   1) Lee los registros crudos de la base (sin traducir) y muestra cuántos cambian.
+   2) Obliga a descargar un respaldo JSON de TODOS los hallazgos.
+   3) Recién entonces habilita "Aplicar migración", que escribe en lotes SOLO los
+      campos que cambian (hallazgos_detalle + prioridad, o tipo_hallazgo en el
+      esquema antiguo plano). No toca fotos, comentarios, estados ni fechas. */
+let _migCrudos = null, _migRespaldoListo = false, _migPlan = null;
+
+async function abrirMigracionNombres(){
+  if(ROLE!=='singemelec') return;
+  if(!(STORAGE_MODE==='remote' && firebaseReady)){ toast('La migración solo está disponible con la base compartida conectada', {error:true}); return; }
+  if(navigator.onLine===false){ toast('Sin internet: no se puede revisar la base ahora', {error:true}); return; }
+  const modalBg = document.getElementById('modalBg'), modal = document.getElementById('modalContent');
+  if(!modalBg || !modal) return;
+  modal.innerHTML = `<button class="closeX" onclick="closeModal()">&times;</button><h2>Actualizar nombres de hallazgos</h2><p style="font-size:13.5px;">Revisando la base de datos…</p>`;
+  modalBg.classList.add('open');
+  try{
+    const snap = await db.collection('hallazgos').get();
+    _migCrudos = snap.docs.map(d=>({id:d.id, ...d.data()}));
+  }catch(e){
+    console.error(e);
+    modal.innerHTML = `<button class="closeX" onclick="closeModal()">&times;</button><h2>Actualizar nombres de hallazgos</h2><p style="font-size:13.5px;color:var(--hidrante);">No se pudo leer la base de datos. Revisa tu señal e intenta nuevamente.</p>`;
+    return;
+  }
+  _migRespaldoListo = false;
+  _migPlan = _migCrudos.map(h=>({id:h.id, codigo:h.codigo_grifo, m:calcularMigracion(h)})).filter(x=>x.m.cambios);
+  renderModalMigracion();
+}
+
+function renderModalMigracion(){
+  const modal = document.getElementById('modalContent');
+  if(!modal) return;
+  const total = _migCrudos.length;
+  const n = _migPlan.length;
+  if(n===0){
+    modal.innerHTML = `<button class="closeX" onclick="closeModal()">&times;</button><h2>Actualizar nombres de hallazgos</h2><p style="font-size:13.5px;">✔ Todos los registros (${total}) ya usan los nombres y criticidades oficiales. No hay nada que migrar.</p><div style="margin-top:16px;"><button class="btn btn-ghost btn-sm" onclick="closeModal()">Cerrar</button></div>`;
+    return;
+  }
+  const porRenombre = {};
+  let soloCrit = 0;
+  _migPlan.forEach(x=>{
+    if(x.m.soloCriticidad) soloCrit++;
+    new Set(x.m.renombres).forEach(r=>{ porRenombre[r] = (porRenombre[r]||0)+1; });
+  });
+  const filas = Object.entries(porRenombre).sort((a,b)=>b[1]-a[1]).map(([r,c])=>`<li><strong>${c}</strong> registro${c===1?'':'s'}: ${r}</li>`).join('');
+  modal.innerHTML = `
+    <button class="closeX" onclick="closeModal()">&times;</button>
+    <h2>Actualizar nombres de hallazgos</h2>
+    <p style="font-size:13.5px;color:var(--text);">De <strong>${total}</strong> registros en la base, <strong>${n}</strong> cambiarán:</p>
+    <ul style="font-size:12.5px;color:var(--text-soft);margin:0 0 8px;padding-left:18px;">
+      ${filas}
+      ${soloCrit ? `<li><strong>${soloCrit}</strong> registro${soloCrit===1?'':'s'}: solo se recalcula la criticidad (sin cambio de nombre)</li>` : ''}
+    </ul>
+    <p style="font-size:12.5px;color:var(--text-soft);">Solo se modifican los nombres/criticidad de los hallazgos. Fotos, comentarios, estados y fechas no se tocan.</p>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px;">
+      <button class="btn btn-amber btn-sm" onclick="descargarRespaldoMigracion()">① Descargar respaldo de la base (obligatorio)</button>
+      <button class="btn btn-danger btn-sm" id="btnAplicarMigracion" ${_migRespaldoListo?'':'disabled'} onclick="aplicarMigracionNombres()">② Aplicar migración a ${n} registro${n===1?'':'s'}</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal()">Cancelar</button>
+    </div>
+    <p id="migEstado" style="font-size:12px;color:var(--text-soft);margin-top:10px;">${_migRespaldoListo?'✔ Respaldo descargado. Ya puedes aplicar la migración.':'Primero descarga el respaldo para habilitar el paso ②.'}</p>`;
+}
+
+function descargarRespaldoMigracion(){
+  try{
+    const hoy = new Date().toISOString().slice(0,10);
+    const blob = new Blob([JSON.stringify({exportado_en:new Date().toISOString(), coleccion:'hallazgos', total:_migCrudos.length, registros:_migCrudos}, null, 1)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `respaldo-hallazgos-${hoy}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+    _migRespaldoListo = true;
+    renderModalMigracion();
+    toast('Respaldo descargado: guárdalo en un lugar seguro');
+  }catch(e){
+    console.error(e);
+    toast('No se pudo generar el respaldo. NO se migrará nada.', {error:true});
+  }
+}
+
+async function aplicarMigracionNombres(){
+  if(ROLE!=='singemelec' || !_migRespaldoListo || !_migPlan || _migPlan.length===0) return;
+  const btn = document.getElementById('btnAplicarMigracion');
+  if(btn){ btn.disabled = true; btn.textContent = 'Migrando…'; }
+  const ok = await escribirRemoto(async ()=>{
+    const CHUNK = 400;
+    for(let i=0;i<_migPlan.length;i+=CHUNK){
+      const batch = db.batch();
+      _migPlan.slice(i,i+CHUNK).forEach(x=>batch.update(db.collection('hallazgos').doc(x.id), x.m.cambios));
+      await batch.commit();
+    }
+  }, 'la migración de nombres');
+  if(!ok){
+    if(btn){ btn.disabled = false; btn.textContent = 'Reintentar migración'; }
+    return;
+  }
+  const n = _migPlan.length;
+  _migPlan = null; _migCrudos = null;
+  closeModal();
+  toast(`Migración lista: ${n} registro${n===1?'':'s'} actualizado${n===1?'':'s'}`);
+}
+
 function closeModal(){
   const m = document.getElementById('modalBg');
   if(m) m.classList.remove('open');
