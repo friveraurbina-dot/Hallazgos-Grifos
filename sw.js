@@ -20,7 +20,7 @@
    servidor; el caché solo se usa si la red falla (sin conexión). Así nunca
    se sirve una versión vieja de la app por delante de la red. */
 
-const CACHE_NAME = 'grifos-shell-v2';
+const CACHE_NAME = 'gestionsacyr-shell-v1';
 const APP_SHELL = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', (event) => {

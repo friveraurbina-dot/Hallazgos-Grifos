@@ -1,31 +1,16 @@
 {
-  "name": "Catastro de Grifos",
-  "short_name": "Grifos",
-  "description": "Registro y seguimiento de hallazgos en grifos — Singemelec / Sacyr Aguas",
+  "name": "Gestión Sacyr",
+  "short_name": "Gestión Sacyr",
+  "description": "Gestión de hallazgos en grifos — Singemelec / Sacyr Aguas",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#16323A",
-  "theme_color": "#16323A",
+  "background_color": "#002359",
+  "theme_color": "#002359",
   "icons": [
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "icon-512-maskable.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

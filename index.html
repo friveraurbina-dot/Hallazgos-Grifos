@@ -3,18 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Catastro de Grifos — Singemelec / Sacyr Aguas</title>
+<title>Gestión Sacyr — Singemelec · Sacyr Aguas</title>
 <!-- PWA: permite "Agregar a pantalla de inicio" y que la app se abra con
      ícono propio, a pantalla completa, sin la barra del navegador. -->
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#16323A">
+<meta name="theme-color" content="#002359">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Grifos">
+<meta name="apple-mobile-web-app-title" content="Gestión Sacyr">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore-compat.js"></script>
@@ -22,32 +24,34 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --ink:#16323A;
-  --ink-2:#1F4350;
-  --concrete:#EDE7DC;
-  --concrete-2:#F7F4ED;
+  --ink:#002359;
+  --ink-2:#0A2F6E;
+  --concrete:#EDF3F8;
+  --concrete-2:#F5F9FC;
   --paper:#FFFFFF;
   --hidrante:#C8334D;
   --senal:#E2A33D;
   --tuberia:#3B6E8F;
-  --musgo:#5C8A60;
-  --line:#D9D2C2;
-  --text:#1B2A2E;
-  --text-soft:#5C6B6E;
-  --radius:10px;
+  --musgo:#2F9E78;
+  --accent:#01B3D7;
+  --accent-2:#63D1E0;
+  --line:#D6E2EC;
+  --text:#0E2142;
+  --text-soft:#5A6F8C;
+  --radius:14px;
 }
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;height:100%;}
 body{
-  font-family:'IBM Plex Sans',sans-serif;
+  font-family:'Inter',sans-serif;
   background:var(--concrete);
   color:var(--text);
   -webkit-font-smoothing:antialiased;
 }
-h1,h2,h3,.display{font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.02em;}
+h1,h2,h3,.display{font-family:'Montserrat',sans-serif;letter-spacing:.02em;}
 .mono{font-family:'IBM Plex Mono',monospace;}
 #app{display:flex;flex-direction:column;height:100vh;}
 
@@ -64,10 +68,10 @@ header.topbar{
   width:36px;height:36px;border-radius:50%;
   background:radial-gradient(circle at 35% 30%, var(--hidrante), #8c1f33 80%);
   display:flex;align-items:center;justify-content:center;
-  font-family:'Oswald',sans-serif;font-weight:700;color:#fff;font-size:14px;
+  font-family:'Montserrat',sans-serif;font-weight:700;color:#fff;font-size:14px;
   box-shadow:inset 0 0 0 3px rgba(255,255,255,.25);
 }
-.brand .name{font-family:'Oswald',sans-serif;font-size:17px;letter-spacing:.04em;line-height:1.1;}
+.brand .name{font-family:'Montserrat',sans-serif;font-size:17px;letter-spacing:.04em;line-height:1.1;}
 .brand .name small{display:block;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#9fb3b9;text-transform:none;letter-spacing:.02em;}
 .role-switch{display:flex;align-items:center;gap:10px;}
 .role-pill{
@@ -84,7 +88,7 @@ nav.rail{
   padding:18px 0;display:flex;flex-direction:column;gap:2px;
 }
 nav.rail button{
-  all:unset;cursor:pointer;padding:13px 22px;font-family:'IBM Plex Sans',sans-serif;
+  all:unset;cursor:pointer;padding:13px 22px;font-family:'Inter',sans-serif;
   font-size:13.5px;font-weight:500;color:#bcd0d4;border-left:3px solid transparent;
 }
 nav.rail button:hover{background:rgba(255,255,255,.05);color:#fff;}
@@ -101,7 +105,7 @@ main{flex:1;overflow-y:auto;padding:24px 28px 60px;}
 .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px;}
 .kpi{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;position:relative;overflow:hidden;}
 .kpi .tab{position:absolute;left:0;top:0;bottom:0;width:5px;}
-.kpi .num{font-family:'Oswald',sans-serif;font-size:30px;line-height:1;color:var(--ink);}
+.kpi .num{font-family:'Montserrat',sans-serif;font-size:30px;line-height:1;color:var(--ink);}
 .kpi .lbl{font-size:11.5px;color:var(--text-soft);margin-top:6px;text-transform:uppercase;letter-spacing:.04em;}
 
 .panel{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;}
@@ -123,7 +127,7 @@ main{flex:1;overflow-y:auto;padding:24px 28px 60px;}
 .field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
 .field label{font-size:12px;font-weight:600;color:var(--ink);text-transform:uppercase;letter-spacing:.03em;}
 .field input,.field select,.field textarea{
-  font-family:'IBM Plex Sans',sans-serif;padding:9px 11px;border:1px solid var(--line);
+  font-family:'Inter',sans-serif;padding:9px 11px;border:1px solid var(--line);
   border-radius:6px;font-size:13.5px;background:#fff;color:var(--text);
 }
 .field textarea{resize:vertical;min-height:70px;}
@@ -170,7 +174,7 @@ main{flex:1;overflow-y:auto;padding:24px 28px 60px;}
 }
 
 .btn{
-  font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13px;
+  font-family:'Inter',sans-serif;font-weight:600;font-size:13px;
   padding:10px 18px;border-radius:7px;border:none;cursor:pointer;transition:.15s;
 }
 .btn-primary{background:var(--ink);color:#fff;}
@@ -211,13 +215,13 @@ main{flex:1;overflow-y:auto;padding:24px 28px 60px;}
 .fcard.selected{outline:2px solid var(--hidrante);outline-offset:-2px;}
 .list-actions{display:flex;align-items:center;gap:12px;background:#fdecef;border:1px solid var(--hidrante);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12.5px;color:var(--hidrante);font-weight:700;flex-wrap:wrap;}
 .zone-tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
-.zone-tab{font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:12.5px;padding:8px 14px;border-radius:20px;border:1px solid var(--line);background:#fff;color:var(--text-soft);cursor:pointer;transition:.15s;}
+.zone-tab{font-family:'Inter',sans-serif;font-weight:600;font-size:12.5px;padding:8px 14px;border-radius:20px;border:1px solid var(--line);background:#fff;color:var(--text-soft);cursor:pointer;transition:.15s;}
 .zone-tab.active{background:var(--ink);border-color:var(--ink);color:#fff;}
 .list-filters{display:flex;gap:18px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
 .list-filters .filter-group{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;}
 .list-filters label{font-size:11.5px;font-weight:600;color:var(--ink);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap;}
 .list-filters input[type="text"],.list-filters select{
-  font-family:'IBM Plex Sans',sans-serif;padding:8px 12px;border:1px solid var(--line);
+  font-family:'Inter',sans-serif;padding:8px 12px;border:1px solid var(--line);
   border-radius:6px;font-size:13px;background:#fff;color:var(--text);min-width:190px;
 }
 .select-all-row{display:flex;align-items:center;margin-bottom:12px;}
@@ -291,7 +295,7 @@ main{flex:1;overflow-y:auto;padding:24px 28px 60px;}
     border-bottom:1px solid rgba(255,255,255,.1);
   }
   nav.rail button{padding:9px 14px;white-space:nowrap;border-left:none;border-bottom:3px solid transparent;}
-  nav.rail button.active{border-left-color:transparent;border-bottom-color:var(--senal);}
+  nav.rail button.active{border-left-color:transparent;border-bottom-color:var(--accent);}
   nav.rail .rail-foot{display:none;}
   main{padding:14px 12px 50px;}
   .page-head h1{font-size:19px;}
@@ -303,16 +307,227 @@ main{flex:1;overflow-y:auto;padding:24px 28px 60px;}
   .modal{padding:16px;max-height:92vh;}
   .fcard .frow1{flex-direction:column;align-items:flex-start;gap:4px;}
 }
+
+/* =====================================================================
+   IDENTIDAD "GESTIÓN SACYR" (2026-10) — paleta turquesa / azul marino.
+   Colores de marca: azul marino #002359 · turquesa #01B3D7 · turquesa claro #63D1E0.
+   Los colores de CRITICIDAD (rojo / ámbar / azul acero) y de ESTADO NO cambian
+   a propósito: son semánticos y todo el equipo ya los reconoce.
+   ===================================================================== */
+body{background:var(--concrete);}
+h1,h2,h3,.display{letter-spacing:-.01em;}
+.page-head h1{font-size:25px;font-weight:700;}
+.page-head p{font-size:13px;}
+
+header.topbar{
+  background:linear-gradient(100deg,#001B47 0%,#002359 55%,#0B3A86 100%);
+  border-bottom:3px solid var(--accent);height:62px;
+  box-shadow:0 2px 14px rgba(0,35,89,.28);position:relative;z-index:10;
+}
+.brand .mark{
+  width:38px;height:38px;border-radius:11px;font-size:15px;font-weight:800;letter-spacing:-.03em;
+  background:linear-gradient(135deg,var(--accent) 0%,var(--accent-2) 100%);color:#002359;
+  box-shadow:0 2px 10px rgba(1,179,215,.5);
+}
+.brand .name{font-weight:700;font-size:18px;letter-spacing:-.01em;}
+.brand .name small{color:#8FD6E8;font-size:10.5px;letter-spacing:.04em;margin-top:2px;}
+.role-pill{border-color:rgba(255,255,255,.22);color:#d4ecf5;}
+.role-pill.active{background:var(--accent);color:#002359;border-color:var(--accent);font-weight:700;}
+
+nav.rail{width:212px;background:linear-gradient(180deg,#002359 0%,#001A4A 100%);padding:16px 10px;gap:3px;}
+nav.rail button{
+  display:flex;align-items:center;gap:11px;padding:11px 14px;border-radius:10px;
+  border-left:none;color:#B9CCE6;font-size:13.5px;font-weight:600;
+}
+nav.rail button svg{flex-shrink:0;opacity:.85;}
+nav.rail button:hover{background:rgba(255,255,255,.07);color:#fff;}
+nav.rail button.active{background:linear-gradient(90deg,rgba(1,179,215,.28),rgba(1,179,215,.08));color:#fff;box-shadow:inset 3px 0 0 var(--accent);}
+nav.rail button.active svg{color:var(--accent-2);opacity:1;}
+nav.rail .rail-foot{color:#6E88B0;}
+
+.panel{border-radius:14px;box-shadow:0 1px 2px rgba(0,35,89,.05),0 8px 22px rgba(0,35,89,.05);border-color:var(--line);}
+.panel h3{font-size:14px;font-weight:700;}
+.panel .sub,.panel p.sub{font-size:12.5px;color:var(--text-soft);margin:-4px 0 12px;line-height:1.5;}
+.kpi{
+  border-radius:14px;border-color:var(--line);padding:16px 18px 14px 21px;
+  box-shadow:0 1px 2px rgba(0,35,89,.05),0 8px 22px rgba(0,35,89,.05);
+}
+.kpi .tab{width:5px;}
+.kpi .num{font-size:34px;font-weight:700;letter-spacing:-.03em;}
+.kpi .lbl{font-size:10.5px;font-weight:700;letter-spacing:.06em;}
+.kpi .sub{font-size:11px;color:var(--text-soft);margin-top:3px;font-weight:500;}
+
+.btn{border-radius:9px;}
+.btn-primary{background:var(--ink);}
+.btn-primary:hover{background:#0B3A86;}
+.btn-amber{background:var(--accent);color:#00214F;font-weight:700;}
+.btn-amber:hover{background:#00A0C2;color:#fff;}
+.btn-ghost:hover{border-color:var(--accent);color:var(--ink);}
+.zone-tab.active{background:var(--ink);border-color:var(--ink);}
+.modal-bg{background:rgba(0,28,74,.6);}
+.modal{border-radius:16px;}
+.estado-table th{background:#F1F7FB;}
+.field input:focus,.field select:focus,.field textarea:focus,
+.list-filters input:focus,.list-filters select:focus{outline:2px solid var(--accent);outline-offset:0;border-color:var(--accent);}
+
+/* ---------- Gráficos ---------- */
+.charts-row{display:grid;grid-template-columns:1fr 1fr 1.55fr;gap:18px;margin-bottom:18px;}
+.charts-row .panel{margin-bottom:0;}
+.charts-row .chart-wrap{height:250px;margin-bottom:0;}
+.charts-row .panel-wide .chart-wrap{height:250px;overflow-y:auto;}
+@media(max-width:1180px){.charts-row{grid-template-columns:1fr 1fr;}.charts-row .panel-wide{grid-column:1 / -1;}}
+@media(max-width:720px){.charts-row{grid-template-columns:1fr;}}
+.chart-hint{font-size:11px;color:var(--text-soft);margin:-6px 0 8px;}
+
+/* ---------- Mapa interactivo ---------- */
+.mapa-card{padding:0;overflow:hidden;}
+.mapa-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px 6px;flex-wrap:wrap;}
+.mapa-head h3{margin:0;font-size:16px;}
+.mapa-count{font-size:12px;color:var(--text-soft);font-weight:600;}
+.mapa-count b{color:var(--ink);font-size:13px;}
+.mapa-toolbar{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;padding:8px 18px 14px;}
+.mapa-group{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.mapa-group-label{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-soft);margin-right:2px;}
+.mchip{
+  all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;gap:7px;
+  font-family:'Inter',sans-serif;font-size:12px;font-weight:600;padding:6px 11px;border-radius:999px;
+  border:1.5px solid var(--line);color:var(--text-soft);background:#fff;transition:.15s;
+}
+.mchip:hover{border-color:var(--c);}
+.mchip i{width:10px;height:10px;border-radius:50%;background:var(--c);display:inline-block;opacity:.4;}
+.mchip .n{font-weight:700;opacity:.7;}
+.mchip.on{border-color:var(--c);color:var(--ink);background:#fff;box-shadow:0 0 0 3px var(--cg);}
+.mchip.on i{opacity:1;}
+.mseg{display:inline-flex;border:1.5px solid var(--line);border-radius:999px;overflow:hidden;background:#fff;}
+.mseg button{all:unset;box-sizing:border-box;cursor:pointer;padding:6px 14px;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:var(--text-soft);}
+.mseg button.on{background:var(--ink);color:#fff;}
+.mapa-tool-input{
+  font-family:'Inter',sans-serif;padding:7px 12px;border:1.5px solid var(--line);border-radius:999px;
+  font-size:12.5px;width:200px;background:#fff;color:var(--text);
+}
+.mapa-tool-btn{
+  all:unset;box-sizing:border-box;cursor:pointer;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;
+  padding:6px 13px;border-radius:999px;border:1.5px solid var(--line);color:var(--ink);background:#fff;
+}
+.mapa-tool-btn:hover{border-color:var(--accent);}
+.mapa-tool-btn.on{background:var(--accent);border-color:var(--accent);color:#00214F;}
+.mapa-stage{position:relative;height:640px;border-top:1px solid var(--line);overflow:hidden;background:#dfeaf2;}
+.mapa-stage #dashMap{height:100%;width:100%;border:0;border-radius:0;}
+.mapa-legend{
+  position:absolute;left:12px;bottom:12px;z-index:700;background:rgba(255,255,255,.95);border-radius:10px;
+  padding:8px 12px;box-shadow:0 2px 10px rgba(0,35,89,.2);font-size:11.5px;color:var(--text);display:flex;gap:12px;flex-wrap:wrap;max-width:calc(100% - 24px);
+}
+.mapa-legend span{display:inline-flex;align-items:center;gap:6px;font-weight:600;}
+.mapa-legend i{width:10px;height:10px;border-radius:50%;display:inline-block;}
+.mapa-vacio{
+  position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:650;pointer-events:none;
+}
+.mapa-vacio div{background:rgba(255,255,255,.95);padding:12px 18px;border-radius:12px;font-size:13px;font-weight:600;color:var(--ink);box-shadow:0 4px 16px rgba(0,35,89,.2);}
+
+.gpin{background:none;border:none;}
+.gpin-dot{
+  display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;
+  background:var(--c);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,25,70,.5);transition:transform .15s,box-shadow .15s;
+  color:#fff;font-size:11px;font-weight:800;box-sizing:border-box;
+}
+.gpin:hover .gpin-dot{transform:scale(1.28);}
+.gpin.res .gpin-dot{opacity:.6;}
+.gpin.sel .gpin-dot{transform:scale(1.55);box-shadow:0 0 0 5px rgba(1,179,215,.55),0 3px 12px rgba(0,25,70,.55);}
+.gcl{background:none;border:none;}
+.gcl span{
+  display:flex;align-items:center;justify-content:center;width:100%;height:100%;border-radius:50%;
+  background:radial-gradient(circle at 30% 25%,#0B3A86,#002359);color:#fff;font-weight:700;font-size:13px;
+  border:3px solid var(--c);box-shadow:0 0 0 5px var(--cg),0 3px 12px rgba(0,25,70,.45);font-family:'Montserrat',sans-serif;
+}
+.leaflet-tooltip.gtip{
+  background:#002359;color:#fff;border:none;border-radius:8px;padding:5px 9px;font-size:12px;font-weight:600;box-shadow:0 3px 10px rgba(0,25,70,.35);
+}
+.leaflet-tooltip.gtip:before{border-top-color:#002359;}
+
+.mapa-panel{
+  position:absolute;top:0;right:0;bottom:0;width:396px;max-width:100%;background:#fff;z-index:900;
+  box-shadow:-12px 0 34px rgba(0,35,89,.22);transform:translateX(106%);transition:transform .3s cubic-bezier(.2,.8,.2,1);
+  overflow-y:auto;display:flex;flex-direction:column;
+}
+.mapa-panel.open{transform:translateX(0);}
+.mp-close{
+  position:absolute;top:10px;right:10px;z-index:5;width:34px;height:34px;border-radius:50%;border:none;
+  background:rgba(0,35,89,.82);color:#fff;font-size:20px;line-height:1;cursor:pointer;
+}
+.mp-photo{position:relative;height:236px;background:linear-gradient(135deg,#cfe3ef,#e6f1f7);flex-shrink:0;overflow:hidden;}
+.mp-photo img{width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in;}
+.mp-photo .mp-label{position:absolute;left:10px;bottom:10px;background:rgba(0,35,89,.85);color:#fff;font-size:11px;font-weight:600;padding:4px 10px;border-radius:999px;}
+.mp-photo .mp-idx{position:absolute;right:10px;bottom:10px;background:rgba(0,35,89,.85);color:#fff;font-size:11px;font-weight:600;padding:4px 10px;border-radius:999px;}
+.mp-nav{
+  position:absolute;top:50%;transform:translateY(-50%);width:34px;height:34px;border-radius:50%;border:none;
+  background:rgba(255,255,255,.94);color:var(--ink);font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3);
+}
+.mp-nav.prev{left:8px;}.mp-nav.next{right:8px;}
+.mp-sinfoto{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--text-soft);font-size:12.5px;font-weight:600;}
+.mp-thumbs{display:flex;gap:6px;padding:10px 18px 0;overflow-x:auto;flex-shrink:0;}
+.mp-thumbs img{width:56px;height:56px;object-fit:cover;border-radius:9px;border:2px solid transparent;cursor:pointer;flex-shrink:0;opacity:.7;transition:.15s;}
+.mp-thumbs img.on{border-color:var(--accent);opacity:1;}
+.mp-body{padding:14px 18px 18px;display:flex;flex-direction:column;gap:14px;}
+.mp-cod{font-family:'Montserrat',sans-serif;font-weight:800;font-size:23px;color:var(--ink);letter-spacing:-.02em;line-height:1.1;}
+.mp-sub{font-size:12.5px;color:var(--text-soft);margin-top:3px;line-height:1.4;}
+.mp-badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;}
+.mp-sec h4{margin:0 0 7px;font-family:'Inter',sans-serif;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-soft);font-weight:700;}
+.mp-find{
+  display:flex;align-items:flex-start;gap:10px;padding:9px 11px;border-radius:10px;background:var(--concrete-2);
+  border:1px solid var(--line);font-size:13px;font-weight:600;color:var(--ink);margin-bottom:6px;line-height:1.3;
+}
+.mp-find i{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:4px;}
+.mp-find small{display:block;font-weight:500;color:var(--text-soft);font-size:11.5px;margin-top:1px;}
+.mp-kv{display:grid;grid-template-columns:auto 1fr;gap:5px 16px;font-size:12.5px;margin:0;}
+.mp-kv dt{color:var(--text-soft);}
+.mp-kv dd{margin:0;font-weight:600;color:var(--ink);}
+.mp-coment{background:var(--concrete-2);border-left:3px solid var(--accent);border-radius:8px;padding:9px 12px;font-size:12.5px;line-height:1.45;color:var(--text);}
+.mp-coment .ca{font-size:11px;color:var(--text-soft);margin-bottom:3px;font-weight:600;}
+.mp-otro{
+  all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:9px;width:100%;padding:8px 10px;
+  border:1px solid var(--line);border-radius:10px;margin-bottom:6px;font-size:12.5px;font-weight:600;color:var(--ink);
+}
+.mp-otro:hover{border-color:var(--accent);background:#F1FAFD;}
+.mp-otro i{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.mp-otro small{margin-left:auto;color:var(--text-soft);font-weight:500;}
+.mp-actions{
+  display:flex;gap:8px;position:sticky;bottom:0;background:#fff;padding:12px 18px;border-top:1px solid var(--line);
+  margin-top:auto;flex-shrink:0;
+}
+.mp-actions .btn{flex:1;text-align:center;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:13px;}
+.lbx{position:fixed;inset:0;background:rgba(0,20,60,.93);z-index:3000;display:flex;align-items:center;justify-content:center;cursor:zoom-out;padding:16px;}
+.lbx img{max-width:96vw;max-height:92vh;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.5);}
+
+@media(max-width:720px){
+  header.topbar{height:auto;}
+  nav.rail{width:100%;padding:6px 10px;}
+  nav.rail button{padding:9px 12px;border-radius:999px;white-space:nowrap;}
+  nav.rail button.active{box-shadow:none;background:rgba(1,179,215,.28);}
+  .mapa-stage{height:calc(100vh - 170px);min-height:520px;}
+  .mapa-toolbar{padding:6px 12px 12px;gap:8px 14px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+  .mapa-toolbar::-webkit-scrollbar{display:none;}
+  .mapa-group{flex-shrink:0;flex-wrap:nowrap;}
+  .mapa-group-label{display:none;}
+  .mchip,.mapa-tool-btn,.mseg{flex-shrink:0;white-space:nowrap;}
+  .mapa-head{padding:14px 12px 4px;}
+  .mapa-tool-input{width:150px;}
+  .mapa-panel{top:auto;left:0;right:0;width:100%;height:80%;border-radius:20px 20px 0 0;transform:translateY(106%);box-shadow:0 -10px 30px rgba(0,35,89,.3);}
+  .mapa-panel.open{transform:translateY(0);}
+  .mp-photo{height:210px;}
+  .kpi .num{font-size:27px;}
+}
+
 </style>
 </head>
 <body>
-<div id="lockScreen" style="position:fixed;inset:0;background:var(--ink);display:flex;align-items:center;justify-content:center;z-index:5000;padding:20px;">
-  <div style="background:#fff;border-radius:12px;padding:32px 30px;max-width:340px;width:100%;text-align:center;">
-    <div style="width:48px;height:48px;border-radius:50%;background:radial-gradient(circle at 35% 30%, #C8334D, #8c1f33 80%);margin:0 auto 16px;box-shadow:inset 0 0 0 3px rgba(255,255,255,.25);"></div>
-    <h2 style="font-family:'Oswald',sans-serif;text-transform:uppercase;margin:0 0 6px;font-size:17px;color:#16323A;">Catastro de Grifos</h2>
-    <p style="font-size:12.5px;color:#5C6B6E;margin:0 0 18px;">Ingresa la clave de tu empresa para continuar.</p>
-    <input type="password" id="accessInput" placeholder="Clave de acceso" style="width:100%;padding:10px 12px;border:1px solid #D9D2C2;border-radius:7px;font-size:14px;margin-bottom:10px;text-align:center;box-sizing:border-box;" onkeydown="if(event.key==='Enter') verificarAcceso();">
-    <button style="width:100%;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13px;padding:10px 18px;border-radius:7px;border:none;cursor:pointer;background:#16323A;color:#fff;" onclick="verificarAcceso()">Ingresar</button>
+<div id="lockScreen" style="position:fixed;inset:0;background:linear-gradient(135deg,#001B47 0%,#002359 50%,#0B3A86 100%);display:flex;align-items:center;justify-content:center;z-index:5000;padding:20px;">
+  <div style="background:#fff;border-radius:18px;padding:34px 30px;max-width:350px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,20,60,.45);border-top:5px solid #01B3D7;">
+    <div style="width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#01B3D7,#63D1E0);margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-family:'Montserrat',sans-serif;font-weight:800;font-size:22px;color:#002359;letter-spacing:-.03em;box-shadow:0 6px 18px rgba(1,179,215,.45);">GS</div>
+    <h2 style="font-family:'Montserrat',sans-serif;margin:0 0 4px;font-size:21px;font-weight:800;color:#002359;letter-spacing:-.02em;">Gestión Sacyr</h2>
+    <p style="font-size:11px;color:#01A3C4;margin:0 0 18px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">Singemelec · Sacyr Aguas</p>
+    <p style="font-size:12.5px;color:#5A6F8C;margin:0 0 16px;">Ingresa la clave de tu empresa para continuar.</p>
+    <input type="password" id="accessInput" placeholder="Clave de acceso" style="width:100%;padding:11px 12px;border:1.5px solid #D6E2EC;border-radius:10px;font-size:14px;margin-bottom:10px;text-align:center;box-sizing:border-box;" onkeydown="if(event.key==='Enter')verificarAcceso()">
+    <button style="width:100%;font-family:'Inter',sans-serif;font-weight:700;font-size:13.5px;padding:11px 18px;border-radius:10px;border:none;cursor:pointer;background:#002359;color:#fff;" onclick="verificarAcceso()">Ingresar</button>
     <div id="accessError" style="color:#C8334D;font-size:12px;margin-top:10px;display:none;">Clave incorrecta. Intenta nuevamente.</div>
   </div>
 </div>
@@ -361,8 +576,8 @@ function verificarAcceso(){
   <div id="bannerConexion" role="alert"></div>
   <header class="topbar">
     <div class="brand">
-      <div class="mark">SG</div>
-      <div class="name">Catastro de Grifos<small>Singemelec — Sacyr Aguas</small></div>
+      <div class="mark">GS</div>
+      <div class="name">Gestión Sacyr<small>Singemelec · Sacyr Aguas</small></div>
     </div>
     <div class="role-switch">
       <span style="font-size:11px;color:#9fb3b9;font-family:'IBM Plex Mono',monospace;">CONECTADO COMO</span>
@@ -373,11 +588,11 @@ function verificarAcceso(){
 
   <div class="body-grid">
     <nav class="rail">
-      <button class="navbtn active" data-page="dashboard" onclick="goPage('dashboard')">Tablero ejecutivo</button>
-      <button class="navbtn" data-page="inspecciones" id="navInspecciones" onclick="goPage('inspecciones')">Inspecciones</button>
-      <button class="navbtn" data-page="nuevo" id="navNuevo" onclick="goPage('nuevo')">Nuevo hallazgo</button>
-      <button class="navbtn" data-page="galeria" id="navGaleria" onclick="goPage('galeria')">Galería de fotos</button>
-      <button class="navbtn" data-page="lista" onclick="goPage('lista')">Hallazgos</button>
+      <button class="navbtn active" data-page="dashboard" onclick="goPage('dashboard')"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span>Tablero ejecutivo</span></button>
+      <button class="navbtn" data-page="inspecciones" id="navInspecciones" onclick="goPage('inspecciones')"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9z"/><path d="M9 14l2 2 4-4"/></svg><span>Inspecciones</span></button>
+      <button class="navbtn" data-page="nuevo" id="navNuevo" onclick="goPage('nuevo')"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg><span>Nuevo hallazgo</span></button>
+      <button class="navbtn" data-page="galeria" id="navGaleria" onclick="goPage('galeria')"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.7"/><path d="M21 16l-5-5-8 8"/></svg><span>Galería de fotos</span></button>
+      <button class="navbtn" data-page="lista" onclick="goPage('lista')"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/></svg><span>Hallazgos</span></button>
       <div class="rail-foot" id="railFoot">v1.0 · datos compartidos<br>entre ambas empresas</div>
     </nav>
 
@@ -410,7 +625,7 @@ if(localStorage.getItem('grifos_access_ok')==='1'){
 let ROLE = localStorage.getItem('grifos_role') || 'singemelec';
 let HALLAZGOS = [];
 let dashMapInstance = null;
-let dashChart1 = null, dashChart2 = null;
+let dashChart1 = null, dashChart2 = null, dashChart3 = null;
 let formMarkerActual = null, formMarkerIdeal = null, formMap = null;
 let planRouteMap = null;
 let pendingFotos = {grifo:null, hallazgo:null};
@@ -1144,15 +1359,15 @@ function setRole(r){
   localStorage.setItem('grifos_role', r);
   updateRolePills();
   const navNuevo = document.getElementById('navNuevo');
-  navNuevo.style.display = (r==='singemelec') ? 'block' : 'none';
+  navNuevo.style.display = (r==='singemelec') ? 'flex' : 'none';
   // Sacyr es de solo lectura sobre hallazgos y no participa de las
   // inspecciones diarias de terreno (eso es un flujo interno de Singemelec)
   // — pedido explícito del usuario: Sacyr solo debe ver Tablero ejecutivo y
   // Hallazgos.
   const navInspecciones = document.getElementById('navInspecciones');
-  navInspecciones.style.display = (r==='singemelec') ? 'block' : 'none';
+  navInspecciones.style.display = (r==='singemelec') ? 'flex' : 'none';
   const navGaleria = document.getElementById('navGaleria');
-  if(navGaleria) navGaleria.style.display = (r==='singemelec') ? 'block' : 'none';
+  if(navGaleria) navGaleria.style.display = (r==='singemelec') ? 'flex' : 'none';
   // if sacyr was on nuevo o inspecciones o galeria, kick back to dashboard
   if(r==='sacyr' && (currentPage==='nuevo' || currentPage==='inspecciones' || currentPage==='galeria')) goPage('dashboard');
   else render();
@@ -1226,12 +1441,16 @@ function renderDashboard(){
       return new Date(a.fecha_creacion) - new Date(b.fecha_creacion);
     });
 
+  const porTipo = {};
+  hallazgosSector.forEach(h=>obtenerDetalleHallazgos(h).forEach(d=>{ porTipo[d.tipo_hallazgo] = (porTipo[d.tipo_hallazgo]||0)+1; }));
+  const tiposOrd = Object.entries(porTipo).sort((a,b)=>b[1]-a[1]);
+
   main.innerHTML = `
   <div class="page">
     <div class="page-head">
       <div>
         <h1>Tablero ejecutivo</h1>
-        <p>Resumen de hallazgos en grifos · catastro Singemelec / Sacyr Aguas</p>
+        <p>Resumen de hallazgos en grifos · Singemelec / Sacyr Aguas</p>
       </div>
       <div>
         <button class="btn btn-amber btn-sm" onclick="descargarReporteEjecutivo()">📄 Reporte ejecutivo (HTML)</button>
@@ -1256,29 +1475,44 @@ function renderDashboard(){
       <div class="kpi"><div class="tab" style="background:var(--hidrante)"></div><div class="num">${counts.directa||0}</div><div class="lbl">Operatividad directa</div></div>
       <div class="kpi"><div class="tab" style="background:var(--senal)"></div><div class="num">${counts.indirecta||0}</div><div class="lbl">Operatividad indirecta/mec.</div></div>
       <div class="kpi"><div class="tab" style="background:var(--tuberia)"></div><div class="num">${counts.senaletica||0}</div><div class="lbl">Señalética/visibilidad</div></div>
-      <div class="kpi"><div class="tab" style="background:var(--musgo)"></div><div class="num">${estados.resuelto||0}</div><div class="lbl">Resueltos</div></div>
+      <div class="kpi"><div class="tab" style="background:var(--musgo)"></div><div class="num">${estados.resuelto||0}</div><div class="lbl">Resueltos</div><div class="sub">${total ? Math.round((estados.resuelto||0)*100/total) : 0}% del total</div></div>
       <div class="kpi"><div class="tab" style="background:var(--acero,#5a7d9a)"></div><div class="num">${totalInspecciones}</div><div class="lbl">Inspecciones registradas</div></div>
     </div>
 
-    <div class="grid-2">
-      <div class="panel">
-        <h3>Mapa georeferenciado de hallazgos</h3>
-        <div id="dashMap"></div>
-        <div class="legend">
-          <span><i style="background:var(--hidrante)"></i>Operatividad directa</span>
-          <span><i style="background:var(--senal)"></i>Operatividad indirecta/mec.</span>
-          <span><i style="background:var(--tuberia)"></i>Señalética/visibilidad</span>
-        </div>
+    <div class="panel mapa-card">
+      <div class="mapa-head">
+        <h3>Mapa de grifos con hallazgos</h3>
+        <div class="mapa-count" id="mapaConteo"></div>
       </div>
-      <div>
-        <div class="panel">
-          <h3>Hallazgos por criticidad</h3>
-          <div class="chart-wrap"><canvas id="chartPrioridad"></canvas></div>
+      ${mapaToolbarHtml()}
+      <div class="mapa-stage">
+        <div id="dashMap"></div>
+        <div class="mapa-vacio" id="mapaVacio"><div>Ningún hallazgo coincide con los filtros</div></div>
+        <div class="mapa-legend">
+          <span><i style="background:${PRIORIDAD_COLOR.directa}"></i>Directa</span>
+          <span><i style="background:${PRIORIDAD_COLOR.indirecta}"></i>Indirecta / mec.</span>
+          <span><i style="background:${PRIORIDAD_COLOR.senaletica}"></i>Señalética</span>
+          <span style="color:var(--text-soft);font-weight:500">✓ resuelto · clic en un punto para ver la ficha</span>
         </div>
-        <div class="panel">
-          <h3>Avance de resolución</h3>
-          <div class="chart-wrap"><canvas id="chartEstado"></canvas></div>
-        </div>
+        <aside class="mapa-panel" id="mapaPanel" aria-label="Ficha del grifo"></aside>
+      </div>
+    </div>
+
+    <div class="charts-row">
+      <div class="panel">
+        <h3>Hallazgos por criticidad</h3>
+        <div class="chart-hint">Clic en una porción para ver esos hallazgos</div>
+        <div class="chart-wrap" style="height:226px"><canvas id="chartPrioridad"></canvas></div>
+      </div>
+      <div class="panel">
+        <h3>Avance de resolución</h3>
+        <div class="chart-hint">Pendiente · en proceso · resuelto</div>
+        <div class="chart-wrap" style="height:226px"><canvas id="chartEstado"></canvas></div>
+      </div>
+      <div class="panel panel-wide">
+        <h3>Hallazgos por tipo</h3>
+        <div class="chart-hint">Clic en una barra para filtrar la lista por ese hallazgo</div>
+        <div class="chart-wrap" style="height:226px"><div style="position:relative;height:${Math.max(226, tiposOrd.length*30)}px"><canvas id="chartTipos"></canvas></div></div>
       </div>
     </div>
 
@@ -1304,54 +1538,429 @@ function renderDashboard(){
     </div>
   </div>`;
 
-  // Map — parte siempre con una vista amplia que cubre toda la zona de
-  // concesión (Lampa / Colina / Santiago), no centrada/ajustada al primer
-  // hallazgo como antes. Si hay un sector específico seleccionado, en vez
-  // de la vista amplia se acerca a los puntos de ese sector — así el filtro
-  // realmente sirve para "ir visualizando" sector por sector.
-  if(dashMapInstance){ dashMapInstance.remove(); dashMapInstance=null; }
-  dashMapInstance = L.map('dashMap').setView([-33.33, -70.75], 10); // vista provisoria; se reemplaza abajo con fitBounds
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(dashMapInstance);
-  const puntosSector = hallazgosSector.filter(h=>typeof h.lat==='number' && typeof h.lng==='number');
-  let bounds;
-  if(FILTRO_SECTOR_DASHBOARD==='todos'){
-    bounds = L.latLngBounds(ZONA_CONCESION_BOUNDS);
-    puntosSector.forEach(h=>bounds.extend([h.lat,h.lng]));
-  } else if(puntosSector.length){
-    bounds = L.latLngBounds(puntosSector.map(h=>[h.lat,h.lng]));
-  } else {
-    bounds = L.latLngBounds(ZONA_CONCESION_BOUNDS);
-  }
-  dashMapInstance.fitBounds(bounds, {padding:[30,30], maxZoom:16});
-  puntosSector.forEach(h=>{
-    const color = PRIORIDAD_COLOR[h.prioridad] || '#999';
-    const marker = L.circleMarker([h.lat,h.lng],{radius:9,color:'#fff',weight:2,fillColor:color,fillOpacity:1}).addTo(dashMapInstance);
-    marker.bindPopup(`<strong>${h.direccion||'Sin dirección'}</strong><br>${PRIORIDAD_LABEL[h.prioridad]||'Sin criticidad'} · ${ESTADO_LABEL[h.estado]||'Sin estado'}<br><span style="font-family:monospace;font-size:11px">${h.id}</span>`);
-  });
+  // Mapa interactivo (ver módulo "MAPA INTERACTIVO DEL TABLERO" más abajo).
+  construirMapaDashboard();
 
-  // Charts
+  // Gráficos
   if(dashChart1) dashChart1.destroy();
   if(dashChart2) dashChart2.destroy();
+  if(typeof dashChart3 !== 'undefined' && dashChart3) dashChart3.destroy();
+  Chart.defaults.font.family = "'Inter', sans-serif";
+  Chart.defaults.color = '#5A6F8C';
+  const clavesCrit = ['directa','indirecta','senaletica'];
+  const centroTotal = {id:'centroTotal', afterDraw(chart){
+    const a = chart.chartArea; if(!a) return;
+    const x = (a.left+a.right)/2, y = (a.top+a.bottom)/2, c = chart.ctx;
+    c.save(); c.textAlign='center'; c.fillStyle='#002359'; c.font="800 28px 'Montserrat', sans-serif"; c.fillText(String(total), x, y+6);
+    c.fillStyle='#5A6F8C'; c.font="600 9.5px 'Inter', sans-serif"; c.fillText('HALLAZGOS', x, y+22); c.restore();
+  }};
   dashChart1 = new Chart(document.getElementById('chartPrioridad'), {
     type:'doughnut',
     data:{labels:['Operatividad directa','Operatividad indirecta/mecánica','Señalética/visibilidad'],
-      datasets:[{data:[counts.directa||0,counts.indirecta||0,counts.senaletica||0],
-      backgroundColor:['#C8334D','#E2A33D','#3B6E8F'],borderWidth:2,borderColor:'#fff'}]},
-    options:{plugins:{legend:{position:'bottom',labels:{font:{size:11}}}},cutout:'62%',maintainAspectRatio:false}
+      datasets:[{data:clavesCrit.map(k=>counts[k]||0),
+      backgroundColor:[PRIORIDAD_COLOR.directa,PRIORIDAD_COLOR.indirecta,PRIORIDAD_COLOR.senaletica],borderWidth:3,borderColor:'#fff',hoverOffset:6}]},
+    options:{plugins:{legend:{position:'bottom',labels:{font:{size:11},usePointStyle:true,boxWidth:8}}},cutout:'68%',maintainAspectRatio:false,
+      onClick:(e,els)=>{ if(els.length) irAListaConFiltro('prioridad', clavesCrit[els[0].index]); },
+      onHover:(e,els)=>{ e.native.target.style.cursor = els.length ? 'pointer' : 'default'; }},
+    plugins:[centroTotal]
   });
   dashChart2 = new Chart(document.getElementById('chartEstado'), {
     type:'bar',
     data:{labels:['Pendiente','En proceso','Resuelto'],
       datasets:[{data:[estados.pendiente||0,estados.en_proceso||0,estados.resuelto||0],
-      backgroundColor:['#cabfa1','#7fa688','#5C8A60'],borderRadius:6}]},
-    options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}},maintainAspectRatio:false}
+      backgroundColor:['#9FB0C6','#01B3D7','#2F9E78'],borderRadius:8,maxBarThickness:54}]},
+    options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0},grid:{color:'#E6EEF5'}},x:{grid:{display:false}}},maintainAspectRatio:false}
+  });
+  dashChart3 = new Chart(document.getElementById('chartTipos'), {
+    type:'bar',
+    data:{labels:tiposOrd.map(t=>t[0]),
+      datasets:[{data:tiposOrd.map(t=>t[1]),
+      backgroundColor:tiposOrd.map(t=>PRIORIDAD_COLOR[(hallazgoInfo(t[0])||{}).criticidad || 'senaletica']),borderRadius:6,maxBarThickness:20}]},
+    options:{indexAxis:'y',plugins:{legend:{display:false}},maintainAspectRatio:false,layout:{padding:{right:26}},
+      scales:{x:{beginAtZero:true,ticks:{precision:0},grid:{color:'#E6EEF5'}},y:{grid:{display:false},ticks:{font:{size:11}}}},
+      onClick:(e,els)=>{ if(els.length) irAListaConFiltro('hallazgo', tiposOrd[els[0].index][0]); },
+      onHover:(e,els)=>{ e.native.target.style.cursor = els.length ? 'pointer' : 'default'; }},
+    plugins:[{id:'valoresBarras', afterDatasetsDraw(chart){
+      const c = chart.ctx; c.save(); c.fillStyle='#002359'; c.font="700 11px 'Inter', sans-serif"; c.textBaseline='middle';
+      chart.getDatasetMeta(0).data.forEach((bar,i)=>{ c.fillText(String(chart.data.datasets[0].data[i]), bar.x+6, bar.y); });
+      c.restore();
+    }}]
   });
 }
 
 function cambiarFiltroSectorDashboard(valor){
   FILTRO_SECTOR_DASHBOARD = valor;
+  MAPA_VISTA = null; // al cambiar de sector el mapa se reencuadra
   renderDashboard();
 }
+
+/* ================= MAPA INTERACTIVO DEL TABLERO ================= */
+/* Mapa de todos los grifos con hallazgos. Cada punto es un registro; al
+   hacer clic se abre una ficha lateral con fotos, hallazgos, criticidad,
+   estado, último comentario y botones "Ver detalle" / "Cómo llegar".
+   - Filtros por criticidad y estado (con contadores), búsqueda por código.
+   - Agrupa grifos cercanos (leaflet.markercluster) y permite vista satélite.
+   - Recuerda filtros, capa y vista del usuario aunque lleguen datos nuevos. */
+const MAPA_UI = {
+  crit:{directa:true, indirecta:true, senaletica:true},
+  estado:{pendiente:true, en_proceso:true, resuelto:true},
+  capa:'calles', agrupar:true
+};
+let MAPA_SEL = null;          // id del registro abierto en la ficha lateral
+let MAPA_VISTA = null;        // {center, zoom} de la última vista del usuario
+let mapaMarcadores = {};      // id → marcador de Leaflet
+let mapaGrupo = null;         // capa de marcadores (agrupada o simple)
+let mapaBase = null, mapaEtiquetas = null;
+let MAPA_FOTOS = [], MAPA_FOTO_IDX = 0;
+
+function escHtml(s){
+  return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* Registros del sector elegido que tienen coordenadas. */
+function mapaRegistros(){
+  return HALLAZGOS.filter(tieneHallazgoReal).filter(h=>
+    (FILTRO_SECTOR_DASHBOARD==='todos' || h.comuna===FILTRO_SECTOR_DASHBOARD) &&
+    typeof h.lat==='number' && typeof h.lng==='number'
+  );
+}
+function mapaPasaFiltros(h){
+  return MAPA_UI.crit[criticidadDeRegistro(h)] !== false && MAPA_UI.estado[h.estado||'pendiente'] !== false;
+}
+function mapaColor(h){ return PRIORIDAD_COLOR[criticidadDeRegistro(h)] || '#999'; }
+
+/* Todas las fotos de un registro, con su etiqueta, sin repetir. */
+function fotosDeRegistro(h){
+  const out = [], vistos = new Set();
+  const add = (url, label)=>{ if(url && typeof url==='string' && !vistos.has(url)){ vistos.add(url); out.push({url, label}); } };
+  const fg = (h.fotos_grifo && h.fotos_grifo.length) ? h.fotos_grifo : (h.foto_grifo ? [h.foto_grifo] : []);
+  fg.forEach((u,i)=>add(u, fg.length>1 ? `Grifo ${i+1}` : 'Grifo'));
+  const fh = (h.fotos_hallazgo && h.fotos_hallazgo.length) ? h.fotos_hallazgo : (h.foto_hallazgo ? [h.foto_hallazgo] : []);
+  fh.forEach((u,i)=>add(u, fh.length>1 ? `Hallazgo ${i+1}` : 'Hallazgo'));
+  add(h.foto_grifo_operativo, 'Grifo operativo');
+  add(h.foto_presion, 'Presión');
+  add(h.foto_camara, 'Cámara');
+  (h.comentarios||[]).forEach(c=>{
+    add(c.foto_antes, 'Antes (avance)');
+    const fd = (c.fotos_despues && c.fotos_despues.length) ? c.fotos_despues : (c.foto_despues ? [c.foto_despues] : []);
+    fd.forEach(u=>add(u, 'Solución / avance'));
+    if(!c.foto_antes && fd.length===0) add(c.foto, 'Avance');
+  });
+  add(h.foto_respaldo, 'Respaldo de solución');
+  return out;
+}
+
+/* ---------- Barra de herramientas ---------- */
+function mapaToolbarHtml(){
+  return `
+  <div class="mapa-toolbar">
+    <div class="mapa-group"><span class="mapa-group-label">Criticidad</span><span id="mapaChipsCrit" style="display:contents"></span></div>
+    <div class="mapa-group"><span class="mapa-group-label">Estado</span><span id="mapaChipsEstado" style="display:contents"></span></div>
+    <div class="mapa-group">
+      <input class="mapa-tool-input" id="mapaBuscar" type="search" list="mapaListaCodigos" placeholder="Buscar código de grifo…" autocomplete="off" onkeydown="if(event.key==='Enter')mapaBuscar(this.value)" onchange="mapaBuscar(this.value)">
+      <datalist id="mapaListaCodigos"></datalist>
+    </div>
+    <div class="mapa-group">
+      <div class="mseg" id="mapaSegCapa">
+        <button type="button" data-capa="calles" onclick="mapaSetCapa('calles')">Mapa</button>
+        <button type="button" data-capa="satelite" onclick="mapaSetCapa('satelite')">Satélite</button>
+      </div>
+      <button type="button" class="mapa-tool-btn" id="mapaBtnAgrupar" onclick="mapaToggleAgrupar()">Agrupar cercanos</button>
+      <button type="button" class="mapa-tool-btn" onclick="mapaVerTodo()">⤢ Ver todo</button>
+    </div>
+  </div>`;
+}
+
+function mapaPintarControles(){
+  const regs = mapaRegistros();
+  const nC = {directa:0, indirecta:0, senaletica:0}, nE = {pendiente:0, en_proceso:0, resuelto:0};
+  regs.forEach(h=>{ nC[criticidadDeRegistro(h)]++; nE[h.estado||'pendiente']++; });
+  const chip = (grupo, k, label, color, n, on)=>
+    `<button type="button" class="mchip ${on?'on':''}" style="--c:${color};--cg:${color}33" onclick="mapaToggle('${grupo}','${k}')"><i></i>${label} <span class="n">${n}</span></button>`;
+  const elC = document.getElementById('mapaChipsCrit'), elE = document.getElementById('mapaChipsEstado');
+  if(elC) elC.innerHTML =
+    chip('crit','directa','Directa',PRIORIDAD_COLOR.directa,nC.directa,MAPA_UI.crit.directa) +
+    chip('crit','indirecta','Indirecta / mec.',PRIORIDAD_COLOR.indirecta,nC.indirecta,MAPA_UI.crit.indirecta) +
+    chip('crit','senaletica','Señalética',PRIORIDAD_COLOR.senaletica,nC.senaletica,MAPA_UI.crit.senaletica);
+  if(elE) elE.innerHTML =
+    chip('estado','pendiente','Pendiente','#8A97AB',nE.pendiente,MAPA_UI.estado.pendiente) +
+    chip('estado','en_proceso','En proceso','#01B3D7',nE.en_proceso,MAPA_UI.estado.en_proceso) +
+    chip('estado','resuelto','Resuelto','#2F9E78',nE.resuelto,MAPA_UI.estado.resuelto);
+  document.querySelectorAll('#mapaSegCapa button').forEach(b=>b.classList.toggle('on', b.dataset.capa===MAPA_UI.capa));
+  const bA = document.getElementById('mapaBtnAgrupar');
+  if(bA) bA.classList.toggle('on', MAPA_UI.agrupar);
+  const dl = document.getElementById('mapaListaCodigos');
+  if(dl) dl.innerHTML = Array.from(new Set(regs.map(h=>h.codigo_grifo).filter(Boolean))).sort().map(c=>`<option value="${escHtml(c)}">`).join('');
+}
+
+function mapaToggle(grupo, k){
+  MAPA_UI[grupo][k] = !MAPA_UI[grupo][k];
+  mapaPintarControles();
+  mapaActualizarMarcadores();
+}
+
+function mapaSetCapa(capa){
+  MAPA_UI.capa = capa;
+  mapaAplicarCapa();
+  mapaPintarControles();
+}
+function mapaAplicarCapa(){
+  if(!dashMapInstance) return;
+  if(mapaBase){ dashMapInstance.removeLayer(mapaBase); mapaBase = null; }
+  if(mapaEtiquetas){ dashMapInstance.removeLayer(mapaEtiquetas); mapaEtiquetas = null; }
+  if(MAPA_UI.capa==='satelite'){
+    mapaBase = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxZoom:19, attribution:'Imágenes © Esri, Maxar, Earthstar Geographics'});
+    mapaEtiquetas = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {maxZoom:19, opacity:.9});
+    mapaBase.addTo(dashMapInstance); mapaEtiquetas.addTo(dashMapInstance);
+  } else {
+    mapaBase = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {subdomains:'abcd', maxZoom:19, attribution:'© OpenStreetMap · © CARTO'});
+    mapaBase.addTo(dashMapInstance);
+  }
+  if(mapaBase.bringToBack) mapaBase.bringToBack();
+}
+
+function mapaToggleAgrupar(){
+  MAPA_UI.agrupar = !MAPA_UI.agrupar;
+  mapaPintarControles();
+  mapaActualizarMarcadores();
+}
+
+/* ---------- Marcadores ---------- */
+function mapaIcono(h, seleccionado){
+  const cls = 'gpin' + (h.estado==='resuelto' ? ' res' : '') + (seleccionado ? ' sel' : '');
+  return L.divIcon({
+    className: cls,
+    html: `<span class="gpin-dot" style="--c:${mapaColor(h)}">${h.estado==='resuelto'?'✓':''}</span>`,
+    iconSize:[24,24], iconAnchor:[12,12]
+  });
+}
+
+function mapaIconoCluster(cluster){
+  const hijos = cluster.getAllChildMarkers();
+  let peor = 'senaletica';
+  hijos.forEach(m=>{ if(ORDEN_CRITICIDAD.indexOf(m.options.crit) < ORDEN_CRITICIDAD.indexOf(peor)) peor = m.options.crit; });
+  const color = PRIORIDAD_COLOR[peor];
+  const n = hijos.length, d = n<10 ? 38 : (n<50 ? 44 : 50);
+  return L.divIcon({
+    className:'gcl', iconSize:[d,d],
+    html:`<span style="--c:${color};--cg:${color}44">${n}</span>`
+  });
+}
+
+function mapaActualizarMarcadores(){
+  if(!dashMapInstance) return;
+  if(mapaGrupo){ dashMapInstance.removeLayer(mapaGrupo); mapaGrupo = null; }
+  mapaMarcadores = {};
+  const usaCluster = MAPA_UI.agrupar && typeof L.markerClusterGroup === 'function';
+  mapaGrupo = usaCluster
+    ? L.markerClusterGroup({showCoverageOnHover:false, spiderfyOnMaxZoom:true, maxClusterRadius:46, iconCreateFunction:mapaIconoCluster})
+    : L.layerGroup();
+  const todos = mapaRegistros();
+  const visibles = todos.filter(mapaPasaFiltros);
+  visibles.forEach(h=>{
+    const m = L.marker([h.lat,h.lng], {icon:mapaIcono(h, h.id===MAPA_SEL), crit:criticidadDeRegistro(h), hid:h.id, riseOnHover:true});
+    m.bindTooltip(`${escHtml(h.codigo_grifo||'Grifo')} · ${escHtml(PRIORIDAD_LABEL[criticidadDeRegistro(h)])}`, {direction:'top', offset:[0,-12], className:'gtip'});
+    m.on('click', ()=>mapaSeleccionar(h.id));
+    mapaMarcadores[h.id] = m;
+    mapaGrupo.addLayer(m);
+  });
+  mapaGrupo.addTo(dashMapInstance);
+  const cnt = document.getElementById('mapaConteo');
+  if(cnt) cnt.innerHTML = `Mostrando <b>${visibles.length}</b> de ${todos.length} hallazgos`;
+  const vac = document.getElementById('mapaVacio');
+  if(vac) vac.style.display = (visibles.length===0) ? 'flex' : 'none';
+  // si el registro abierto quedó oculto por los filtros, la ficha se mantiene
+  // abierta (no se pierde lo que el usuario estaba mirando).
+}
+
+function mapaAjustarVista(){
+  const pts = mapaRegistros().filter(mapaPasaFiltros).map(h=>[h.lat,h.lng]);
+  let b = (FILTRO_SECTOR_DASHBOARD==='todos') ? L.latLngBounds(ZONA_CONCESION_BOUNDS) : null;
+  if(pts.length){ if(b) pts.forEach(p=>b.extend(p)); else b = L.latLngBounds(pts); }
+  if(!b) b = L.latLngBounds(ZONA_CONCESION_BOUNDS);
+  dashMapInstance.fitBounds(b, {padding:[40,40], maxZoom:16});
+}
+function mapaVerTodo(){
+  if(!dashMapInstance) return;
+  mapaAjustarVista();
+}
+
+function construirMapaDashboard(){
+  if(dashMapInstance){ dashMapInstance.remove(); dashMapInstance = null; }
+  mapaBase = null; mapaEtiquetas = null; mapaGrupo = null; mapaMarcadores = {};
+  dashMapInstance = L.map('dashMap', {zoomControl:true, preferCanvas:false}).setView([-33.33,-70.75], 10);
+  mapaAplicarCapa();
+  mapaPintarControles();
+  mapaActualizarMarcadores();
+  if(MAPA_VISTA) dashMapInstance.setView(MAPA_VISTA.center, MAPA_VISTA.zoom, {animate:false});
+  else mapaAjustarVista();
+  dashMapInstance.on('moveend', ()=>{ MAPA_VISTA = {center:dashMapInstance.getCenter(), zoom:dashMapInstance.getZoom()}; });
+  dashMapInstance.on('click', ()=>{ /* clic en zona vacía: no se cierra la ficha para no perderla por accidente */ });
+  // Reabre la ficha si el usuario la tenía abierta y llegó una actualización de datos.
+  if(MAPA_SEL && HALLAZGOS.some(h=>h.id===MAPA_SEL)) mapaSeleccionar(MAPA_SEL, {centrar:false});
+  else { MAPA_SEL = null; mapaCerrarFicha(true); }
+}
+
+/* ---------- Selección y ficha ---------- */
+function mapaSeleccionar(id, opts){
+  opts = opts || {};
+  const h = HALLAZGOS.find(x=>x.id===id);
+  if(!h) return;
+  const previo = MAPA_SEL;
+  MAPA_SEL = id;
+  if(previo && previo!==id && mapaMarcadores[previo]){
+    const hp = HALLAZGOS.find(x=>x.id===previo);
+    if(hp) mapaMarcadores[previo].setIcon(mapaIcono(hp,false));
+  }
+  const mk = mapaMarcadores[id];
+  if(mk) mk.setIcon(mapaIcono(h,true));
+  mapaRenderFicha(h);
+  if(opts.centrar!==false && dashMapInstance && typeof h.lat==='number'){
+    const centrar = ()=>{
+      const z = Math.max(dashMapInstance.getZoom(), 16);
+      const esMovil = window.innerWidth <= 720;
+      const p = dashMapInstance.project([h.lat,h.lng], z);
+      const stage = document.querySelector('.mapa-stage');
+      const desp = esMovil ? L.point(0, (stage ? stage.clientHeight*0.8 : 400)/2 - 10) : L.point(198, 0);
+      dashMapInstance.setView(dashMapInstance.unproject(p.add(desp), z), z, {animate:true});
+    };
+    if(mk && mapaGrupo && mapaGrupo.zoomToShowLayer && dashMapInstance.hasLayer(mapaGrupo)) mapaGrupo.zoomToShowLayer(mk, centrar);
+    else centrar();
+  }
+}
+
+function mapaCerrarFicha(silencioso){
+  const p = document.getElementById('mapaPanel');
+  if(p) p.classList.remove('open');
+  if(!silencioso && MAPA_SEL){
+    const h = HALLAZGOS.find(x=>x.id===MAPA_SEL);
+    if(h && mapaMarcadores[MAPA_SEL]) mapaMarcadores[MAPA_SEL].setIcon(mapaIcono(h,false));
+    MAPA_SEL = null;
+  }
+}
+
+function mapaFotoMostrar(){
+  const cont = document.getElementById('mpFotoBox');
+  if(!cont) return;
+  if(!MAPA_FOTOS.length){
+    cont.innerHTML = `<div class="mp-sinfoto"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.7"/><path d="M21 16l-5-5-8 8"/></svg>Sin fotografías registradas</div>`;
+    return;
+  }
+  const f = MAPA_FOTOS[MAPA_FOTO_IDX];
+  cont.innerHTML = `
+    <img src="${escHtml(f.url)}" alt="${escHtml(f.label)}" onclick="abrirLightbox(MAPA_FOTOS[MAPA_FOTO_IDX].url)" onerror="this.outerHTML='<div class=&quot;mp-sinfoto&quot;>Foto no disponible</div>'">
+    <span class="mp-label">${escHtml(f.label)}</span>
+    ${MAPA_FOTOS.length>1 ? `<span class="mp-idx">${MAPA_FOTO_IDX+1} / ${MAPA_FOTOS.length}</span>
+    <button type="button" class="mp-nav prev" onclick="mapaFotoCambiar(-1)" aria-label="Foto anterior">‹</button>
+    <button type="button" class="mp-nav next" onclick="mapaFotoCambiar(1)" aria-label="Foto siguiente">›</button>` : ''}`;
+  document.querySelectorAll('#mpThumbs img').forEach((im,i)=>im.classList.toggle('on', i===MAPA_FOTO_IDX));
+}
+function mapaFotoCambiar(d){
+  if(!MAPA_FOTOS.length) return;
+  MAPA_FOTO_IDX = (MAPA_FOTO_IDX + d + MAPA_FOTOS.length) % MAPA_FOTOS.length;
+  mapaFotoMostrar();
+}
+function mapaFotoIr(i){ MAPA_FOTO_IDX = i; mapaFotoMostrar(); }
+function abrirLightbox(url){
+  if(!url) return;
+  const d = document.createElement('div');
+  d.className = 'lbx';
+  d.onclick = ()=>d.remove();
+  d.innerHTML = `<img src="${escHtml(url)}" alt="Foto ampliada">`;
+  document.body.appendChild(d);
+}
+
+function mapaRenderFicha(h){
+  const panel = document.getElementById('mapaPanel');
+  if(!panel) return;
+  const crit = criticidadDeRegistro(h);
+  const dias = diasTranscurridos(h.fecha_creacion);
+  const detalle = obtenerDetalleHallazgos(h);
+  MAPA_FOTOS = fotosDeRegistro(h);
+  MAPA_FOTO_IDX = 0;
+  const ultCom = (h.comentarios||[]).filter(c=>c && c.texto).slice(-1)[0];
+  const otros = HALLAZGOS.filter(x=>x.id!==h.id && h.codigo_grifo && x.codigo_grifo===h.codigo_grifo && tieneHallazgoReal(x));
+  const gps = enlaceGpsHallazgo(h);
+  const kv = [];
+  if(h.modelo_grifo) kv.push(['Modelo', h.modelo_grifo]);
+  if(h.diametro_conexion) kv.push(['Diámetro', `Ø${h.diametro_conexion} mm`]);
+  if(h.ano_instalacion) kv.push(['Instalado', h.ano_instalacion]);
+  if(h.presion_grifo) kv.push(['Presión', h.presion_grifo]);
+  if(h.fecha_ejecucion) kv.push(['Inspección', `${fmtFechaSolo(h.fecha_ejecucion)}${h.horario_ejecucion?' · '+h.horario_ejecucion:''}`]);
+  kv.push(['Registrado', fmtDate(h.fecha_creacion)]);
+  kv.push(['Registro', h.id]);
+
+  panel.innerHTML = `
+    <button type="button" class="mp-close" onclick="mapaCerrarFicha()" aria-label="Cerrar ficha">&times;</button>
+    <div class="mp-photo" id="mpFotoBox"></div>
+    ${MAPA_FOTOS.length>1 ? `<div class="mp-thumbs" id="mpThumbs">${MAPA_FOTOS.map((f,i)=>`<img src="${escHtml(f.url)}" alt="${escHtml(f.label)}" loading="lazy" onclick="mapaFotoIr(${i})">`).join('')}</div>` : ''}
+    <div class="mp-body">
+      <div>
+        <div class="mp-cod">${escHtml(h.codigo_grifo || 'Grifo sin código')}</div>
+        <div class="mp-sub">${escHtml(h.direccion || 'Sin dirección registrada')}${h.comuna?`<br>${escHtml([h.localidad,h.comuna].filter((v,i,a)=>v && a.indexOf(v)===i).join(' · '))}`:''}</div>
+        <div class="mp-badges">
+          <span class="badge ${crit}">${PRIORIDAD_LABEL[crit]}</span>
+          ${h.estado ? `<span class="badge ${h.estado}">${ESTADO_LABEL[h.estado]}</span>` : ''}
+          ${h.estado && h.estado!=='resuelto' ? `<span class="badge" style="background:#EAF1F8;color:#33557F;">${dias} día${dias===1?'':'s'} pendiente</span>` : ''}
+        </div>
+      </div>
+      <div class="mp-sec">
+        <h4>Hallazgos detectados (${detalle.length})</h4>
+        ${detalle.map(d=>{
+          const c = criticidadDeDetalle(d,h), v = resumenValvula(d);
+          return `<div class="mp-find"><i style="background:${PRIORIDAD_COLOR[c]}"></i><div>${escHtml(d.tipo_hallazgo)}<small>${d.tipo_elemento==='camara'?'Cámara':'Grifo'} · ${PRIORIDAD_LABEL[c]}${v?` · ${escHtml(v)}`:''}</small></div></div>`;
+        }).join('')}
+      </div>
+      ${h.descripcion ? `<div class="mp-sec"><h4>Descripción</h4><div class="mp-coment">${escHtml(h.descripcion)}</div></div>` : ''}
+      ${ultCom ? `<div class="mp-sec"><h4>Último comentario</h4><div class="mp-coment"><div class="ca">${escHtml(ultCom.autor||'')} · ${escHtml(fmtDate(ultCom.fecha))}</div>${escHtml(ultCom.texto)}</div></div>` : ''}
+      <div class="mp-sec"><h4>Datos del grifo</h4><dl class="mp-kv">${kv.map(([k,v])=>`<dt>${k}</dt><dd>${escHtml(v)}</dd>`).join('')}</dl></div>
+      ${otros.length ? `<div class="mp-sec"><h4>Otros registros en este grifo (${otros.length})</h4>${otros.map(x=>{
+        const cx = criticidadDeRegistro(x);
+        return `<button type="button" class="mp-otro" onclick="mapaSeleccionar('${x.id}',{centrar:false})"><i style="background:${PRIORIDAD_COLOR[cx]}"></i>${escHtml(obtenerDetalleHallazgos(x).map(d=>d.tipo_hallazgo).join(', ')).slice(0,60)}<small>${escHtml(ESTADO_LABEL[x.estado]||'')}</small></button>`;
+      }).join('')}</div>` : ''}
+    </div>
+    <div class="mp-actions">
+      <button type="button" class="btn btn-primary btn-sm" onclick="openDetail('${h.id}')">Ver detalle completo</button>
+      ${gps ? `<a class="btn btn-amber btn-sm" href="${gps}" target="_blank" rel="noopener">📍 Cómo llegar</a>` : ''}
+    </div>`;
+  panel.scrollTop = 0;
+  panel.classList.add('open');
+  mapaFotoMostrar();
+}
+
+function mapaBuscar(valor){
+  const cod = (valor||'').trim().toUpperCase();
+  if(!cod) return;
+  const h = mapaRegistros().find(x=>(x.codigo_grifo||'').toUpperCase()===cod);
+  if(!h){ toast(`No hay hallazgos con coordenadas para el grifo ${cod}`); return; }
+  // si el filtro lo estaba ocultando, se enciende para poder mostrarlo
+  MAPA_UI.crit[criticidadDeRegistro(h)] = true;
+  MAPA_UI.estado[h.estado||'pendiente'] = true;
+  mapaPintarControles();
+  mapaActualizarMarcadores();
+  mapaSeleccionar(h.id);
+}
+
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){
+    const lb = document.querySelector('.lbx');
+    if(lb){ lb.remove(); return; }
+    const p = document.getElementById('mapaPanel');
+    if(p && p.classList.contains('open')) mapaCerrarFicha();
+  } else if(e.key==='ArrowRight' || e.key==='ArrowLeft'){
+    const p = document.getElementById('mapaPanel');
+    if(p && p.classList.contains('open') && MAPA_FOTOS.length>1 && !/INPUT|TEXTAREA|SELECT/.test((document.activeElement||{}).tagName||'')) mapaFotoCambiar(e.key==='ArrowRight'?1:-1);
+  }
+});
+
+/* Gráficos interactivos: un clic lleva a la lista de Hallazgos ya filtrada. */
+function irAListaConFiltro(tipo, valor){
+  if(tipo==='prioridad'){ FILTRO_PRIORIDAD_LISTA = valor; FILTRO_HALLAZGO_TIPO = 'todos'; }
+  else if(tipo==='hallazgo'){ FILTRO_HALLAZGO_TIPO = valor; FILTRO_PRIORIDAD_LISTA = 'todos'; }
+  goPage('lista');
+}
+
+
 
 /* ================= NUEVO HALLAZGO ================= */
 function renderNuevo(){
@@ -3261,26 +3870,26 @@ function construirReporteHTML(soloIds){
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"><\/script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"><\/script>
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-:root{--ink:#16323A;--ink-2:#1F4350;--concrete:#EDE7DC;--concrete-2:#F7F4ED;--paper:#fff;--hidrante:#C8334D;--senal:#E2A33D;--tuberia:#3B6E8F;--musgo:#5C8A60;--line:#D9D2C2;--text:#1B2A2E;--text-soft:#5C6B6E;}
-*{box-sizing:border-box;}body{margin:0;font-family:'IBM Plex Sans',sans-serif;background:var(--concrete);color:var(--text);}
+:root{--ink:#002359;--ink-2:#0A2F6E;--concrete:#EDF3F8;--concrete-2:#F5F9FC;--paper:#fff;--hidrante:#C8334D;--senal:#E2A33D;--tuberia:#3B6E8F;--musgo:#2F9E78;--accent:#01B3D7;--accent-2:#63D1E0;--line:#D6E2EC;--text:#0E2142;--text-soft:#5A6F8C;}
+*{box-sizing:border-box;}body{margin:0;font-family:'Inter',sans-serif;background:var(--concrete);color:var(--text);}
 .mono{font-family:'IBM Plex Mono',monospace;}
-header{background:var(--ink);color:#fff;padding:34px;border-bottom:4px solid var(--senal);}
+header{background:linear-gradient(100deg,#001B47,#002359 55%,#0B3A86);color:#fff;padding:34px;border-bottom:4px solid var(--accent);}
 .empresas{display:flex;gap:10px;align-items:center;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#9fb3b9;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;}
 .empresas b{color:#fff;}
-header h1{font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.02em;margin:0;font-size:25px;}
+header h1{font-family:'Montserrat',sans-serif;letter-spacing:.02em;margin:0;font-size:25px;}
 header p{margin:6px 0 0;color:#bcd0d4;font-size:12.5px;font-family:'IBM Plex Mono',monospace;}
 .wrap{max-width:980px;margin:0 auto;padding:30px 26px 70px;}
 section{margin-bottom:30px;}
-.eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--senal);background:#2a4a55;display:inline-block;padding:4px 10px;border-radius:4px;margin-bottom:8px;}
-h2.section-title{font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:21px;margin:0 0 12px;color:var(--ink);letter-spacing:.02em;border-bottom:2px solid var(--line);padding-bottom:8px;}
-h3{font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:15px;margin:22px 0 10px;letter-spacing:.01em;}
+.eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent-2);background:#0B3A86;display:inline-block;padding:4px 10px;border-radius:4px;margin-bottom:8px;}
+h2.section-title{font-family:'Montserrat',sans-serif;font-size:21px;margin:0 0 12px;color:var(--ink);letter-spacing:.02em;border-bottom:2px solid var(--line);padding-bottom:8px;}
+h3{font-family:'Montserrat',sans-serif;font-size:15px;margin:22px 0 10px;letter-spacing:.01em;}
 p.lead{font-size:14.5px;line-height:1.7;color:var(--text);}
 .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:18px 0 24px;}
 .kpi{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:14px 16px;position:relative;overflow:hidden;}
 .kpi .tab{position:absolute;left:0;top:0;bottom:0;width:5px;}
-.kpi .num{font-family:'Oswald',sans-serif;font-size:28px;line-height:1;color:var(--ink);}
+.kpi .num{font-family:'Montserrat',sans-serif;font-size:28px;line-height:1;color:var(--ink);}
 .kpi .lbl{font-size:10.5px;color:var(--text-soft);margin-top:6px;text-transform:uppercase;letter-spacing:.04em;}
 .panel{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:18px;}
 #repMap{height:400px;border-radius:8px;border:1px solid var(--line);}
@@ -3599,17 +4208,17 @@ function construirReporteHallazgosHTML(soloIds){
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"><\/script>
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-:root{--ink:#16323A;--ink-2:#1F4350;--concrete:#EDE7DC;--concrete-2:#F7F4ED;--paper:#fff;--hidrante:#C8334D;--senal:#E2A33D;--tuberia:#3B6E8F;--musgo:#5C8A60;--line:#D9D2C2;--text:#1B2A2E;--text-soft:#5C6B6E;}
-*{box-sizing:border-box;}body{margin:0;font-family:'IBM Plex Sans',sans-serif;background:var(--concrete);color:var(--text);}
+:root{--ink:#002359;--ink-2:#0A2F6E;--concrete:#EDF3F8;--concrete-2:#F5F9FC;--paper:#fff;--hidrante:#C8334D;--senal:#E2A33D;--tuberia:#3B6E8F;--musgo:#2F9E78;--accent:#01B3D7;--accent-2:#63D1E0;--line:#D6E2EC;--text:#0E2142;--text-soft:#5A6F8C;}
+*{box-sizing:border-box;}body{margin:0;font-family:'Inter',sans-serif;background:var(--concrete);color:var(--text);}
 .mono{font-family:'IBM Plex Mono',monospace;}
-header{background:var(--ink);color:#fff;padding:28px 34px;border-bottom:4px solid var(--senal);}
-header h1{font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.02em;margin:0;font-size:22px;}
+header{background:linear-gradient(100deg,#001B47,#002359 55%,#0B3A86);color:#fff;padding:28px 34px;border-bottom:4px solid var(--accent);}
+header h1{font-family:'Montserrat',sans-serif;letter-spacing:.02em;margin:0;font-size:22px;}
 header p{margin:6px 0 0;color:#bcd0d4;font-size:12.5px;font-family:'IBM Plex Mono',monospace;}
 .wrap{max-width:1100px;margin:0 auto;padding:26px 24px 60px;}
 .panel{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:18px;}
-h3{font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:15px;margin:22px 0 10px;letter-spacing:.01em;}
+h3{font-family:'Montserrat',sans-serif;font-size:15px;margin:22px 0 10px;letter-spacing:.01em;}
 h3:first-child{margin-top:0;}
 table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:6px;}
 th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;}
@@ -3622,9 +4231,9 @@ th{font-family:'IBM Plex Mono',monospace;font-size:9.5px;text-transform:uppercas
 .badge.en_proceso{background:#eaf1ec;color:#3f6e46;}
 .badge.resuelto{background:#e3f0e4;color:var(--musgo);}
 .grifo-block{border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:14px;background:var(--concrete-2);}
-.grifo-block h4{font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:13.5px;margin:0 0 4px;letter-spacing:.01em;color:var(--ink);}
+.grifo-block h4{font-family:'Montserrat',sans-serif;font-size:13.5px;margin:0 0 4px;letter-spacing:.01em;color:var(--ink);}
 .grifo-block h4 .mono{color:var(--hidrante);}
-.grifo-block .contador{font-size:11px;color:var(--text-soft);font-weight:400;text-transform:none;font-family:'IBM Plex Sans',sans-serif;}
+.grifo-block .contador{font-size:11px;color:var(--text-soft);font-weight:400;text-transform:none;font-family:'Inter',sans-serif;}
 .grifo-meta{font-size:12px;color:var(--text-soft);margin-bottom:8px;}
 .gi-label{display:block;font-family:'IBM Plex Mono',monospace;font-size:9px;text-transform:uppercase;color:var(--text-soft);letter-spacing:.03em;margin-bottom:1px;}
 .gi-val{display:block;font-size:12.5px;font-weight:600;color:var(--text);}
@@ -3645,7 +4254,7 @@ th{font-family:'IBM Plex Mono',monospace;font-size:9.5px;text-transform:uppercas
 .det-fields{display:flex;flex-wrap:wrap;gap:8px 24px;}
 .hc-section{margin-top:12px;padding-left:10px;border-left:3px solid var(--line);}
 .hc-section:first-of-type{margin-top:0;}
-.hc-section h5{font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:11px;letter-spacing:.04em;color:var(--text-soft);margin:0 0 6px;}
+.hc-section h5{font-family:'Montserrat',sans-serif;font-size:11px;letter-spacing:.04em;color:var(--text-soft);margin:0 0 6px;}
 .hc-encontrado{border-left-color:var(--hidrante);}
 .hc-solucion{border-left-color:var(--musgo);}
 .hc-desc{font-size:12.5px;margin:0 0 8px;color:var(--text);}
@@ -3952,7 +4561,7 @@ function exportarExcelSacyr(){
   ws.columns = columnas;
   const filaTitulos = ws.getRow(1);
   filaTitulos.font = {bold:true, color:{argb:'FFFFFFFF'}};
-  filaTitulos.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FF1F4350'}};
+  filaTitulos.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FF002359'}};
   filaTitulos.alignment = {vertical:'middle', wrapText:true};
   ws.views = [{state:'frozen', ySplit:1}];
   ws.autoFilter = {from:{row:1,column:1}, to:{row:1,column:columnas.length}};
@@ -4083,9 +4692,9 @@ function handleCSVImport(evt){
   try{
     initFirebase();
     updateRolePills();
-    document.getElementById('navNuevo').style.display = (ROLE==='singemelec') ? 'block' : 'none';
-    document.getElementById('navInspecciones').style.display = (ROLE==='singemelec') ? 'block' : 'none';
-    document.getElementById('navGaleria').style.display = (ROLE==='singemelec') ? 'block' : 'none';
+    document.getElementById('navNuevo').style.display = (ROLE==='singemelec') ? 'flex' : 'none';
+    document.getElementById('navInspecciones').style.display = (ROLE==='singemelec') ? 'flex' : 'none';
+    document.getElementById('navGaleria').style.display = (ROLE==='singemelec') ? 'flex' : 'none';
     cargarCatalogoGrifos();
 
     suscribirHallazgos(()=>{
