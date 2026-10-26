@@ -630,6 +630,93 @@ nav.rail .rail-foot{color:#6E88B0;}
   .pulse-row{grid-template-columns:1fr 1fr;}.pulse{padding:11px;}.pulse .pi{width:34px;height:34px;font-size:15px;}.pulse .pn{font-size:18px;}
   .dr-b{grid-template-columns:1fr;}.hero-sector{width:100%;}.hero-sector select{flex:1;}
 }
+
+/* ================= ENCABEZADO Y MENÚ LATERAL "POTENTES" ================= */
+header.topbar{
+  height:74px;padding:0 24px;gap:22px;position:relative;z-index:20;overflow:visible;
+  background:linear-gradient(110deg,#001640 0%,#002359 45%,#00507f 100%);
+  border-bottom:0;box-shadow:0 8px 26px rgba(0,35,89,.30);
+}
+header.topbar::before{content:'';position:absolute;inset:0;pointer-events:none;overflow:hidden;
+  background:radial-gradient(circle at 78% -40%,rgba(1,179,215,.40),transparent 52%),
+             radial-gradient(rgba(255,255,255,.08) 1px,transparent 1.4px) 0 0/18px 18px;
+  -webkit-mask-image:linear-gradient(90deg,rgba(0,0,0,.35),#000 60%);mask-image:linear-gradient(90deg,rgba(0,0,0,.35),#000 60%);}
+header.topbar::after{content:'';position:absolute;left:0;right:0;bottom:0;height:3px;
+  background:linear-gradient(90deg,var(--accent) 0%,var(--accent-2) 45%,rgba(99,209,224,0) 100%);}
+header.topbar>*{position:relative;z-index:1;}
+.brand{gap:14px;flex:none;}
+.brand .mark{width:48px;height:48px;border-radius:15px;font-size:18px;font-weight:800;color:#fff;letter-spacing:-.04em;
+  background:linear-gradient(140deg,#01B3D7 0%,#0077B6 100%);
+  box-shadow:0 0 0 3px rgba(255,255,255,.14),0 8px 22px rgba(1,179,215,.55),inset 0 1px 0 rgba(255,255,255,.4);}
+.brand .name{font-size:21px;font-weight:800;letter-spacing:-.02em;line-height:1.05;}
+.brand .name small{font:700 10.5px 'Montserrat',sans-serif;letter-spacing:.2em;text-transform:uppercase;color:var(--accent-2);margin-top:4px;}
+.tb-center{flex:1;display:flex;justify-content:center;min-width:0;}
+.tb-search{position:relative;width:100%;max-width:430px;}
+.tb-search svg{position:absolute;z-index:2;left:14px;top:50%;transform:translateY(-50%);color:#B8E6F2;pointer-events:none;}
+.tb-search input{width:100%;box-sizing:border-box;height:42px;border-radius:14px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.10);
+  color:#fff;padding:0 74px 0 42px;font:500 13.5px 'Inter',sans-serif;outline:none;backdrop-filter:blur(4px);transition:.18s;}
+.tb-search input::placeholder{color:rgba(255,255,255,.62);}
+.tb-search input:focus{background:rgba(255,255,255,.17);border-color:var(--accent-2);box-shadow:0 0 0 4px rgba(1,179,215,.25);}
+.tb-search kbd{position:absolute;right:10px;top:50%;transform:translateY(-50%);font:600 10.5px 'IBM Plex Mono',monospace;color:#CFEFF7;
+  background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:7px;padding:3px 7px;pointer-events:none;}
+.tb-right{display:flex;align-items:center;gap:10px;flex:none;}
+.tb-chip{display:flex;align-items:center;gap:8px;height:38px;padding:0 13px;border-radius:12px;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.16);
+  font:600 12px 'Inter',sans-serif;color:#E3F4FA;white-space:nowrap;}
+.tb-chip .dot{width:8px;height:8px;border-radius:50%;background:#35E0A1;animation:pulso 2s infinite;}
+.tb-chip.off .dot{background:#FF6B85;animation:none;}.tb-chip.warn .dot{background:#E2A33D;animation:none;}
+.tb-user{display:flex;align-items:center;gap:10px;height:46px;padding:0 6px 0 6px;border-radius:15px;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.16);}
+.tb-avatar{width:34px;height:34px;border-radius:11px;display:flex;align-items:center;justify-content:center;font:800 14px 'Montserrat',sans-serif;color:#002359;
+  background:linear-gradient(135deg,#63D1E0,#01B3D7);box-shadow:0 3px 10px rgba(1,179,215,.5);}
+.tb-user .tb-who{line-height:1.15;padding-right:2px;}
+.tb-user .tb-who small{display:block;font:600 9px 'Montserrat',sans-serif;letter-spacing:.16em;color:#9FD8E6;}
+.tb-user .tb-who #roleLabel{font:800 12.5px 'Montserrat',sans-serif;letter-spacing:.02em;color:#fff;background:none;border:0;padding:0;}
+.tb-out{all:unset;cursor:pointer;display:flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:10px;background:rgba(255,255,255,.1);
+  border:1px solid rgba(255,255,255,.22);font:700 12px 'Inter',sans-serif;color:#fff;transition:.15s;}
+.tb-out:hover{background:rgba(200,51,77,.85);border-color:transparent;}
+
+nav.rail{width:238px;padding:18px 12px 14px;gap:4px;
+  background:linear-gradient(180deg,#002359 0%,#00173F 100%);box-shadow:6px 0 24px rgba(0,35,89,.14);position:relative;z-index:5;}
+nav.rail .nav-group{font:700 10px 'Montserrat',sans-serif;letter-spacing:.2em;text-transform:uppercase;color:#6E8FBF;padding:14px 12px 6px;}
+nav.rail .nav-group:first-child{padding-top:2px;}
+nav.rail .navbtn{display:flex;align-items:center;gap:12px;padding:8px 12px 8px 8px;border-radius:14px;color:#C6D6EE;font-size:13.5px;font-weight:600;
+  position:relative;transition:background .15s,transform .15s,color .15s;border-left:0;box-shadow:none;}
+nav.rail .navbtn .ni{width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex:none;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.08);transition:.18s;color:#9FC4E6;}
+nav.rail .navbtn .ni svg{opacity:1;width:19px;height:19px;color:inherit;}
+nav.rail .navbtn .nl{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+nav.rail .navbtn:hover{background:rgba(255,255,255,.07);color:#fff;transform:translateX(3px);}
+nav.rail .navbtn:hover .ni{background:rgba(1,179,215,.22);color:#63D1E0;}
+nav.rail .navbtn.active{background:linear-gradient(90deg,rgba(1,179,215,.34),rgba(1,179,215,.06));color:#fff;box-shadow:inset 0 0 0 1px rgba(99,209,224,.28);transform:none;}
+nav.rail .navbtn.active::after{content:'';position:absolute;right:0;top:9px;bottom:9px;width:4px;border-radius:4px 0 0 4px;background:var(--accent-2);box-shadow:0 0 12px var(--accent-2);}
+nav.rail .navbtn.active .ni{background:linear-gradient(140deg,#01B3D7,#0077B6);color:#fff;border-color:transparent;box-shadow:0 6px 16px rgba(1,179,215,.5);}
+nav.rail .nb{flex:none;min-width:24px;height:22px;padding:0 7px;border-radius:99px;display:none;align-items:center;justify-content:center;
+  font:800 11px 'Montserrat',sans-serif;background:rgba(255,255,255,.14);color:#fff;margin-right:8px;}
+nav.rail .nb.on{display:flex;}
+nav.rail .navbtn.active .nb{background:#fff;color:#002359;}
+nav.rail .rail-foot{margin-top:auto;padding:13px 14px;border-radius:16px;background:linear-gradient(145deg,rgba(255,255,255,.10),rgba(255,255,255,.04));
+  border:1px solid rgba(255,255,255,.12);font-family:'Inter',sans-serif;color:#C6D6EE;}
+.rf-top{display:flex;align-items:center;gap:8px;font:800 12.5px 'Montserrat',sans-serif;color:#fff;}
+.rf-top .dot{width:9px;height:9px;border-radius:50%;background:#35E0A1;animation:pulso 2s infinite;flex:none;}
+.rail-foot.off .rf-top .dot{background:#FF6B85;animation:none;}.rail-foot.warn .rf-top .dot{background:#E2A33D;animation:none;}
+.rf-sub{font-size:11px;line-height:1.35;color:#9FB6D8;margin-top:6px;}
+.rf-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;}
+.rf-meta span{font:700 10.5px 'IBM Plex Mono',monospace;color:#CFEFF7;background:rgba(1,179,215,.18);border-radius:7px;padding:3px 7px;}
+
+@media(max-width:1100px){ .tb-date{display:none;} .tb-search{max-width:300px;} }
+@media(max-width:900px){ .tb-live{display:none;} .tb-search kbd{display:none;} .tb-search input{padding-right:12px;} }
+@media(max-width:720px){
+  header.topbar{height:auto;padding:10px 14px 12px;gap:10px;flex-wrap:wrap;}
+  .brand .mark{width:40px;height:40px;font-size:15px;border-radius:12px;}.brand .name{font-size:17px;}
+  .tb-center{order:3;flex:1 1 100%;}.tb-search{max-width:none;}
+  .tb-right{margin-left:auto;}.tb-user .tb-who small{display:none;}.tb-out span{display:none;}.tb-out{padding:0 10px;}
+  nav.rail{width:100%;padding:8px 10px;gap:6px;flex-direction:row;overflow-x:auto;box-shadow:none;}
+  nav.rail .nav-group{display:none;}
+  nav.rail .navbtn{padding:6px 14px 6px 6px;border-radius:999px;white-space:nowrap;}
+  nav.rail .navbtn:hover{transform:none;}
+  nav.rail .navbtn .ni{width:30px;height:30px;border-radius:50%;}nav.rail .navbtn .ni svg{width:16px;height:16px;}
+  nav.rail .navbtn.active{box-shadow:none;background:rgba(1,179,215,.30);}nav.rail .navbtn.active::after{display:none;}
+  nav.rail .nb{margin-right:0;}
+}
 </style>
 </head>
 <body>
@@ -690,23 +777,37 @@ function verificarAcceso(){
   <header class="topbar">
     <div class="brand">
       <div class="mark">GS</div>
-      <div class="name">Gestión Sacyr<small>Singemelec · Sacyr Aguas</small></div>
+      <div class="name">Gestión Sacyr<small>Parque Grifos Sacyr</small></div>
     </div>
-    <div class="role-switch">
-      <span style="font-size:11px;color:#9fb3b9;font-family:'IBM Plex Mono',monospace;">CONECTADO COMO</span>
-      <span class="role-pill active" id="roleLabel">—</span>
-      <button class="role-pill" id="logoutBtn" onclick="cerrarSesion()" style="border-color:rgba(255,255,255,.3);">Salir</button>
+    <div class="tb-center">
+      <div class="tb-search">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input id="topSearch" type="search" list="listaCodigosTop" autocomplete="off" placeholder="Buscar grifo por código…" onkeydown="buscarGrifoTop(event)" aria-label="Buscar grifo por código">
+        <datalist id="listaCodigosTop"></datalist>
+        <kbd>Enter ↵</kbd>
+      </div>
+    </div>
+    <div class="tb-right">
+      <div class="tb-chip tb-live" id="tbLive"><span class="dot"></span><span id="tbLiveTxt">En línea</span></div>
+      <div class="tb-chip tb-date" id="tbDate">—</div>
+      <div class="tb-user">
+        <div class="tb-avatar" id="tbAvatar">S</div>
+        <div class="tb-who"><small>CONECTADO COMO</small><span id="roleLabel">—</span></div>
+        <button class="tb-out" id="logoutBtn" onclick="cerrarSesion()" title="Cerrar sesión"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg><span>Salir</span></button>
+      </div>
     </div>
   </header>
 
   <div class="body-grid">
     <nav class="rail">
-      <button class="navbtn active" data-page="dashboard" onclick="goPage('dashboard')"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span>Tablero ejecutivo</span></button>
-      <button class="navbtn" data-page="inspecciones" id="navInspecciones" onclick="goPage('inspecciones')"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9z"/><path d="M9 14l2 2 4-4"/></svg><span>Inspecciones</span></button>
-      <button class="navbtn" data-page="nuevo" id="navNuevo" onclick="goPage('nuevo')"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg><span>Nuevo hallazgo</span></button>
-      <button class="navbtn" data-page="galeria" id="navGaleria" onclick="goPage('galeria')"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.7"/><path d="M21 16l-5-5-8 8"/></svg><span>Galería de fotos</span></button>
-      <button class="navbtn" data-page="lista" onclick="goPage('lista')"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/></svg><span>Hallazgos</span></button>
-      <div class="rail-foot" id="railFoot">v1.0 · datos compartidos<br>entre ambas empresas</div>
+      <div class="nav-group">Principal</div>
+      <button class="navbtn active" data-page="dashboard" onclick="goPage('dashboard')"><span class="ni"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span><span class="nl">Tablero ejecutivo</span></button>
+      <button class="navbtn" data-page="lista" onclick="goPage('lista')"><span class="ni"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/></svg></span><span class="nl">Hallazgos</span><span class="nb" id="nbHallazgos"></span></button>
+      <div class="nav-group" id="navGrupoTerreno">Operación en terreno</div>
+      <button class="navbtn" data-page="inspecciones" id="navInspecciones" onclick="goPage('inspecciones')"><span class="ni"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9z"/><path d="M9 14l2 2 4-4"/></svg></span><span class="nl">Inspecciones</span></button>
+      <button class="navbtn" data-page="nuevo" id="navNuevo" onclick="goPage('nuevo')"><span class="ni"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg></span><span class="nl">Nuevo hallazgo</span></button>
+      <button class="navbtn" data-page="galeria" id="navGaleria" onclick="goPage('galeria')"><span class="ni"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.7"/><path d="M21 16l-5-5-8 8"/></svg></span><span class="nl">Galería de fotos</span></button>
+      <div class="rail-foot" id="railFoot"><div class="rf-top"><span class="dot"></span><span id="rfTxt">En línea</span></div><div class="rf-sub" id="rfSub">Datos en tiempo real entre Sacyr y Singemelec</div><div class="rf-meta" id="rfMeta"></div></div>
     </nav>
 
     <main id="main"><div class="loading">Cargando catastro…</div></main>
@@ -1028,12 +1129,14 @@ function ocultarBannerConexion(){
 }
 function avisarConexionPerdida(){
   conexionPerdida = true;
+  try{ actualizarChromeApp(); }catch(e){}
   mostrarBannerConexion('⚠ Sin conexión con la base de datos compartida. Los datos en pantalla pueden estar desactualizados y los cambios NO se guardarán hasta que vuelva la conexión. Reintentando…');
   if(_onChangeHallazgos) _onChangeHallazgos();
 }
 function conexionRecuperada(){
   if(!conexionPerdida) return;
   conexionPerdida = false;
+  try{ actualizarChromeApp(); }catch(e){}
   ocultarBannerConexion();
   toast('Conexión recuperada: datos al día');
   if(_onChangeHallazgos) _onChangeHallazgos();
@@ -1490,6 +1593,47 @@ function setRole(r){
 function updateRolePills(){
   const lbl = document.getElementById('roleLabel');
   if(lbl) lbl.textContent = ROLE==='singemelec' ? 'SINGEMELEC' : 'SACYR AGUAS';
+  const av = document.getElementById('tbAvatar'); if(av) av.textContent = ROLE==='singemelec' ? 'SG' : 'SA';
+  const gt = document.getElementById('navGrupoTerreno'); if(gt) gt.style.display = (ROLE==='singemelec') ? '' : 'none';
+}
+
+/* Barra superior y menú lateral: estado de conexión, contadores y buscador rápido de grifos. */
+function actualizarChromeApp(){
+  try{
+    const abiertos = HALLAZGOS.filter(h=>tieneHallazgoReal(h) && h.estado!=='resuelto').length;
+    const nb = document.getElementById('nbHallazgos');
+    if(nb){ nb.textContent = abiertos > 999 ? '999+' : String(abiertos); nb.classList.toggle('on', abiertos>0); nb.title = abiertos+' hallazgos abiertos'; }
+    const estado = conexionPerdida ? 'off' : (STORAGE_MODE==='remote' ? 'ok' : 'warn');
+    const txt = estado==='off' ? 'Sin conexión' : (estado==='ok' ? 'En línea' : 'Modo local');
+    const live = document.getElementById('tbLive'); if(live){ live.classList.toggle('off',estado==='off'); live.classList.toggle('warn',estado==='warn'); }
+    const lt = document.getElementById('tbLiveTxt'); if(lt) lt.textContent = estado==='ok' ? 'En tiempo real' : txt;
+    const rf = document.getElementById('railFoot');
+    if(rf){
+      rf.classList.toggle('off',estado==='off'); rf.classList.toggle('warn',estado==='warn');
+      const t = document.getElementById('rfTxt'); if(t) t.textContent = txt;
+      const sub = document.getElementById('rfSub');
+      if(sub) sub.textContent = estado==='off' ? 'Reintentando conectar…' : (estado==='ok' ? 'Datos compartidos en tiempo real entre Sacyr y Singemelec' : 'Firebase no configurado: los datos no se comparten');
+      const meta = document.getElementById('rfMeta');
+      if(meta){ const parque = Object.keys(CATALOGO_GRIFOS||{}).length; meta.innerHTML = (parque?`<span>${parque} grifos</span>`:'') + `<span>${abiertos} abiertos</span>`; }
+    }
+    const d = document.getElementById('tbDate');
+    if(d){ const f = new Date().toLocaleDateString('es-CL',{weekday:'short',day:'numeric',month:'short'}).replace('.',''); d.textContent = f.charAt(0).toUpperCase()+f.slice(1); }
+    const dl = document.getElementById('listaCodigosTop');
+    if(dl){ const cods = Array.from(new Set(HALLAZGOS.filter(tieneHallazgoReal).map(h=>h.codigo_grifo).filter(Boolean))).sort(); const clave = cods.join('|'); if(dl.dataset.k!==clave){ dl.dataset.k = clave; dl.innerHTML = cods.map(c=>`<option value="${c}">`).join(''); } }
+  }catch(e){ console.error(e); }
+}
+function buscarGrifoTop(ev){
+  if(ev && ev.key && ev.key!=='Enter') return;
+  const inp = document.getElementById('topSearch'); if(!inp) return;
+  const q = (inp.value||'').trim().toUpperCase(); if(!q) return;
+  const reales = HALLAZGOS.filter(tieneHallazgoReal);
+  const h = reales.find(x=>(x.codigo_grifo||'').toUpperCase()===q) || reales.find(x=>(x.codigo_grifo||'').toUpperCase().includes(q));
+  if(!h){ toast(`No hay hallazgos registrados para el grifo ${q}`, {error:true}); return; }
+  const cod = h.codigo_grifo;
+  inp.value = ''; inp.blur();
+  if(FILTRO_SECTOR_DASHBOARD!=='todos' && h.comuna!==FILTRO_SECTOR_DASHBOARD){ FILTRO_SECTOR_DASHBOARD='todos'; MAPA_VISTA=null; }
+  const ir = ()=>{ const el = document.querySelector('.mapa-card'); if(el) el.scrollIntoView({behavior:'smooth', block:'start'}); setTimeout(()=>mapaBuscar(cod), 300); };
+  if(currentPage!=='dashboard'){ goPage('dashboard'); setTimeout(ir, 350); } else { renderDashboard(); setTimeout(ir, 60); }
 }
 function cerrarSesion(){
   localStorage.removeItem('grifos_access_ok');
@@ -1507,6 +1651,7 @@ function goPage(p){
 }
 
 function render(){
+  actualizarChromeApp();
   if(currentPage==='dashboard') renderDashboard();
   else if(currentPage==='nuevo') renderNuevo();
   else if(currentPage==='lista') renderLista();
@@ -4971,14 +5116,6 @@ function handleCSVImport(evt){
     cargarCatalogoGrifos();
 
     suscribirHallazgos(()=>{
-      const foot = document.getElementById('railFoot');
-      if(foot){
-        foot.innerHTML = conexionPerdida
-          ? '⚠ sin conexión<br>reintentando…'
-          : (STORAGE_MODE === 'remote'
-            ? 'v1.0 · datos en tiempo real<br>entre ambas empresas'
-            : '⚠ modo local<br>configura Firebase para<br>compartir datos en tiempo real');
-      }
       render();
     });
     suscribirPlanesInspeccion(()=>{ if(currentPage==='inspecciones') render(); });
