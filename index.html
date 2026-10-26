@@ -820,6 +820,44 @@ main{padding:14px 22px 56px;}
   .hero-ring{width:140px;height:140px;}
   .ring-txt .rn{font-size:32px;}
 }
+
+/* ---- Fila única de indicadores ---- */
+.metric-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(142px,1fr));gap:10px;margin-bottom:12px;}
+.mt{position:relative;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:10px 12px 11px 15px;overflow:hidden;box-shadow:0 1px 4px rgba(0,35,89,.05);}
+.mt .mt-tab{position:absolute;left:0;top:0;bottom:0;width:4px;}
+.mt .mt-n{font:700 25px/1 'Montserrat',sans-serif;color:var(--ink);letter-spacing:-.03em;}
+.mt .mt-n small{font-size:13px;font-weight:600;color:var(--text-soft);}
+.mt .mt-l{font:700 10px 'Inter',sans-serif;letter-spacing:.05em;text-transform:uppercase;color:var(--text-soft);margin-top:5px;line-height:1.3;}
+.mt .mt-s{font-size:10.5px;color:var(--text-soft);margin-top:2px;font-weight:500;}
+.mt .mt-bar{height:4px;border-radius:99px;background:#E6EEF5;margin-top:7px;overflow:hidden;}
+.mt .mt-bar i{display:block;height:100%;border-radius:99px;}
+.mt.clic{cursor:pointer;transition:transform .14s,box-shadow .14s;}
+.mt.clic:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,35,89,.12);}
+
+/* ---- Tarjetas por comuna sobre el mapa ---- */
+.com-cards{display:flex;gap:9px;flex-wrap:wrap;padding:12px 16px 2px;}
+.ccard{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;gap:2px;min-width:132px;flex:1 1 132px;max-width:200px;
+  padding:9px 12px;border-radius:12px;border:1.5px solid var(--line);background:#F7FAFD;transition:.15s;font-family:'Inter',sans-serif;}
+.ccard:hover{border-color:var(--accent);background:#F0F9FD;transform:translateY(-2px);box-shadow:0 8px 18px rgba(0,35,89,.1);}
+.ccard.sel{border-color:var(--accent);background:linear-gradient(135deg,#E6F6FB,#F7FDFF);box-shadow:inset 0 0 0 1px var(--accent);}
+.ccard .cc-top{display:flex;align-items:center;justify-content:space-between;gap:6px;font:700 11px 'Montserrat',sans-serif;letter-spacing:.04em;text-transform:uppercase;color:var(--ink);}
+.ccard .cc-dot{font-style:normal;font:800 10px 'Montserrat',sans-serif;color:#fff;background:#C8334D;border-radius:99px;padding:2px 6px;flex:none;}
+.ccard .cc-n{font:800 22px/1 'Montserrat',sans-serif;color:var(--ink);letter-spacing:-.03em;}
+.ccard .cc-s{font-size:10.5px;color:var(--text-soft);font-weight:500;}
+.ccard.sel .cc-n{color:#01688A;}
+
+/* ---- Etiqueta de comuna en el mapa ---- */
+.comuna-tag{background:none !important;border:0 !important;}
+.comuna-tag span{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;display:flex;align-items:center;gap:6px;cursor:pointer;
+  font:800 10.5px 'Montserrat',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#fff;
+  background:rgba(0,35,89,.86);border:1px solid rgba(255,255,255,.3);border-radius:99px;padding:4px 9px;box-shadow:0 3px 10px rgba(0,20,60,.35);}
+.comuna-tag span b{font:800 10.5px 'Montserrat',sans-serif;color:#002359;background:var(--accent-2);border-radius:99px;padding:1px 6px;}
+.comuna-tag span:hover{background:var(--accent);}
+@media(max-width:720px){
+  .metric-row{grid-template-columns:repeat(2,1fr);}
+  .com-cards{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:10px 12px 2px;}
+  .ccard{flex:0 0 auto;min-width:124px;}
+}
 </style>
 </head>
 <body>
@@ -1871,6 +1909,18 @@ function renderDashboard(){
   const comunasOrd = Object.entries(porComuna).sort((a,b)=>b[1].total-a[1].total).slice(0,8);
   const maxComuna = comunasOrd.length ? comunasOrd[0][1].total : 1;
 
+  // Datos por comuna: alimentan las tarjetas sobre el mapa y las etiquetas del mapa.
+  const comunaStats = {};
+  conHallazgo.forEach(h=>{
+    const c = h.comuna || 'Sin comuna';
+    const e = comunaStats[c] = comunaStats[c] || {total:0, abiertos:0, directa:0, grifos:0};
+    e.total++;
+    if(h.estado!=='resuelto'){ e.abiertos++; if(criticidadDeRegistro(h)==='directa') e.directa++; }
+  });
+  Object.keys(CATALOGO_GRIFOS||{}).forEach(k=>{ const c = (CATALOGO_GRIFOS[k].comuna)||'Sin comuna'; if(comunaStats[c]) comunaStats[c].grifos++; });
+  const comunaCards = Object.keys(comunaStats).map(k=>[k, comunaStats[k]]).sort((a,b)=>b[1].abiertos-a[1].abiertos);
+  const abiertosTotales = conHallazgo.filter(h=>h.estado!=='resuelto').length;
+
   // Atención inmediata: operatividad directa abierta, los más antiguos primero
   const atencion = directasAbiertas.slice().sort((a,b)=>new Date(a.fecha_creacion)-new Date(b.fecha_creacion)).slice(0,7);
   const animarDash = !DASH_ANIMADO; DASH_ANIMADO = true;
@@ -1887,7 +1937,6 @@ function renderDashboard(){
         <div class="hero-stats">
           <div class="hs"><div class="hn" ${parqueTotal?`data-count="${parqueTotal}"`:''}>${parqueTotal||'—'}</div><div class="hl">Grifos en el parque</div></div>
           <div class="hs"><div class="hn" data-count="${codigosAbiertos.size}">${codigosAbiertos.size}</div><div class="hl">Grifos con hallazgos abiertos</div>${pctParque!==null?`<div class="hsub">${pctParque.toFixed(1).replace('.',',')}% del parque</div>`:''}</div>
-          <div class="hs"><div class="hn" data-count="${abiertos.length}">${abiertos.length}</div><div class="hl">Hallazgos abiertos</div><div class="hsub">de ${total} registrados</div></div>
           <div class="hs hs-alert"><div class="hn" data-count="${directasAbiertas.length}">${directasAbiertas.length}</div><div class="hl">Operatividad directa abierta</div><div class="hsub">prioridad máxima</div></div>
         </div>
         ${parqueTotal ? (()=>{ const con = Math.min(codigosAbiertos.size, parqueTotal), sin = parqueTotal-con, pc = con/parqueTotal*100;
@@ -2017,26 +2066,32 @@ function renderDashboard(){
       </div>
     </section>
 
-    <div class="kpi-row">
-      <div class="kpi"><div class="tab" style="background:var(--ink)"></div><div class="num">${total}</div><div class="lbl">Hallazgos totales</div><div class="kbar"><i style="width:100%;background:var(--ink)"></i></div></div>
-      <div class="kpi"><div class="tab" style="background:var(--hidrante)"></div><div class="num">${counts.directa||0}</div><div class="lbl">Operatividad directa</div><div class="kbar"><i style="width:${total?(counts.directa||0)/total*100:0}%;background:${PRIORIDAD_COLOR.directa}"></i></div></div>
-      <div class="kpi"><div class="tab" style="background:var(--senal)"></div><div class="num">${counts.indirecta||0}</div><div class="lbl">Operatividad indirecta/mec.</div><div class="kbar"><i style="width:${total?(counts.indirecta||0)/total*100:0}%;background:${PRIORIDAD_COLOR.indirecta}"></i></div></div>
-      <div class="kpi"><div class="tab" style="background:var(--tuberia)"></div><div class="num">${counts.senaletica||0}</div><div class="lbl">Señalética/visibilidad</div><div class="kbar"><i style="width:${total?(counts.senaletica||0)/total*100:0}%;background:${PRIORIDAD_COLOR.senaletica}"></i></div></div>
-      <div class="kpi"><div class="tab" style="background:var(--musgo)"></div><div class="num">${estados.resuelto||0}</div><div class="lbl">Resueltos</div><div class="kbar"><i style="width:${pctResuelto}%;background:var(--musgo)"></i></div><div class="sub">${pctResuelto}% del total</div></div>
-      <div class="kpi"><div class="tab" style="background:var(--acero,#5a7d9a)"></div><div class="num">${totalInspecciones}</div><div class="lbl">Inspecciones registradas</div></div>
+    <div class="metric-row">
+      <div class="mt"><i class="mt-tab" style="background:var(--ink)"></i><div class="mt-n">${total}</div><div class="mt-l">Hallazgos totales</div><div class="mt-s">${abiertos.length} abiertos</div></div>
+      <div class="mt clic" onclick="irAListaConFiltro('prioridad','directa')" title="Ver los hallazgos de operatividad directa"><i class="mt-tab" style="background:${PRIORIDAD_COLOR.directa}"></i><div class="mt-n">${counts.directa||0}</div><div class="mt-l">Operatividad directa</div><div class="mt-bar"><i style="width:${total?(counts.directa||0)/total*100:0}%;background:${PRIORIDAD_COLOR.directa}"></i></div></div>
+      <div class="mt clic" onclick="irAListaConFiltro('prioridad','indirecta')" title="Ver los hallazgos de operatividad indirecta"><i class="mt-tab" style="background:${PRIORIDAD_COLOR.indirecta}"></i><div class="mt-n">${counts.indirecta||0}</div><div class="mt-l">Indirecta / mecánica</div><div class="mt-bar"><i style="width:${total?(counts.indirecta||0)/total*100:0}%;background:${PRIORIDAD_COLOR.indirecta}"></i></div></div>
+      <div class="mt clic" onclick="irAListaConFiltro('prioridad','senaletica')" title="Ver los hallazgos de señalética"><i class="mt-tab" style="background:${PRIORIDAD_COLOR.senaletica}"></i><div class="mt-n">${counts.senaletica||0}</div><div class="mt-l">Señalética</div><div class="mt-bar"><i style="width:${total?(counts.senaletica||0)/total*100:0}%;background:${PRIORIDAD_COLOR.senaletica}"></i></div></div>
+      <div class="mt"><i class="mt-tab" style="background:var(--musgo)"></i><div class="mt-n">${estados.resuelto||0}</div><div class="mt-l">Resueltos</div><div class="mt-s">${pctResuelto}% del total</div></div>
+      <div class="mt"><i class="mt-tab" style="background:var(--accent)"></i><div class="mt-n">${nuevos7}</div><div class="mt-l">Nuevos</div><div class="mt-s">últimos 7 días</div></div>
+      <div class="mt"><i class="mt-tab" style="background:#2F9E78"></i><div class="mt-n">${resueltos30}</div><div class="mt-l">Resueltos</div><div class="mt-s">últimos 30 días</div></div>
+      <div class="mt"><i class="mt-tab" style="background:${PRIORIDAD_COLOR.indirecta}"></i><div class="mt-n">${edadProm}<small> d</small></div><div class="mt-l">Antigüedad promedio</div><div class="mt-s">${masAntiguo ? `más antiguo ${diasTranscurridos(masAntiguo.fecha_creacion)} d · ${escHtml(masAntiguo.codigo_grifo||'')}` : 'sin pendientes'}</div></div>
+      <div class="mt"><i class="mt-tab" style="background:var(--acero,#5a7d9a)"></i><div class="mt-n">${totalInspecciones}</div><div class="mt-l">Inspecciones</div><div class="mt-s">registradas</div></div>
     </div>
-
-    <div class="pulse-row">
-      <div class="pulse"><div class="pi" style="--c:#01B3D7">+</div><div><div class="pn">${nuevos7}</div><div class="pl">Nuevos últimos 7 días</div></div></div>
-      <div class="pulse"><div class="pi" style="--c:#2F9E78">✓</div><div><div class="pn">${resueltos30}</div><div class="pl">Resueltos últimos 30 días</div></div></div>
-      <div class="pulse"><div class="pi" style="--c:#E2A33D">⏱</div><div><div class="pn">${edadProm} <small>días</small></div><div class="pl">Antigüedad promedio de abiertos</div></div></div>
-      <div class="pulse"><div class="pi" style="--c:#C8334D">!</div><div><div class="pn">${masAntiguo ? diasTranscurridos(masAntiguo.fecha_creacion) : 0} <small>días</small></div><div class="pl">Abierto más antiguo${masAntiguo && masAntiguo.codigo_grifo ? ` · <b>${escHtml(masAntiguo.codigo_grifo)}</b>` : ''}</div></div></div>
-    </div>
-
     <div class="panel mapa-card">
       <div class="mapa-head">
         <h3>Mapa de grifos con hallazgos</h3>
         <div class="mapa-count" id="mapaConteo"></div>
+      </div>
+      <div class="com-cards">
+        <button type="button" class="ccard ${FILTRO_SECTOR_DASHBOARD==='todos'?'sel':''}" onclick="cambiarFiltroSectorDashboard('todos')" title="Ver todas las comunas">
+          <span class="cc-top">Todas las comunas</span><span class="cc-n">${abiertosTotales}</span><span class="cc-s">hallazgos abiertos</span>
+        </button>
+        ${comunaCards.map(([nom,c])=>`
+        <button type="button" class="ccard ${FILTRO_SECTOR_DASHBOARD===nom?'sel':''}" onclick="cambiarFiltroSectorDashboard(${FILTRO_SECTOR_DASHBOARD===nom ? "'todos'" : JSON.stringify(nom).replace(/"/g,'&quot;')})" title="${FILTRO_SECTOR_DASHBOARD===nom ? 'Volver a todas las comunas' : 'Ver solo '+escHtml(nom)}">
+          <span class="cc-top">${escHtml(nom)}${c.directa?`<i class="cc-dot" title="${c.directa} de operatividad directa abiertos">${c.directa}</i>`:''}</span>
+          <span class="cc-n">${c.abiertos}</span>
+          <span class="cc-s">${c.grifos?`${c.grifos} grifos · `:''}${c.total} hallazgo${c.total===1?'':'s'}</span>
+        </button>`).join('')}
       </div>
       ${mapaToolbarHtml()}
       <div class="mapa-stage">
@@ -2401,6 +2456,7 @@ function mapaActualizarMarcadores(){
   });
   mapaGrupo.addTo(dashMapInstance);
   const nParque = mapaActualizarParque();
+  mapaActualizarComunas();
   const cnt = document.getElementById('mapaConteo');
   if(cnt) cnt.innerHTML = `Mostrando <b>${visibles.length}</b> de ${todos.length} hallazgos` + (MAPA_UI.parque ? ` · <b>${nParque}</b> grifos del parque sin hallazgos abiertos` : '');
   const vac = document.getElementById('mapaVacio');
@@ -2470,12 +2526,69 @@ function mapaFichaParque(cod){
   panel.classList.add('open');
 }
 
-function mapaAjustarVista(){
+/* Límites reales de lo que hay que mostrar: solo donde hay grifos, no un
+   recuadro fijo gigante (antes se veía desde Valparaíso hasta Santiago). */
+function mapaBoundsDatos(){
   const pts = mapaRegistros().filter(mapaPasaFiltros).map(h=>[h.lat,h.lng]);
-  let b = (FILTRO_SECTOR_DASHBOARD==='todos') ? L.latLngBounds(ZONA_CONCESION_BOUNDS) : null;
-  if(pts.length){ if(b) pts.forEach(p=>b.extend(p)); else b = L.latLngBounds(pts); }
-  if(!b) b = L.latLngBounds(ZONA_CONCESION_BOUNDS);
-  dashMapInstance.fitBounds(b, {padding:[40,40], maxZoom:16});
+  if(MAPA_UI.parque){
+    Object.keys(CATALOGO_GRIFOS||{}).forEach(k=>{
+      const g = CATALOGO_GRIFOS[k];
+      if(g && typeof g.lat==='number' && typeof g.lng==='number' &&
+         (FILTRO_SECTOR_DASHBOARD==='todos' || (g.comuna||'')===FILTRO_SECTOR_DASHBOARD)) pts.push([g.lat,g.lng]);
+    });
+  }
+  if(pts.length) return L.latLngBounds(pts);
+  const todos = mapaRegistros().map(h=>[h.lat,h.lng]);
+  return todos.length ? L.latLngBounds(todos) : L.latLngBounds(ZONA_CONCESION_BOUNDS);
+}
+/* Todo lo que existe en el sector (con y sin hallazgos): define hasta dónde se
+   puede navegar, para no quedar atrapado al cambiar de vista. */
+function mapaBoundsSector(){
+  const pts = mapaRegistros().map(h=>[h.lat,h.lng]);
+  Object.keys(CATALOGO_GRIFOS||{}).forEach(k=>{
+    const g = CATALOGO_GRIFOS[k];
+    if(g && typeof g.lat==='number' && typeof g.lng==='number' &&
+       (FILTRO_SECTOR_DASHBOARD==='todos' || (g.comuna||'')===FILTRO_SECTOR_DASHBOARD)) pts.push([g.lat,g.lng]);
+  });
+  return pts.length ? L.latLngBounds(pts) : null;
+}
+function mapaAjustarVista(){
+  dashMapInstance.fitBounds(mapaBoundsDatos(), {padding:[34,34], maxZoom:15});
+  // No se puede navegar lejos de la zona de concesión (si el área es mínima no
+  // se limita, para no dejar el mapa trabado en un solo punto).
+  const lim = mapaBoundsSector();
+  if(lim && lim.isValid()){
+    const alto = Math.abs(lim.getNorth()-lim.getSouth()), ancho = Math.abs(lim.getEast()-lim.getWest());
+    if(alto > 0.01 || ancho > 0.01) dashMapInstance.setMaxBounds(lim.pad(0.9));
+    else dashMapInstance.setMaxBounds(null);
+  } else dashMapInstance.setMaxBounds(null);
+}
+
+/* Etiqueta con el nombre de cada comuna y su cantidad de hallazgos, puesta en
+   el centro de sus grifos. Se oculta al acercarse mucho para no estorbar. */
+let mapaComunasLayer = null;
+function mapaActualizarComunas(){
+  if(!dashMapInstance) return;
+  if(mapaComunasLayer){ dashMapInstance.removeLayer(mapaComunasLayer); mapaComunasLayer = null; }
+  if(dashMapInstance.getZoom() >= 15) return;
+  const g = {};
+  mapaRegistros().filter(mapaPasaFiltros).forEach(h=>{
+    const c = h.comuna || 'Sin comuna';
+    const e = g[c] = g[c] || {lat:0, lng:0, n:0};
+    e.lat += h.lat; e.lng += h.lng; e.n++;
+  });
+  const claves = Object.keys(g);
+  if(!claves.length) return;
+  mapaComunasLayer = L.layerGroup();
+  claves.forEach(c=>{
+    const e = g[c];
+    const icon = L.divIcon({className:'comuna-tag', iconSize:[1,1],
+      html:`<span>${escHtml(c)}<b>${e.n}</b></span>`});
+    L.marker([e.lat/e.n, e.lng/e.n], {icon, zIndexOffset:-600, keyboard:false})
+      .on('click', ()=>cambiarFiltroSectorDashboard(c===FILTRO_SECTOR_DASHBOARD ? 'todos' : c))
+      .addTo(mapaComunasLayer);
+  });
+  mapaComunasLayer.addTo(dashMapInstance);
 }
 function mapaVerTodo(){
   if(!dashMapInstance) return;
@@ -2484,7 +2597,7 @@ function mapaVerTodo(){
 
 function construirMapaDashboard(){
   if(dashMapInstance){ dashMapInstance.remove(); dashMapInstance = null; }
-  mapaBase = null; mapaEtiquetas = null; mapaGrupo = null; mapaMarcadores = {};
+  mapaBase = null; mapaEtiquetas = null; mapaGrupo = null; mapaMarcadores = {}; mapaComunasLayer = null; mapaParqueLayer = null;
   dashMapInstance = L.map('dashMap', {zoomControl:true, preferCanvas:false}).setView([-33.33,-70.75], 10);
   mapaAplicarCapa();
   mapaPintarControles();
@@ -2492,6 +2605,7 @@ function construirMapaDashboard(){
   if(MAPA_VISTA) dashMapInstance.setView(MAPA_VISTA.center, MAPA_VISTA.zoom, {animate:false});
   else mapaAjustarVista();
   dashMapInstance.on('moveend', ()=>{ MAPA_VISTA = {center:dashMapInstance.getCenter(), zoom:dashMapInstance.getZoom()}; });
+  dashMapInstance.on('zoomend', ()=>{ mapaActualizarComunas(); });
   dashMapInstance.on('click', ()=>{ /* clic en zona vacía: no se cierra la ficha para no perderla por accidente */ });
   // Reabre la ficha si el usuario la tenía abierta y llegó una actualización de datos.
   if(MAPA_SEL && HALLAZGOS.some(h=>h.id===MAPA_SEL)) mapaSeleccionar(MAPA_SEL, {centrar:false});
