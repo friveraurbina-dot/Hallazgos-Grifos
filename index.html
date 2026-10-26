@@ -717,6 +717,57 @@ nav.rail .rail-foot{margin-top:auto;padding:13px 14px;border-radius:16px;backgro
   nav.rail .navbtn.active{box-shadow:none;background:rgba(1,179,215,.30);}nav.rail .navbtn.active::after{display:none;}
   nav.rail .nb{margin-right:0;}
 }
+
+/* ================= ANCHO COMPLETO, GRIFO ANIMADO Y PARQUE ================= */
+main{padding:20px 22px 56px;}
+.page{max-width:1880px;margin:0 auto;}
+.mapa-stage{height:max(640px,68vh);}
+@media(max-width:720px){ main{padding:14px 12px 50px;} .mapa-stage{height:calc(100vh - 170px);} }
+
+.hero{grid-template-columns:1fr 292px 190px;gap:18px;}
+.hero-hydrant{position:relative;align-self:end;margin:-10px 0 -18px;}
+.hero-hydrant svg{width:100%;height:auto;display:block;overflow:visible;filter:drop-shadow(0 10px 18px rgba(0,0,0,.28));}
+.hy-glow{animation:hyGlow 3.2s ease-in-out infinite;transform-origin:190px 135px;}
+@keyframes hyGlow{0%,100%{opacity:.65;transform:scale(.96)}50%{opacity:1;transform:scale(1.04)}}
+.hy-flow{animation:hyFlow .65s linear infinite;}
+.hy-flow2{animation-duration:.9s;}
+@keyframes hyFlow{to{stroke-dashoffset:-20}}
+.hy-jet{animation:hyJet 1.6s ease-in-out infinite;transform-origin:118px 150px;}
+@keyframes hyJet{0%,100%{opacity:.92}50%{opacity:1}}
+.hy-drop{animation:hyDrop 1.2s cubic-bezier(.5,0,.9,.6) infinite;opacity:0;}
+.hy-drop.d2{animation-delay:.25s}.hy-drop.d3{animation-delay:.5s}.hy-drop.d4{animation-delay:.75s}.hy-drop.d5{animation-delay:.95s}
+@keyframes hyDrop{0%{opacity:0;transform:translate(0,-6px)}15%{opacity:.95}100%{opacity:0;transform:translate(-8px,34px)}}
+.hy-rip{transform-box:fill-box;transform-origin:center;animation:hyRip 1.8s ease-out infinite;opacity:0;}
+.hy-rip.r2{animation-delay:.9s}
+@keyframes hyRip{0%{opacity:.9;transform:scale(.2)}100%{opacity:0;transform:scale(1.5)}}
+.hy-nut{transform-box:fill-box;transform-origin:center;animation:hyNut 2.6s ease-in-out infinite;}
+@keyframes hyNut{0%,100%{transform:rotate(-14deg)}50%{transform:rotate(14deg)}}
+.hy-mist{animation:hyMist 1.4s ease-out infinite;opacity:0;}
+.hy-mist.m2{animation-delay:.4s}.hy-mist.m3{animation-delay:.8s}
+@keyframes hyMist{0%{opacity:.7;transform:translate(0,0) scale(.6)}100%{opacity:0;transform:translate(-14px,-10px) scale(1.6)}}
+@media(prefers-reduced-motion:reduce){ .hero-hydrant *{animation:none !important;} .hy-drop,.hy-mist,.hy-rip{opacity:0;} }
+
+.park-bar{margin-top:14px;max-width:760px;}
+.pb-top{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:rgba(255,255,255,.85);margin-bottom:7px;}
+.pb-top b{font:700 11px 'Montserrat',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-2);}
+.pb-top span{font-weight:700;color:#8EF0C8;}
+.pb-track{display:flex;gap:3px;height:12px;border-radius:99px;overflow:hidden;background:rgba(255,255,255,.1);}
+.pb-track i{display:block;height:100%;min-width:4px;}
+.pb-track .ok{background:linear-gradient(90deg,#2F9E78,#35E0A1);border-radius:99px 4px 4px 99px;}
+.pb-track .bad{background:linear-gradient(90deg,#E2A33D,#C8334D);border-radius:4px 99px 99px 4px;}
+.pb-leg{display:flex;gap:18px;flex-wrap:wrap;margin-top:7px;font-size:11.5px;color:rgba(255,255,255,.8);}
+.pb-leg i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;vertical-align:-1px;}
+.pb-leg i.ok{background:#35E0A1;}.pb-leg i.bad{background:#E2A33D;}
+.pb-leg b{color:#fff;}
+.mapa-legend .lg-parque{display:none;}
+.mapa-legend.con-parque .lg-parque{display:inline-flex;}
+.mseg.vista button.on{background:#0E7C5A;}
+@media(max-width:1280px){ .hero{grid-template-columns:1fr 230px 160px;} .hero-ring{width:160px;height:160px;} .ring-txt .rn{font-size:36px;} }
+@media(max-width:1100px){ .hero{grid-template-columns:1fr 190px;} .hero-ring{display:none;} }
+@media(max-width:820px){ .hero{grid-template-columns:1fr;} .hero-hydrant{display:none;} .hero-ring{display:block;} }
+
+/* Los formularios se mantienen en un ancho cómodo de lectura; el resto de las páginas usa todo el ancho. */
+main[data-page="nuevo"] .page,main[data-page="inspecciones"] .page{max-width:1240px;}
 </style>
 </head>
 <body>
@@ -1652,6 +1703,7 @@ function goPage(p){
 
 function render(){
   actualizarChromeApp();
+  const mainEl = document.getElementById('main'); if(mainEl) mainEl.dataset.page = currentPage;
   if(currentPage==='dashboard') renderDashboard();
   else if(currentPage==='nuevo') renderNuevo();
   else if(currentPage==='lista') renderLista();
@@ -1786,6 +1838,12 @@ function renderDashboard(){
           <div class="hs"><div class="hn" data-count="${abiertos.length}">${abiertos.length}</div><div class="hl">Hallazgos abiertos</div><div class="hsub">de ${total} registrados</div></div>
           <div class="hs hs-alert"><div class="hn" data-count="${directasAbiertas.length}">${directasAbiertas.length}</div><div class="hl">Operatividad directa abierta</div><div class="hsub">prioridad máxima</div></div>
         </div>
+        ${parqueTotal ? (()=>{ const con = Math.min(codigosAbiertos.size, parqueTotal), sin = parqueTotal-con, pc = con/parqueTotal*100;
+          return `<div class="park-bar">
+            <div class="pb-top"><b>Estado del parque de grifos</b><span>${(100-pc).toFixed(1).replace('.',',')}% sin hallazgos abiertos</span></div>
+            <div class="pb-track"><i class="ok" style="width:${100-pc}%" title="${sin} grifos sin hallazgos abiertos"></i><i class="bad" style="width:${pc}%" title="${con} grifos con hallazgos abiertos"></i></div>
+            <div class="pb-leg"><span><i class="ok"></i>Sin hallazgos abiertos · <b>${sin}</b></span><span><i class="bad"></i>Con hallazgos abiertos · <b>${con}</b></span></div>
+          </div>`; })() : ''}
         <div class="hero-actions">
           <div class="hero-sector"><label for="filtroSectorSelect">Sector</label>
             <select id="filtroSectorSelect" onchange="cambiarFiltroSectorDashboard(this.value)">
@@ -1798,6 +1856,57 @@ function renderDashboard(){
           <input type="file" id="csvInput" accept=".csv" style="display:none" onchange="handleCSVImport(event)">
         </div>
       </div>
+      <div class="hero-hydrant" aria-hidden="true">
+  <svg viewBox="0 0 270 250" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="hyBody" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#FFE766"/><stop offset=".38" stop-color="#FFC800"/><stop offset="1" stop-color="#D99A00"/></linearGradient>
+      <linearGradient id="hyDark" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#F2B600"/><stop offset="1" stop-color="#B57C00"/></linearGradient>
+      <linearGradient id="hyWater" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#63D1E0" stop-opacity=".25"/><stop offset="1" stop-color="#BFF3FF" stop-opacity=".95"/></linearGradient>
+      <radialGradient id="hyGlow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#FFC800" stop-opacity=".35"/><stop offset="1" stop-color="#FFC800" stop-opacity="0"/></radialGradient>
+    </defs>
+    <circle class="hy-glow" cx="190" cy="135" r="110" fill="url(#hyGlow)"/>
+    <ellipse cx="150" cy="226" rx="128" ry="9" fill="rgba(0,10,40,.45)"/>
+    <!-- chorro de agua (sale por la boca con brida, a la izquierda) -->
+    <g class="hy-jet">
+      <path d="M118 150 C 88 128, 48 140, 22 214" fill="none" stroke="url(#hyWater)" stroke-width="16" stroke-linecap="round" opacity=".32"/>
+      <path d="M118 150 C 88 128, 48 140, 22 214" fill="none" stroke="url(#hyWater)" stroke-width="9" stroke-linecap="round" opacity=".75"/>
+      <path class="hy-flow" d="M118 150 C 88 128, 48 140, 22 214" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-dasharray="7 13"/>
+      <path class="hy-flow hy-flow2" d="M118 146 C 90 125, 52 134, 30 208" fill="none" stroke="#DFF9FF" stroke-width="2" stroke-linecap="round" stroke-dasharray="4 16"/>
+    </g>
+    <g class="hy-drops" fill="#BFF3FF">
+      <circle class="hy-drop d1" cx="60" cy="140" r="3"/><circle class="hy-drop d2" cx="42" cy="168" r="2.6"/><circle class="hy-drop d3" cx="74" cy="132" r="2.2"/>
+      <circle class="hy-drop d4" cx="30" cy="188" r="2.4"/><circle class="hy-drop d5" cx="92" cy="134" r="2"/>
+    </g>
+    <ellipse class="hy-rip r1" cx="22" cy="218" rx="26" ry="5" fill="none" stroke="#BFF3FF" stroke-width="2"/>
+    <ellipse class="hy-rip r2" cx="22" cy="218" rx="26" ry="5" fill="none" stroke="#BFF3FF" stroke-width="2"/>
+    <!-- brida inferior -->
+    <rect x="128" y="204" width="116" height="16" rx="4" fill="url(#hyDark)"/>
+    <g fill="#7A5200"><circle cx="142" cy="212" r="3.2"/><circle cx="166" cy="212" r="3.2"/><circle cx="206" cy="212" r="3.2"/><circle cx="230" cy="212" r="3.2"/></g>
+    <g fill="#FFE98A" opacity=".8"><circle cx="141" cy="211" r="1.1"/><circle cx="165" cy="211" r="1.1"/><circle cx="205" cy="211" r="1.1"/><circle cx="229" cy="211" r="1.1"/></g>
+    <!-- cuerpo -->
+    <rect x="148" y="112" width="76" height="94" rx="12" fill="url(#hyBody)"/>
+    <rect x="142" y="150" width="88" height="11" rx="4" fill="url(#hyDark)"/>
+    <rect x="156" y="118" width="7" height="82" rx="3.5" fill="#fff" opacity=".32"/>
+    <!-- cúpula -->
+    <path d="M146 116 Q186 58 226 116 Z" fill="url(#hyBody)"/>
+    <path d="M160 100 Q172 84 186 80" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".38"/>
+    <rect x="176" y="64" width="20" height="30" rx="4" fill="url(#hyDark)"/>
+    <g class="hy-nut"><polygon points="186,42 198,49 198,62 186,69 174,62 174,49" fill="#FFD21F" stroke="#B57C00" stroke-width="2"/><circle cx="186" cy="55.5" r="3.5" fill="#B57C00"/></g>
+    <!-- boca izquierda con brida (agua) -->
+    <rect x="124" y="128" width="26" height="26" rx="5" fill="url(#hyBody)"/>
+    <rect x="114" y="118" width="12" height="46" rx="3" fill="url(#hyDark)"/>
+    <g fill="#7A5200"><circle cx="120" cy="125" r="2.6"/><circle cx="120" cy="157" r="2.6"/></g>
+    <ellipse cx="113" cy="141" rx="3.2" ry="15" fill="#073B63"/>
+    <!-- boca derecha con tapa roscada (hilo) -->
+    <rect x="222" y="128" width="20" height="26" rx="5" fill="url(#hyBody)"/>
+    <rect x="240" y="122" width="18" height="38" rx="5" fill="url(#hyDark)"/>
+    <g stroke="#8A5E00" stroke-width="1.6" stroke-linecap="round"><path d="M244 127v28"/><path d="M248 126v30"/><path d="M252 126v30"/><path d="M256 128v26"/></g>
+    <rect x="257" y="136" width="5" height="10" rx="2" fill="#B57C00"/>
+    <!-- vapor de presión -->
+    <g fill="#E3F7FF" opacity=".55"><circle class="hy-mist m1" cx="104" cy="136" r="5"/><circle class="hy-mist m2" cx="98" cy="146" r="4"/><circle class="hy-mist m3" cx="108" cy="150" r="3.4"/></g>
+  </svg>
+</div>
+
       <div class="hero-ring" title="${estados.resuelto||0} de ${total} hallazgos resueltos">
         <svg viewBox="0 0 160 160" aria-hidden="true">
           <defs><linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#63D1E0"/><stop offset="1" stop-color="#2F9E78"/></linearGradient></defs>
@@ -1838,6 +1947,7 @@ function renderDashboard(){
           <span><i style="background:${PRIORIDAD_COLOR.directa}"></i>Directa</span>
           <span><i style="background:${PRIORIDAD_COLOR.indirecta}"></i>Indirecta / mec.</span>
           <span><i style="background:${PRIORIDAD_COLOR.senaletica}"></i>Señalética</span>
+          <span class="lg-parque"><i style="background:#2F9E78;border-radius:50%"></i>Grifo sin hallazgos abiertos</span>
           <span style="color:var(--text-soft);font-weight:500">✓ resuelto · clic en un punto para ver la ficha</span>
         </div>
         <aside class="mapa-panel" id="mapaPanel" aria-label="Ficha del grifo"></aside>
@@ -2022,7 +2132,7 @@ function cambiarFiltroSectorDashboard(valor){
 const MAPA_UI = {
   crit:{directa:true, indirecta:true, senaletica:true},
   estado:{pendiente:true, en_proceso:true, resuelto:true},
-  capa:'calles', agrupar:true
+  capa:'calles', agrupar:true, parque:false
 };
 let MAPA_SEL = null;          // id del registro abierto en la ficha lateral
 let MAPA_VISTA = null;        // {center, zoom} de la última vista del usuario
@@ -2079,6 +2189,12 @@ function mapaToolbarHtml(){
       <datalist id="mapaListaCodigos"></datalist>
     </div>
     <div class="mapa-group">
+      <div class="mseg vista" id="mapaSegVista" title="Ver solo los grifos con hallazgos o también el resto del parque">
+        <button type="button" data-v="hallazgos" onclick="mapaSetVista(false)">Con hallazgos</button>
+        <button type="button" data-v="parque" onclick="mapaSetVista(true)">Parque completo</button>
+      </div>
+    </div>
+    <div class="mapa-group">
       <div class="mseg" id="mapaSegCapa">
         <button type="button" data-capa="calles" onclick="mapaSetCapa('calles')">Mapa</button>
         <button type="button" data-capa="satelite" onclick="mapaSetCapa('satelite')">Satélite</button>
@@ -2105,6 +2221,8 @@ function mapaPintarControles(){
     chip('estado','en_proceso','En proceso','#01B3D7',nE.en_proceso,MAPA_UI.estado.en_proceso) +
     chip('estado','resuelto','Resuelto','#2F9E78',nE.resuelto,MAPA_UI.estado.resuelto);
   document.querySelectorAll('#mapaSegCapa button').forEach(b=>b.classList.toggle('on', b.dataset.capa===MAPA_UI.capa));
+  document.querySelectorAll('#mapaSegVista button').forEach(b=>b.classList.toggle('on', (b.dataset.v==='parque')===MAPA_UI.parque));
+  const lgm = document.querySelector('.mapa-legend'); if(lgm) lgm.classList.toggle('con-parque', MAPA_UI.parque);
   const bA = document.getElementById('mapaBtnAgrupar');
   if(bA) bA.classList.toggle('on', MAPA_UI.agrupar);
   const dl = document.getElementById('mapaListaCodigos');
@@ -2183,12 +2301,74 @@ function mapaActualizarMarcadores(){
     mapaGrupo.addLayer(m);
   });
   mapaGrupo.addTo(dashMapInstance);
+  const nParque = mapaActualizarParque();
   const cnt = document.getElementById('mapaConteo');
-  if(cnt) cnt.innerHTML = `Mostrando <b>${visibles.length}</b> de ${todos.length} hallazgos`;
+  if(cnt) cnt.innerHTML = `Mostrando <b>${visibles.length}</b> de ${todos.length} hallazgos` + (MAPA_UI.parque ? ` · <b>${nParque}</b> grifos del parque sin hallazgos abiertos` : '');
   const vac = document.getElementById('mapaVacio');
   if(vac) vac.style.display = (visibles.length===0) ? 'flex' : 'none';
   // si el registro abierto quedó oculto por los filtros, la ficha se mantiene
   // abierta (no se pierde lo que el usuario estaba mirando).
+}
+
+/* ---------- Parque completo: grifos del catastro sin hallazgos abiertos ---------- */
+let mapaParqueLayer = null;
+function mapaSetVista(verParque){
+  MAPA_UI.parque = !!verParque;
+  mapaPintarControles();
+  mapaActualizarMarcadores();
+  if(MAPA_UI.parque && !Object.keys(CATALOGO_GRIFOS||{}).length) toast('El catastro del parque todavía se está cargando…');
+}
+function mapaActualizarParque(){
+  if(!dashMapInstance) return 0;
+  if(mapaParqueLayer){ dashMapInstance.removeLayer(mapaParqueLayer); mapaParqueLayer = null; }
+  if(!MAPA_UI.parque) return 0;
+  const abiertos = new Set(HALLAZGOS.filter(h=>tieneHallazgoReal(h) && h.estado!=='resuelto').map(h=>h.codigo_grifo));
+  const lienzo = L.canvas({padding:.5});
+  mapaParqueLayer = L.layerGroup();
+  let n = 0;
+  Object.keys(CATALOGO_GRIFOS||{}).forEach(cod=>{
+    const g = CATALOGO_GRIFOS[cod];
+    if(!g || typeof g.lat!=='number' || typeof g.lng!=='number') return;
+    if(FILTRO_SECTOR_DASHBOARD!=='todos' && (g.comuna||'')!==FILTRO_SECTOR_DASHBOARD) return;
+    if(abiertos.has(cod)) return;
+    const m = L.circleMarker([g.lat,g.lng], {renderer:lienzo, radius:4.6, color:'#fff', weight:1.4, fillColor:'#2F9E78', fillOpacity:.92});
+    m.bindTooltip(`${escHtml(cod)} · sin hallazgos abiertos`, {direction:'top', offset:[0,-4], className:'gtip'});
+    m.on('click', ()=>mapaFichaParque(cod));
+    mapaParqueLayer.addLayer(m); n++;
+  });
+  mapaParqueLayer.addTo(dashMapInstance);
+  return n;
+}
+function mapaFichaParque(cod){
+  const panel = document.getElementById('mapaPanel'), g = (CATALOGO_GRIFOS||{})[cod];
+  if(!panel || !g) return;
+  if(MAPA_SEL){ const hp = HALLAZGOS.find(x=>x.id===MAPA_SEL); if(hp && mapaMarcadores[MAPA_SEL]) mapaMarcadores[MAPA_SEL].setIcon(mapaIcono(hp,false)); MAPA_SEL = null; }
+  const hist = HALLAZGOS.filter(h=>h.codigo_grifo===cod && tieneHallazgoReal(h));
+  const kv = [];
+  if(g.modelo) kv.push(['Modelo', g.modelo]);
+  if(g.diametro_conexion) kv.push(['Diámetro', `Ø${g.diametro_conexion} mm`]);
+  if(g.ano_instalacion) kv.push(['Instalado', g.ano_instalacion]);
+  if(g.localidad) kv.push(['Localidad', g.localidad]);
+  if(g.comuna) kv.push(['Comuna', g.comuna]);
+  const gps = `https://www.google.com/maps/dir/?api=1&destination=${g.lat},${g.lng}`;
+  panel.innerHTML = `
+    <button type="button" class="mp-close" onclick="mapaCerrarFicha()" aria-label="Cerrar ficha">&times;</button>
+    <div class="mp-body" style="padding-top:34px">
+      <div>
+        <div class="mp-cod">${escHtml(cod)}</div>
+        <div class="mp-sub">${escHtml(g.ubicacion || 'Sin dirección registrada')}${g.comuna?`<br>${escHtml([g.localidad,g.comuna].filter((v,i,a)=>v && a.indexOf(v)===i).join(' · '))}`:''}</div>
+        <div class="mp-badges"><span class="badge resuelto">Sin hallazgos abiertos</span></div>
+      </div>
+      ${kv.length ? `<div class="mp-sec"><h4>Datos del grifo</h4><dl class="mp-kv">${kv.map(([k,v])=>`<dt>${k}</dt><dd>${escHtml(v)}</dd>`).join('')}</dl></div>` : ''}
+      <div class="mp-sec"><h4>Historial de hallazgos (${hist.length})</h4>
+        ${hist.length ? hist.map(x=>{ const cx = criticidadDeRegistro(x);
+          return `<button type="button" class="mp-otro" onclick="mapaSeleccionar('${x.id}')"><i style="background:${PRIORIDAD_COLOR[cx]}"></i>${escHtml(obtenerDetalleHallazgos(x).map(d=>d.tipo_hallazgo).join(', '))} · ${ESTADO_LABEL[x.estado||'pendiente']}</button>`; }).join('')
+          : '<div class="mp-coment">Este grifo no tiene hallazgos registrados.</div>'}
+      </div>
+    </div>
+    <div class="mp-actions"><a class="btn btn-amber btn-sm" href="${gps}" target="_blank" rel="noopener">📍 Cómo llegar</a></div>`;
+  panel.scrollTop = 0;
+  panel.classList.add('open');
 }
 
 function mapaAjustarVista(){
