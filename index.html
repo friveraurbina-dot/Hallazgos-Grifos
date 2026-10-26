@@ -517,6 +517,119 @@ nav.rail .rail-foot{color:#6E88B0;}
   .kpi .num{font-size:27px;}
 }
 
+
+/* ================= TABLERO "PARQUE GRIFOS SACYR" ================= */
+.hero{position:relative;border-radius:22px;padding:28px 32px;color:#fff;overflow:hidden;margin-bottom:18px;
+  background:linear-gradient(118deg,#001640 0%,#002359 42%,#00507f 100%);box-shadow:0 18px 40px rgba(0,35,89,.24);
+  display:grid;grid-template-columns:1fr 190px;gap:26px;align-items:center;}
+.hero::before{content:'';position:absolute;right:-140px;top:-190px;width:520px;height:520px;border-radius:50%;background:radial-gradient(circle,rgba(1,179,215,.42),transparent 66%);pointer-events:none;}
+.hero::after{content:'';position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.09) 1px,transparent 1.4px);background-size:20px 20px;
+  -webkit-mask-image:linear-gradient(100deg,transparent 30%,#000 100%);mask-image:linear-gradient(100deg,transparent 30%,#000 100%);pointer-events:none;}
+.hero>*{position:relative;z-index:1;}
+.hero-eyebrow{font:700 11px 'Montserrat',sans-serif;letter-spacing:.2em;text-transform:uppercase;color:var(--accent-2);}
+.hero h1{color:#fff;font-size:31px;line-height:1.15;margin:8px 0 4px;letter-spacing:-.02em;font-weight:800;}
+.hero-sub{font:600 16px 'Montserrat',sans-serif;color:#BFE9F3;}
+.hero-live{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:rgba(255,255,255,.72);}
+.hero-live .dot{width:8px;height:8px;border-radius:50%;background:#35E0A1;box-shadow:0 0 0 0 rgba(53,224,161,.7);animation:pulso 2s infinite;}
+@keyframes pulso{0%{box-shadow:0 0 0 0 rgba(53,224,161,.6)}70%{box-shadow:0 0 0 9px rgba(53,224,161,0)}100%{box-shadow:0 0 0 0 rgba(53,224,161,0)}}
+.hero-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:20px;}
+.hs{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.16);border-radius:15px;padding:13px 15px;backdrop-filter:blur(4px);}
+.hs .hn{font:800 32px/1 'Montserrat',sans-serif;letter-spacing:-.03em;}
+.hs .hl{font-size:11px;font-weight:600;letter-spacing:.03em;color:rgba(255,255,255,.8);margin-top:7px;line-height:1.25;}
+.hs .hsub{font-size:11px;color:var(--accent-2);margin-top:3px;font-weight:600;}
+.hs-alert{background:rgba(200,51,77,.28);border-color:rgba(255,140,160,.45);}
+.hs-alert .hsub{color:#FFC2CD;}
+.hero-actions{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-top:20px;}
+.hero-sector{display:flex;align-items:center;gap:8px;margin-right:4px;}
+.hero-sector label{font:700 10.5px 'Montserrat',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.75);}
+.hero-sector select{background:rgba(255,255,255,.13);color:#fff;border:1px solid rgba(255,255,255,.32);border-radius:10px;padding:7px 10px;font-size:12.5px;}
+.hero-sector select option{color:#0E2142;background:#fff;}
+.btn-hero{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:8px 13px;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(1,179,215,.35);}
+.btn-hero:hover{background:#12c3e8;}
+.btn-hero-ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:10px;padding:8px 13px;font-size:12px;font-weight:600;cursor:pointer;}
+.btn-hero-ghost:hover{background:rgba(255,255,255,.1);}
+.hero-ring{position:relative;width:190px;height:190px;justify-self:center;}
+.hero-ring svg{width:100%;height:100%;filter:drop-shadow(0 6px 16px rgba(1,179,215,.35));}
+.hero-ring .ring-fg.anim{animation:ringIn 1.2s cubic-bezier(.2,.8,.2,1) both;}
+@keyframes ringIn{from{stroke-dashoffset:var(--c);}}
+.ring-txt{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;}
+.ring-txt .rn{font:800 44px/1 'Montserrat',sans-serif;letter-spacing:-.03em;}
+.ring-txt .rn small{font-size:20px;font-weight:700;margin-left:1px;color:var(--accent-2);}
+.ring-txt .rl{font:700 11px 'Montserrat',sans-serif;letter-spacing:.16em;text-transform:uppercase;color:var(--accent-2);margin-top:4px;}
+.ring-txt .rs{font-size:11px;color:rgba(255,255,255,.7);margin-top:3px;}
+
+.kpi .kbar{height:5px;border-radius:99px;background:#E6EEF5;margin-top:11px;overflow:hidden;}
+.kpi .kbar i{display:block;height:100%;border-radius:99px;}
+.kpi{transition:transform .15s,box-shadow .15s;}
+.kpi:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(0,35,89,.12);}
+
+.pulse-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;}
+.pulse{display:flex;align-items:center;gap:13px;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:13px 15px;box-shadow:0 2px 8px rgba(0,35,89,.05);}
+.pulse .pi{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font:800 18px 'Montserrat',sans-serif;
+  color:var(--c);background:color-mix(in srgb,var(--c) 14%,#fff);flex:none;}
+.pulse .pn{font:800 22px/1.05 'Montserrat',sans-serif;color:var(--ink);letter-spacing:-.02em;}
+.pulse .pn small{font-size:12px;font-weight:600;color:var(--text-soft);}
+.pulse .pl{font-size:11.5px;color:var(--text-soft);margin-top:2px;line-height:1.25;}
+.pulse .pl b{color:var(--ink);font-family:'IBM Plex Mono',monospace;}
+
+.dash-row{display:grid;gap:18px;margin-bottom:18px;}
+.dash-row .panel{margin-bottom:0;}
+.dr-a{grid-template-columns:2fr 1fr;}
+.dr-b{grid-template-columns:1fr 1fr 1.15fr;}
+.dr-c{grid-template-columns:1.35fr 1fr;}
+.leg-est{display:flex;gap:14px;flex-wrap:wrap;margin:2px 0 12px;font-size:11px;color:var(--text-soft);}
+.leg-est i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px;vertical-align:-1px;}
+
+.avance-row{padding:10px 0;cursor:pointer;border-bottom:1px solid #EEF3F8;}
+.avance-row:last-child{border-bottom:0;}
+.avance-row:hover .av-name{color:var(--accent);}
+.av-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:7px;}
+.av-name{display:flex;align-items:center;gap:7px;font-weight:700;font-size:12.5px;color:var(--ink);}
+.av-name i{width:9px;height:9px;border-radius:3px;display:inline-block;}
+.av-pct{font-size:11.5px;color:var(--text-soft);}
+.av-pct b{color:var(--musgo);font-size:13px;}
+.av-bar{display:flex;gap:2px;height:20px;}
+.av-bar .seg{display:flex;align-items:center;justify-content:center;color:#fff;font-size:10.5px;font-weight:700;border-radius:4px;min-width:6px;}
+.av-bar .seg:first-child{border-radius:7px 4px 4px 7px;}.av-bar .seg:last-child{border-radius:4px 7px 7px 4px;}.av-bar .seg:only-child{border-radius:7px;}
+
+.age-cols{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;height:228px;align-items:end;padding-top:6px;}
+.age-col{display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end;}
+.age-n{font:800 20px 'Montserrat',sans-serif;color:var(--ink);margin-bottom:6px;}
+.age-bar{width:100%;max-width:64px;height:150px;display:flex;align-items:flex-end;}
+.age-bar i{display:block;width:100%;border-radius:10px 10px 4px 4px;transition:height .6s cubic-bezier(.2,.8,.2,1);}
+.age-l{font-size:11px;color:var(--text-soft);margin-top:9px;font-weight:600;text-align:center;}
+
+.com-row{display:grid;grid-template-columns:96px 1fr 34px;align-items:center;gap:8px;padding:6px 8px;margin:0 -8px;border-radius:9px;cursor:pointer;}
+.com-row:hover{background:#F2F8FC;}
+.com-row.sel{background:#E6F6FB;box-shadow:inset 3px 0 0 var(--accent);}
+.com-name{font-size:11.5px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.com-track{display:block;background:#F0F5FA;border-radius:7px;height:16px;overflow:hidden;}
+.com-bar{display:flex;gap:2px;height:100%;}
+.com-bar .seg{display:block;border-radius:4px;min-width:4px;}
+.com-n{font:700 12px 'Montserrat',sans-serif;color:var(--ink);text-align:right;}
+
+.atencion .at-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;margin:0 -6px 6px;border:1px solid #F3D3DA;background:#FFF7F9;border-radius:11px;cursor:pointer;transition:transform .12s,box-shadow .12s;}
+.atencion .at-row:hover{transform:translateX(3px);box-shadow:0 6px 16px rgba(200,51,77,.14);}
+.at-main{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;min-width:0;}
+.at-cod{font:700 13px 'IBM Plex Mono',monospace;color:var(--ink);}
+.at-tipo{font-size:12px;color:var(--text);font-weight:600;}
+.at-tipo em{font-style:normal;color:var(--text-soft);font-weight:500;}
+.at-com{font-size:11px;color:var(--text-soft);}
+.at-dias{flex:none;font:800 12px 'Montserrat',sans-serif;padding:4px 9px;border-radius:99px;background:#E6EEF5;color:var(--ink);}
+.at-dias.warn{background:#FDF3E1;color:#8A6109;}.at-dias.crit{background:#C8334D;color:#fff;}
+.at-mas{font-size:11.5px;color:var(--text-soft);text-align:center;margin-top:8px;}
+.at-vacio{padding:26px 10px;text-align:center;color:var(--musgo);font-weight:600;}
+
+@media(max-width:1180px){
+  .hero{grid-template-columns:1fr;}.hero-ring{width:150px;height:150px;order:-1;justify-self:start;}
+  .ring-txt .rn{font-size:34px;}
+  .dr-a,.dr-c{grid-template-columns:1fr;}.dr-b{grid-template-columns:1fr 1fr;}.dr-b .panel:last-child{grid-column:1/-1;}
+}
+@media(max-width:720px){
+  .hero{padding:20px 18px;}.hero h1{font-size:23px;}.hero-stats{grid-template-columns:1fr 1fr;}.hs .hn{font-size:26px;}
+  .pulse-row{grid-template-columns:1fr 1fr;}.pulse{padding:11px;}.pulse .pi{width:34px;height:34px;font-size:15px;}.pulse .pn{font-size:18px;}
+  .dr-b{grid-template-columns:1fr;}.hero-sector{width:100%;}.hero-sector select{flex:1;}
+}
 </style>
 </head>
 <body>
@@ -1320,6 +1433,8 @@ async function cargarCatalogoGrifos(){
     snap.forEach(doc=>{ catalogo[doc.id] = doc.data(); });
     CATALOGO_GRIFOS = catalogo;
     catalogoGrifosListo = true;
+    // El tablero muestra el tamaño del parque: si ya está en pantalla, se actualiza al llegar el catastro.
+    if(currentPage === 'dashboard'){ try{ renderDashboard(); }catch(e){ console.error(e); } }
     // Si el usuario ya estaba en "Nuevo hallazgo" cuando terminó de cargar el
     // catastro (carga en paralelo al render), refresca la lista de sugerencias.
     if(currentPage === 'nuevo'){
@@ -1407,6 +1522,7 @@ function render(){
 // noreste ~ Lampa/Colina norte.
 const ZONA_CONCESION_BOUNDS = [[-33.62, -71.02], [-33.05, -70.48]];
 
+let DASH_ANIMADO = false;
 function renderDashboard(){
   const main = document.getElementById('main');
   const conHallazgo = HALLAZGOS.filter(tieneHallazgoReal);
@@ -1445,38 +1561,123 @@ function renderDashboard(){
   hallazgosSector.forEach(h=>obtenerDetalleHallazgos(h).forEach(d=>{ porTipo[d.tipo_hallazgo] = (porTipo[d.tipo_hallazgo]||0)+1; }));
   const tiposOrd = Object.entries(porTipo).sort((a,b)=>b[1]-a[1]);
 
+  // ---- Indicadores del "Parque de grifos" y pulso operativo ----
+  const DIA_MS = 86400000;
+  const abiertos = hallazgosSector.filter(h=>h.estado!=='resuelto');
+  const codigosAbiertos = new Set(abiertos.map(h=>h.codigo_grifo).filter(Boolean));
+  const catalogoSector = Object.values(CATALOGO_GRIFOS||{}).filter(g=>FILTRO_SECTOR_DASHBOARD==='todos' || (g.comuna||'')===FILTRO_SECTOR_DASHBOARD);
+  const parqueTotal = catalogoSector.length;
+  const pctParque = parqueTotal ? (codigosAbiertos.size/parqueTotal*100) : null;
+  const directasAbiertas = abiertos.filter(h=>criticidadDeRegistro(h)==='directa');
+  const pctResuelto = total ? Math.round((estados.resuelto||0)/total*100) : 0;
+  const fechaResolucion = h=>{
+    if(h.estado!=='resuelto') return null;
+    const cs = Array.isArray(h.comentarios) ? h.comentarios : [];
+    const c = cs.slice().reverse().find(x=>x.estado_nuevo==='resuelto') || cs[cs.length-1];
+    const t = new Date((c && c.fecha) || h.fecha_creacion).getTime();
+    return isNaN(t) ? null : t;
+  };
+  const ahoraMs = Date.now();
+  const nuevos7 = hallazgosSector.filter(h=>ahoraMs - new Date(h.fecha_creacion).getTime() <= 7*DIA_MS).length;
+  const resueltos30 = hallazgosSector.filter(h=>{ const f=fechaResolucion(h); return f && ahoraMs-f <= 30*DIA_MS; }).length;
+  const edades = abiertos.map(h=>diasTranscurridos(h.fecha_creacion));
+  const edadProm = edades.length ? Math.round(edades.reduce((a,b)=>a+b,0)/edades.length) : 0;
+  const masAntiguo = abiertos.slice().sort((a,b)=>new Date(a.fecha_creacion)-new Date(b.fecha_creacion))[0];
+  const horaAct = new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
+
+  // Evolución semanal acumulada: registrados vs resueltos (el espacio entre ambas = abiertos)
+  const semanas = (()=>{
+    const fechas = hallazgosSector.map(h=>new Date(h.fecha_creacion).getTime()).filter(t=>!isNaN(t));
+    if(!fechas.length) return {labels:[],reg:[],res:[]};
+    const lunes = t=>{ const d=new Date(t); d.setHours(0,0,0,0); d.setDate(d.getDate()-((d.getDay()+6)%7)); return d; };
+    let ini = lunes(Math.min.apply(null,fechas)); const hoy = lunes(Date.now());
+    const MAXS = 16;
+    if(Math.round((hoy-ini)/(7*DIA_MS)) > MAXS-1){ ini = new Date(hoy); ini.setDate(ini.getDate()-7*(MAXS-1)); }
+    const labels=[], reg=[], res=[];
+    const fRes = hallazgosSector.map(fechaResolucion);
+    for(let d=new Date(ini); d<=hoy; d.setDate(d.getDate()+7)){
+      const fin = new Date(d); fin.setDate(fin.getDate()+7);
+      labels.push(d.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit'}));
+      reg.push(fechas.filter(t=>t < fin.getTime()).length);
+      res.push(fRes.filter(f=>f && f < fin.getTime()).length);
+    }
+    return {labels, reg, res};
+  })();
+
+  // Avance por criticidad (cruce criticidad × estado)
+  const cruce = {directa:{pendiente:0,en_proceso:0,resuelto:0}, indirecta:{pendiente:0,en_proceso:0,resuelto:0}, senaletica:{pendiente:0,en_proceso:0,resuelto:0}};
+  hallazgosSector.forEach(h=>{ const c=criticidadDeRegistro(h), e=h.estado||'pendiente'; if(cruce[c] && cruce[c][e]!==undefined) cruce[c][e]++; });
+
+  // Antigüedad de los hallazgos abiertos
+  const buckets = [
+    {l:'0–7 días', min:0, max:7, c:'#63D1E0'}, {l:'8–30 días', min:8, max:30, c:'#01B3D7'},
+    {l:'31–90 días', min:31, max:90, c:'#E2A33D'}, {l:'+90 días', min:91, max:1e9, c:'#C8334D'}];
+  buckets.forEach(b=>{ b.n = edades.filter(e=>e>=b.min && e<=b.max).length; });
+  const maxBucket = Math.max(1, ...buckets.map(b=>b.n));
+
+  // Hallazgos por comuna (siempre sobre todo el parque, sirve como navegador de sector)
+  const porComuna = {};
+  conHallazgo.forEach(h=>{ const c=h.comuna||'Sin comuna', k=criticidadDeRegistro(h);
+    (porComuna[c] = porComuna[c] || {directa:0,indirecta:0,senaletica:0,total:0}); porComuna[c][k]++; porComuna[c].total++; });
+  const comunasOrd = Object.entries(porComuna).sort((a,b)=>b[1].total-a[1].total).slice(0,8);
+  const maxComuna = comunasOrd.length ? comunasOrd[0][1].total : 1;
+
+  // Atención inmediata: operatividad directa abierta, los más antiguos primero
+  const atencion = directasAbiertas.slice().sort((a,b)=>new Date(a.fecha_creacion)-new Date(b.fecha_creacion)).slice(0,7);
+  const animarDash = !DASH_ANIMADO; DASH_ANIMADO = true;
+  const RING_C = 2*Math.PI*66;
+
   main.innerHTML = `
   <div class="page">
-    <div class="page-head">
-      <div>
-        <h1>Tablero ejecutivo</h1>
-        <p>Resumen de hallazgos en grifos · Singemelec / Sacyr Aguas</p>
+    <section class="hero">
+      <div class="hero-main">
+        <div class="hero-eyebrow">Tablero ejecutivo</div>
+        <h1>Gestión Sacyr - Parque Grifos Sacyr</h1>
+        <div class="hero-sub">Sacyr - Singemelec</div>
+        <div class="hero-live"><span class="dot"></span>Datos en tiempo real · actualizado ${horaAct}${FILTRO_SECTOR_DASHBOARD!=='todos' ? ` · Sector: ${escHtml(FILTRO_SECTOR_DASHBOARD)}` : ''}</div>
+        <div class="hero-stats">
+          <div class="hs"><div class="hn" ${parqueTotal?`data-count="${parqueTotal}"`:''}>${parqueTotal||'—'}</div><div class="hl">Grifos en el parque</div></div>
+          <div class="hs"><div class="hn" data-count="${codigosAbiertos.size}">${codigosAbiertos.size}</div><div class="hl">Grifos con hallazgos abiertos</div>${pctParque!==null?`<div class="hsub">${pctParque.toFixed(1).replace('.',',')}% del parque</div>`:''}</div>
+          <div class="hs"><div class="hn" data-count="${abiertos.length}">${abiertos.length}</div><div class="hl">Hallazgos abiertos</div><div class="hsub">de ${total} registrados</div></div>
+          <div class="hs hs-alert"><div class="hn" data-count="${directasAbiertas.length}">${directasAbiertas.length}</div><div class="hl">Operatividad directa abierta</div><div class="hsub">prioridad máxima</div></div>
+        </div>
+        <div class="hero-actions">
+          <div class="hero-sector"><label for="filtroSectorSelect">Sector</label>
+            <select id="filtroSectorSelect" onchange="cambiarFiltroSectorDashboard(this.value)">
+              <option value="todos" ${FILTRO_SECTOR_DASHBOARD==='todos'?'selected':''}>Todos los sectores (${conHallazgo.length})</option>
+              ${sectores.map(s=>`<option value="${s}" ${FILTRO_SECTOR_DASHBOARD===s?'selected':''}>${s} (${conHallazgo.filter(h=>h.comuna===s).length})</option>`).join('')}
+            </select></div>
+          <button class="btn btn-hero" onclick="descargarReporteEjecutivo()">📄 Reporte ejecutivo (HTML)</button>
+          <button class="btn btn-hero" onclick="imprimirReportePDF()">🖨️ Reporte ejecutivo (PDF)</button>
+          <button class="btn btn-hero-ghost" onclick="document.getElementById('csvInput').click()">⬆ Importar base de grifos (CSV)</button>
+          <input type="file" id="csvInput" accept=".csv" style="display:none" onchange="handleCSVImport(event)">
+        </div>
       </div>
-      <div>
-        <button class="btn btn-amber btn-sm" onclick="descargarReporteEjecutivo()">📄 Reporte ejecutivo (HTML)</button>
-        <button class="btn btn-amber btn-sm" onclick="imprimirReportePDF()">🖨️ Reporte ejecutivo (PDF)</button>
-        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('csvInput').click()">⬆ Importar base de grifos (CSV)</button>
-        <input type="file" id="csvInput" accept=".csv" style="display:none" onchange="handleCSVImport(event)">
+      <div class="hero-ring" title="${estados.resuelto||0} de ${total} hallazgos resueltos">
+        <svg viewBox="0 0 160 160" aria-hidden="true">
+          <defs><linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#63D1E0"/><stop offset="1" stop-color="#2F9E78"/></linearGradient></defs>
+          <circle cx="80" cy="80" r="66" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="13"/>
+          <circle class="ring-fg ${animarDash?'anim':''}" cx="80" cy="80" r="66" fill="none" stroke="url(#ringGrad)" stroke-width="13" stroke-linecap="round"
+            stroke-dasharray="${RING_C.toFixed(2)}" stroke-dashoffset="${(RING_C*(1-pctResuelto/100)).toFixed(2)}" transform="rotate(-90 80 80)" style="--c:${RING_C.toFixed(2)}"/>
+        </svg>
+        <div class="ring-txt"><div class="rn"><span data-count="${pctResuelto}">${pctResuelto}</span><small>%</small></div><div class="rl">resuelto</div><div class="rs">${estados.resuelto||0} de ${total}</div></div>
       </div>
-    </div>
-
-    <div class="list-filters">
-      <div class="filter-group">
-        <label for="filtroSectorSelect">Sector</label>
-        <select id="filtroSectorSelect" onchange="cambiarFiltroSectorDashboard(this.value)">
-          <option value="todos" ${FILTRO_SECTOR_DASHBOARD==='todos'?'selected':''}>Todos los sectores (${conHallazgo.length})</option>
-          ${sectores.map(s=>`<option value="${s}" ${FILTRO_SECTOR_DASHBOARD===s?'selected':''}>${s} (${conHallazgo.filter(h=>h.comuna===s).length})</option>`).join('')}
-        </select>
-      </div>
-    </div>
+    </section>
 
     <div class="kpi-row">
-      <div class="kpi"><div class="tab" style="background:var(--ink)"></div><div class="num">${total}</div><div class="lbl">Hallazgos totales</div></div>
-      <div class="kpi"><div class="tab" style="background:var(--hidrante)"></div><div class="num">${counts.directa||0}</div><div class="lbl">Operatividad directa</div></div>
-      <div class="kpi"><div class="tab" style="background:var(--senal)"></div><div class="num">${counts.indirecta||0}</div><div class="lbl">Operatividad indirecta/mec.</div></div>
-      <div class="kpi"><div class="tab" style="background:var(--tuberia)"></div><div class="num">${counts.senaletica||0}</div><div class="lbl">Señalética/visibilidad</div></div>
-      <div class="kpi"><div class="tab" style="background:var(--musgo)"></div><div class="num">${estados.resuelto||0}</div><div class="lbl">Resueltos</div><div class="sub">${total ? Math.round((estados.resuelto||0)*100/total) : 0}% del total</div></div>
+      <div class="kpi"><div class="tab" style="background:var(--ink)"></div><div class="num">${total}</div><div class="lbl">Hallazgos totales</div><div class="kbar"><i style="width:100%;background:var(--ink)"></i></div></div>
+      <div class="kpi"><div class="tab" style="background:var(--hidrante)"></div><div class="num">${counts.directa||0}</div><div class="lbl">Operatividad directa</div><div class="kbar"><i style="width:${total?(counts.directa||0)/total*100:0}%;background:${PRIORIDAD_COLOR.directa}"></i></div></div>
+      <div class="kpi"><div class="tab" style="background:var(--senal)"></div><div class="num">${counts.indirecta||0}</div><div class="lbl">Operatividad indirecta/mec.</div><div class="kbar"><i style="width:${total?(counts.indirecta||0)/total*100:0}%;background:${PRIORIDAD_COLOR.indirecta}"></i></div></div>
+      <div class="kpi"><div class="tab" style="background:var(--tuberia)"></div><div class="num">${counts.senaletica||0}</div><div class="lbl">Señalética/visibilidad</div><div class="kbar"><i style="width:${total?(counts.senaletica||0)/total*100:0}%;background:${PRIORIDAD_COLOR.senaletica}"></i></div></div>
+      <div class="kpi"><div class="tab" style="background:var(--musgo)"></div><div class="num">${estados.resuelto||0}</div><div class="lbl">Resueltos</div><div class="kbar"><i style="width:${pctResuelto}%;background:var(--musgo)"></i></div><div class="sub">${pctResuelto}% del total</div></div>
       <div class="kpi"><div class="tab" style="background:var(--acero,#5a7d9a)"></div><div class="num">${totalInspecciones}</div><div class="lbl">Inspecciones registradas</div></div>
+    </div>
+
+    <div class="pulse-row">
+      <div class="pulse"><div class="pi" style="--c:#01B3D7">+</div><div><div class="pn">${nuevos7}</div><div class="pl">Nuevos últimos 7 días</div></div></div>
+      <div class="pulse"><div class="pi" style="--c:#2F9E78">✓</div><div><div class="pn">${resueltos30}</div><div class="pl">Resueltos últimos 30 días</div></div></div>
+      <div class="pulse"><div class="pi" style="--c:#E2A33D">⏱</div><div><div class="pn">${edadProm} <small>días</small></div><div class="pl">Antigüedad promedio de abiertos</div></div></div>
+      <div class="pulse"><div class="pi" style="--c:#C8334D">!</div><div><div class="pn">${masAntiguo ? diasTranscurridos(masAntiguo.fecha_creacion) : 0} <small>días</small></div><div class="pl">Abierto más antiguo${masAntiguo && masAntiguo.codigo_grifo ? ` · <b>${escHtml(masAntiguo.codigo_grifo)}</b>` : ''}</div></div></div>
     </div>
 
     <div class="panel mapa-card">
@@ -1498,21 +1699,72 @@ function renderDashboard(){
       </div>
     </div>
 
-    <div class="charts-row">
+    <div class="dash-row dr-a">
+      <div class="panel">
+        <h3>Evolución semanal</h3>
+        <div class="chart-hint">Hallazgos registrados y resueltos (acumulado) · la zona sombreada son los hallazgos abiertos</div>
+        <div class="chart-wrap" style="height:262px"><canvas id="chartEvolucion"></canvas></div>
+      </div>
       <div class="panel">
         <h3>Hallazgos por criticidad</h3>
         <div class="chart-hint">Clic en una porción para ver esos hallazgos</div>
-        <div class="chart-wrap" style="height:226px"><canvas id="chartPrioridad"></canvas></div>
+        <div class="chart-wrap" style="height:262px"><canvas id="chartPrioridad"></canvas></div>
+      </div>
+    </div>
+
+    <div class="dash-row dr-b">
+      <div class="panel">
+        <h3>Avance por criticidad</h3>
+        <div class="chart-hint">Cómo va la resolución dentro de cada nivel</div>
+        <div class="leg-est"><span><i style="background:#9FB0C6"></i>Pendiente</span><span><i style="background:#01B3D7"></i>En proceso</span><span><i style="background:#2F9E78"></i>Resuelto</span></div>
+        ${['directa','indirecta','senaletica'].map(k=>{
+          const c = cruce[k], t = c.pendiente+c.en_proceso+c.resuelto, pr = t ? Math.round(c.resuelto/t*100) : 0;
+          const seg = (n,col,lbl)=> n ? `<span class="seg" style="flex:${n};background:${col}" title="${lbl}: ${n}">${n>=3?n:''}</span>` : '';
+          return `<div class="avance-row" onclick="irAListaConFiltro('prioridad','${k}')" title="Ver hallazgos de ${PRIORIDAD_LABEL[k]}">
+            <div class="av-top"><span class="av-name"><i style="background:${PRIORIDAD_COLOR[k]}"></i>${PRIORIDAD_LABEL[k]}</span><span class="av-pct"><b>${pr}%</b> resuelto · ${t}</span></div>
+            <div class="av-bar">${t ? seg(c.pendiente,'#9FB0C6','Pendiente')+seg(c.en_proceso,'#01B3D7','En proceso')+seg(c.resuelto,'#2F9E78','Resuelto') : '<span class="seg" style="flex:1;background:#E6EEF5"></span>'}</div>
+          </div>`; }).join('')}
       </div>
       <div class="panel">
-        <h3>Avance de resolución</h3>
-        <div class="chart-hint">Pendiente · en proceso · resuelto</div>
-        <div class="chart-wrap" style="height:226px"><canvas id="chartEstado"></canvas></div>
+        <h3>Antigüedad de hallazgos abiertos</h3>
+        <div class="chart-hint">Días transcurridos desde que se registraron</div>
+        <div class="age-cols">
+          ${buckets.map(b=>`<div class="age-col" title="${b.l}: ${b.n} hallazgo${b.n===1?'':'s'}">
+            <div class="age-n">${b.n}</div>
+            <div class="age-bar"><i style="height:${Math.max(b.n? 6:2, b.n/maxBucket*100)}%;background:${b.c}"></i></div>
+            <div class="age-l">${b.l}</div></div>`).join('')}
+        </div>
       </div>
-      <div class="panel panel-wide">
+      <div class="panel">
+        <h3>Hallazgos por comuna</h3>
+        <div class="chart-hint">Clic en una comuna para filtrar todo el tablero</div>
+        <div class="leg-est"><span><i style="background:${PRIORIDAD_COLOR.directa}"></i>Directa</span><span><i style="background:${PRIORIDAD_COLOR.indirecta}"></i>Indirecta</span><span><i style="background:${PRIORIDAD_COLOR.senaletica}"></i>Señalética</span></div>
+        ${comunasOrd.length ? comunasOrd.map(([nom,c])=>{
+          const sg = (n,k)=> n ? `<span class="seg" style="flex:${n};background:${PRIORIDAD_COLOR[k]}" title="${PRIORIDAD_LABEL[k]}: ${n}"></span>` : '';
+          const sel = FILTRO_SECTOR_DASHBOARD===nom;
+          return `<div class="com-row ${sel?'sel':''}" onclick="cambiarFiltroSectorDashboard(${sel?"'todos'":JSON.stringify(nom).replace(/"/g,'&quot;')})" title="${escHtml(nom)}: ${c.total} hallazgos">
+            <span class="com-name">${escHtml(nom)}</span>
+            <span class="com-track"><span class="com-bar" style="width:${c.total/maxComuna*100}%">${sg(c.directa,'directa')}${sg(c.indirecta,'indirecta')}${sg(c.senaletica,'senaletica')}</span></span>
+            <span class="com-n">${c.total}</span></div>`; }).join('') : '<p class="sub">Sin datos.</p>'}
+      </div>
+    </div>
+
+    <div class="dash-row dr-c">
+      <div class="panel">
         <h3>Hallazgos por tipo</h3>
         <div class="chart-hint">Clic en una barra para filtrar la lista por ese hallazgo</div>
-        <div class="chart-wrap" style="height:226px"><div style="position:relative;height:${Math.max(226, tiposOrd.length*30)}px"><canvas id="chartTipos"></canvas></div></div>
+        <div class="chart-wrap" style="height:300px;overflow-y:auto"><div style="position:relative;height:${Math.max(290, tiposOrd.length*30)}px"><canvas id="chartTipos"></canvas></div></div>
+      </div>
+      <div class="panel atencion">
+        <h3>Atención inmediata</h3>
+        <div class="chart-hint">Operatividad directa abierta · los más antiguos primero · clic para verlo en el mapa</div>
+        ${atencion.length ? atencion.map(h=>{
+          const nombres = obtenerDetalleHallazgos(h).map(d=>d.tipo_hallazgo), dias = diasTranscurridos(h.fecha_creacion);
+          return `<div class="at-row" onclick="verEnMapaDesdeLista('${h.id}')">
+            <div class="at-main"><span class="at-cod">${escHtml(h.codigo_grifo||'—')}</span><span class="at-tipo">${escHtml(nombres[0]||'Hallazgo')}${nombres.length>1?` <em>+${nombres.length-1}</em>`:''}</span><span class="at-com">${escHtml(h.comuna||'')}</span></div>
+            <span class="at-dias ${dias>90?'crit':dias>30?'warn':''}">${dias} d</span></div>`; }).join('')
+          + (directasAbiertas.length>atencion.length ? `<div class="at-mas">y ${directasAbiertas.length-atencion.length} más en la tabla de abajo</div>` : '')
+          : '<div class="at-vacio">✅ No hay hallazgos de operatividad directa abiertos.</div>'}
       </div>
     </div>
 
@@ -1564,12 +1816,17 @@ function renderDashboard(){
       onHover:(e,els)=>{ e.native.target.style.cursor = els.length ? 'pointer' : 'default'; }},
     plugins:[centroTotal]
   });
-  dashChart2 = new Chart(document.getElementById('chartEstado'), {
-    type:'bar',
-    data:{labels:['Pendiente','En proceso','Resuelto'],
-      datasets:[{data:[estados.pendiente||0,estados.en_proceso||0,estados.resuelto||0],
-      backgroundColor:['#9FB0C6','#01B3D7','#2F9E78'],borderRadius:8,maxBarThickness:54}]},
-    options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0},grid:{color:'#E6EEF5'}},x:{grid:{display:false}}},maintainAspectRatio:false}
+  dashChart2 = new Chart(document.getElementById('chartEvolucion'), {
+    type:'line',
+    data:{labels:semanas.labels,
+      datasets:[
+        {label:'Registrados (acum.)', data:semanas.reg, borderColor:'#002359', backgroundColor:'rgba(1,179,215,.16)', fill:'+1', borderWidth:2.5, tension:.3, pointRadius:3, pointHoverRadius:6, pointBackgroundColor:'#fff', pointBorderColor:'#002359', pointBorderWidth:2},
+        {label:'Resueltos (acum.)', data:semanas.res, borderColor:'#2F9E78', backgroundColor:'transparent', fill:false, borderWidth:2.5, tension:.3, pointRadius:3, pointHoverRadius:6, pointBackgroundColor:'#fff', pointBorderColor:'#2F9E78', pointBorderWidth:2}
+      ]},
+    options:{maintainAspectRatio:false, interaction:{mode:'index', intersect:false},
+      plugins:{legend:{position:'bottom',labels:{font:{size:11},usePointStyle:true,boxWidth:8}},
+        tooltip:{callbacks:{title:it=>'Semana del '+it[0].label, afterBody:it=>{ const i=it[0].dataIndex; return 'Abiertos: '+(semanas.reg[i]-semanas.res[i]); }}}},
+      scales:{y:{beginAtZero:true,ticks:{precision:0},grid:{color:'#E6EEF5'}},x:{grid:{display:false},ticks:{maxRotation:0,autoSkip:true,maxTicksLimit:10}}}}
   });
   dashChart3 = new Chart(document.getElementById('chartTipos'), {
     type:'bar',
@@ -1586,6 +1843,22 @@ function renderDashboard(){
       c.restore();
     }}]
   });
+  if(animarDash) animarContadores(main);
+}
+
+function animarContadores(root){
+  if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  root.querySelectorAll('[data-count]').forEach(el=>{
+    const fin = parseFloat(el.dataset.count); if(isNaN(fin)) return;
+    const t0 = performance.now(), dur = 900;
+    const paso = t=>{ const p = Math.min(1,(t-t0)/dur), e = 1-Math.pow(1-p,3); el.textContent = String(Math.round(fin*e)); if(p<1) requestAnimationFrame(paso); else el.textContent = String(fin); };
+    requestAnimationFrame(paso);
+  });
+}
+function verEnMapaDesdeLista(id){
+  const el = document.querySelector('.mapa-card');
+  if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
+  setTimeout(()=>mapaSeleccionar(id), 300);
 }
 
 function cambiarFiltroSectorDashboard(valor){
@@ -1713,7 +1986,7 @@ function mapaAplicarCapa(){
     mapaEtiquetas = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {maxZoom:19, opacity:.9});
     mapaBase.addTo(dashMapInstance); mapaEtiquetas.addTo(dashMapInstance);
   } else {
-    mapaBase = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {subdomains:'abcd', maxZoom:19, attribution:'© OpenStreetMap · © CARTO'});
+    mapaBase = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'© OpenStreetMap'});
     mapaBase.addTo(dashMapInstance);
   }
   if(mapaBase.bringToBack) mapaBase.bringToBack();
