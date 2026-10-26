@@ -621,8 +621,6 @@ nav.rail .rail-foot{color:#6E88B0;}
 .at-vacio{padding:26px 10px;text-align:center;color:var(--musgo);font-weight:600;}
 
 @media(max-width:1180px){
-  .hero{grid-template-columns:1fr;}.hero-ring{width:150px;height:150px;order:-1;justify-self:start;}
-  .ring-txt .rn{font-size:34px;}
   .dr-a,.dr-c{grid-template-columns:1fr;}.dr-b{grid-template-columns:1fr 1fr;}.dr-b .panel:last-child{grid-column:1/-1;}
 }
 @media(max-width:720px){
@@ -724,28 +722,49 @@ main{padding:20px 22px 56px;}
 .mapa-stage{height:max(640px,68vh);}
 @media(max-width:720px){ main{padding:14px 12px 50px;} .mapa-stage{height:calc(100vh - 170px);} }
 
-.hero{grid-template-columns:1fr 292px 190px;gap:18px;}
-.hero-hydrant{position:relative;align-self:end;margin:-10px 0 -18px;}
-.hero-hydrant svg{width:100%;height:auto;display:block;overflow:visible;filter:drop-shadow(0 10px 18px rgba(0,0,0,.28));}
-.hy-glow{animation:hyGlow 3.2s ease-in-out infinite;transform-origin:190px 135px;}
-@keyframes hyGlow{0%,100%{opacity:.65;transform:scale(.96)}50%{opacity:1;transform:scale(1.04)}}
-.hy-flow{animation:hyFlow .65s linear infinite;}
-.hy-flow2{animation-duration:.9s;}
+.hero{grid-template-columns:1fr 336px 190px;gap:18px;}
+.hero-hydrant{position:relative;align-self:end;margin:-6px 0 -20px;}
+.hero-hydrant svg{width:100%;height:auto;display:block;overflow:visible;filter:drop-shadow(0 12px 20px rgba(0,0,0,.3));}
+.hero-hydrant .hy-glow{transform-box:view-box;transform-origin:150px 200px;animation:hyGlow 3.4s ease-in-out infinite;}
+@keyframes hyGlow{0%,100%{opacity:.6;transform:scale(.95)}50%{opacity:1;transform:scale(1.05)}}
+/* El operador gira la llave: abre (giro antihorario), sale el agua, y luego cierra. */
+.op-crank{transform-box:view-box;transform-origin:140px 150px;animation:opCrank 12s ease-in-out infinite;}
+@keyframes opCrank{
+  0%,6%{transform:rotate(0deg)}
+  9%{transform:rotate(-9deg)}12%{transform:rotate(-2deg)}
+  15%{transform:rotate(-10deg)}18%{transform:rotate(-3deg)}
+  21%{transform:rotate(-9deg)}24%,60%{transform:rotate(0deg)}
+  63%{transform:rotate(9deg)}66%{transform:rotate(2deg)}
+  69%{transform:rotate(10deg)}72%{transform:rotate(3deg)}
+  75%{transform:rotate(9deg)}78%,100%{transform:rotate(0deg)}
+}
+.op-body{transform-box:view-box;transform-origin:259px 272px;animation:opBob 12s ease-in-out infinite;}
+@keyframes opBob{0%,6%{transform:translateY(0)}12%{transform:translateY(2.5px)}18%{transform:translateY(0)}24%,60%{transform:translateY(0)}66%{transform:translateY(2.5px)}72%,100%{transform:translateY(0)}}
+.hero-hydrant .hy-jet{animation:hyJetWin 12s linear infinite;}
+@keyframes hyJetWin{0%,17%{opacity:0}22%,70%{opacity:1}79%,100%{opacity:0}}
+.hy-jetline{animation:hyJet 12s linear infinite;}
+@keyframes hyJet{0%,18%{stroke-dashoffset:100}32%,66%{stroke-dashoffset:0}80%,100%{stroke-dashoffset:100}}
+.hy-streak{animation:hyStreakWin 12s linear infinite,hyFlow .55s linear infinite;}
+@keyframes hyStreakWin{0%,22%{opacity:0}34%,64%{opacity:.95}76%,100%{opacity:0}}
 @keyframes hyFlow{to{stroke-dashoffset:-20}}
-.hy-jet{animation:hyJet 1.6s ease-in-out infinite;transform-origin:118px 150px;}
-@keyframes hyJet{0%,100%{opacity:.92}50%{opacity:1}}
-.hy-drop{animation:hyDrop 1.2s cubic-bezier(.5,0,.9,.6) infinite;opacity:0;}
-.hy-drop.d2{animation-delay:.25s}.hy-drop.d3{animation-delay:.5s}.hy-drop.d4{animation-delay:.75s}.hy-drop.d5{animation-delay:.95s}
-@keyframes hyDrop{0%{opacity:0;transform:translate(0,-6px)}15%{opacity:.95}100%{opacity:0;transform:translate(-8px,34px)}}
-.hy-rip{transform-box:fill-box;transform-origin:center;animation:hyRip 1.8s ease-out infinite;opacity:0;}
-.hy-rip.r2{animation-delay:.9s}
-@keyframes hyRip{0%{opacity:.9;transform:scale(.2)}100%{opacity:0;transform:scale(1.5)}}
-.hy-nut{transform-box:fill-box;transform-origin:center;animation:hyNut 2.6s ease-in-out infinite;}
-@keyframes hyNut{0%,100%{transform:rotate(-14deg)}50%{transform:rotate(14deg)}}
-.hy-mist{animation:hyMist 1.4s ease-out infinite;opacity:0;}
-.hy-mist.m2{animation-delay:.4s}.hy-mist.m3{animation-delay:.8s}
-@keyframes hyMist{0%{opacity:.7;transform:translate(0,0) scale(.6)}100%{opacity:0;transform:translate(-14px,-10px) scale(1.6)}}
-@media(prefers-reduced-motion:reduce){ .hero-hydrant *{animation:none !important;} .hy-drop,.hy-mist,.hy-rip{opacity:0;} }
+.hy-flowwin{animation:hyWin 12s linear infinite;}
+@keyframes hyWin{0%,24%{opacity:0}36%,64%{opacity:1}78%,100%{opacity:0}}
+.hy-drop{animation:hyDrop 1.1s cubic-bezier(.45,0,.9,.6) infinite;}
+.hy-drop.d2{animation-delay:.28s}.hy-drop.d3{animation-delay:.55s}.hy-drop.d4{animation-delay:.82s}
+@keyframes hyDrop{0%{opacity:0;transform:translate(0,-4px)}18%{opacity:.95}100%{opacity:0;transform:translate(-9px,30px)}}
+.hy-rip{transform-box:fill-box;transform-origin:center;animation:hyRip 1.9s ease-out infinite;opacity:0;}
+.hy-rip.r2{animation-delay:.95s}
+@keyframes hyRip{0%{opacity:.85;transform:scale(.25)}100%{opacity:0;transform:scale(1.45)}}
+.hy-mist{animation:hyMist 1.5s ease-out infinite;opacity:0;}
+.hy-mist.m2{animation-delay:.45s}.hy-mist.m3{animation-delay:.9s}
+@keyframes hyMist{0%{opacity:.7;transform:translate(0,0) scale(.6)}100%{opacity:0;transform:translate(-15px,-11px) scale(1.7)}}
+.gauge-needle{transform-box:view-box;transform-origin:198px 206px;animation:hyGauge 12s ease-in-out infinite;}
+@keyframes hyGauge{
+  0%,20%{transform:rotate(-120deg)}
+  34%{transform:rotate(28deg)}40%{transform:rotate(17deg)}48%{transform:rotate(26deg)}
+  56%{transform:rotate(20deg)}64%{transform:rotate(24deg)}76%,100%{transform:rotate(-120deg)}
+}
+@media(prefers-reduced-motion:reduce){ .hero-hydrant *{animation:none !important;} .hy-flowwin,.hy-streak{opacity:0;} .hy-jetline{stroke-dashoffset:100;} }
 
 .park-bar{margin-top:14px;max-width:760px;}
 .pb-top{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:rgba(255,255,255,.85);margin-bottom:7px;}
@@ -762,9 +781,10 @@ main{padding:20px 22px 56px;}
 .mapa-legend .lg-parque{display:none;}
 .mapa-legend.con-parque .lg-parque{display:inline-flex;}
 .mseg.vista button.on{background:#0E7C5A;}
-@media(max-width:1280px){ .hero{grid-template-columns:1fr 230px 160px;} .hero-ring{width:160px;height:160px;} .ring-txt .rn{font-size:36px;} }
-@media(max-width:1100px){ .hero{grid-template-columns:1fr 190px;} .hero-ring{display:none;} }
-@media(max-width:820px){ .hero{grid-template-columns:1fr;} .hero-hydrant{display:none;} .hero-ring{display:block;} }
+/* Con poco ancho, la escena del grifo se oculta para que el texto y los indicadores respiren. */
+@media(max-width:1460px){ .hero{grid-template-columns:1fr 190px;} .hero-hydrant{display:none;} }
+@media(max-width:1000px){ .hero{grid-template-columns:1fr 155px;} .hero-ring{width:155px;height:155px;} .ring-txt .rn{font-size:34px;} }
+@media(max-width:760px){ .hero{grid-template-columns:1fr;} .hero-ring{order:-1;justify-self:start;} }
 
 /* Los formularios se mantienen en un ancho cómodo de lectura; el resto de las páginas usa todo el ancho. */
 main[data-page="nuevo"] .page,main[data-page="inspecciones"] .page{max-width:1240px;}
@@ -1857,53 +1877,109 @@ function renderDashboard(){
         </div>
       </div>
       <div class="hero-hydrant" aria-hidden="true">
-  <svg viewBox="0 0 270 250" xmlns="http://www.w3.org/2000/svg">
+  <svg viewBox="0 0 360 300" xmlns="http://www.w3.org/2000/svg">
     <defs>
-      <linearGradient id="hyBody" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#FFE766"/><stop offset=".38" stop-color="#FFC800"/><stop offset="1" stop-color="#D99A00"/></linearGradient>
-      <linearGradient id="hyDark" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#F2B600"/><stop offset="1" stop-color="#B57C00"/></linearGradient>
-      <linearGradient id="hyWater" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#63D1E0" stop-opacity=".25"/><stop offset="1" stop-color="#BFF3FF" stop-opacity=".95"/></linearGradient>
-      <radialGradient id="hyGlow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#FFC800" stop-opacity=".35"/><stop offset="1" stop-color="#FFC800" stop-opacity="0"/></radialGradient>
+      <linearGradient id="hyB" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#C08700"/><stop offset=".2" stop-color="#FFD21F"/><stop offset=".46" stop-color="#FFEB92"/><stop offset=".74" stop-color="#F2B000"/><stop offset="1" stop-color="#9E6800"/></linearGradient>
+      <linearGradient id="hyD" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9E6800"/><stop offset=".38" stop-color="#E8AF00"/><stop offset="1" stop-color="#825400"/></linearGradient>
+      <linearGradient id="hyBr" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7E5C28"/><stop offset=".36" stop-color="#DCB87C"/><stop offset="1" stop-color="#6E4F22"/></linearGradient>
+      <linearGradient id="hyW" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8FDFF0" stop-opacity=".85"/><stop offset="1" stop-color="#EAFCFF" stop-opacity=".95"/></linearGradient>
+      <linearGradient id="opV" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#BC410A"/><stop offset=".42" stop-color="#FF6E1E"/><stop offset="1" stop-color="#CC4A0B"/></linearGradient>
+      <radialGradient id="hyGl" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#FFC800" stop-opacity=".30"/><stop offset="1" stop-color="#FFC800" stop-opacity="0"/></radialGradient>
     </defs>
-    <circle class="hy-glow" cx="190" cy="135" r="110" fill="url(#hyGlow)"/>
-    <ellipse cx="150" cy="226" rx="128" ry="9" fill="rgba(0,10,40,.45)"/>
-    <!-- chorro de agua (sale por la boca con brida, a la izquierda) -->
+
+    <circle class="hy-glow" cx="150" cy="200" r="124" fill="url(#hyGl)"/>
+    <ellipse cx="168" cy="278" rx="152" ry="11" fill="rgba(0,12,42,.42)"/>
+
+    <!-- ================= GRIFO: brida, hilo e instrumento de medición ================= -->
+    <g class="hy">
+      <rect x="112" y="264" width="57" height="12" rx="3" fill="url(#hyD)"/>
+      <g fill="#6E4A00"><circle cx="121" cy="270" r="2.6"/><circle cx="140" cy="270" r="2.6"/><circle cx="160" cy="270" r="2.6"/></g>
+      <path d="M117 264l6-22h34l6 22z" fill="url(#hyB)"/>
+      <rect x="118" y="236" width="44" height="7" rx="3" fill="url(#hyD)"/>
+      <rect x="124" y="214" width="32" height="23" fill="url(#hyB)"/>
+      <rect x="117" y="208" width="46" height="8" rx="3.5" fill="url(#hyD)"/>
+      <rect x="127" y="184" width="26" height="25" fill="url(#hyB)"/>
+      <rect x="123" y="179" width="34" height="7" rx="3" fill="url(#hyD)"/>
+      <path d="M125 181q15-33 30 0z" fill="url(#hyB)"/>
+      <g stroke="#C08700" stroke-width="1.2" opacity=".55"><path d="M133 180v-10"/><path d="M140 180v-13"/><path d="M147 180v-10"/></g>
+      <rect x="134" y="154" width="12" height="16" rx="3" fill="url(#hyD)"/>
+      <polygon points="140,141 149,146 149,156 140,161 131,156 131,146" fill="#FFD21F" stroke="#9E6800" stroke-width="1.8"/>
+      <rect x="129" y="187" width="5" height="20" fill="#fff" opacity=".3"/>
+      <rect x="107" y="192" width="21" height="19" rx="4" fill="url(#hyB)"/>
+      <rect x="99" y="186" width="9" height="31" rx="3" fill="url(#hyD)"/>
+      <g fill="#6E4A00"><circle cx="103.5" cy="191" r="2.1"/><circle cx="103.5" cy="212" r="2.1"/></g>
+      <ellipse cx="99" cy="201" rx="3.2" ry="10" fill="#0A3351"/>
+      <rect x="152" y="192" width="18" height="19" rx="4" fill="url(#hyB)"/>
+      <rect x="169" y="189" width="15" height="25" rx="4" fill="url(#hyBr)"/>
+      <g stroke="#5E4218" stroke-width="1.4" stroke-linecap="round" opacity=".8"><path d="M172 192v19"/><path d="M176 191v21"/><path d="M180 192v19"/></g>
+      <rect x="183" y="198" width="7" height="8" rx="2" fill="url(#hyBr)"/>
+      <g class="hy-gauge">
+        <circle cx="198" cy="206" r="13.5" fill="url(#hyBr)"/>
+        <circle cx="198" cy="206" r="10.5" fill="#F4F9FD"/>
+        <g stroke="#8CA0B8" stroke-width="1.2" stroke-linecap="round"><path d="M191 200l1.6 1.6"/><path d="M198 197v2.2"/><path d="M205 200l-1.6 1.6"/></g>
+        <line class="gauge-needle" x1="198" y1="206" x2="198" y2="197.5" stroke="#C8334D" stroke-width="2.3" stroke-linecap="round"/>
+        <circle cx="198" cy="206" r="2.1" fill="#33557F"/>
+      </g>
+    </g>
+
+    <!-- ================= AGUA ================= -->
     <g class="hy-jet">
-      <path d="M118 150 C 88 128, 48 140, 22 214" fill="none" stroke="url(#hyWater)" stroke-width="16" stroke-linecap="round" opacity=".32"/>
-      <path d="M118 150 C 88 128, 48 140, 22 214" fill="none" stroke="url(#hyWater)" stroke-width="9" stroke-linecap="round" opacity=".75"/>
-      <path class="hy-flow" d="M118 150 C 88 128, 48 140, 22 214" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-dasharray="7 13"/>
-      <path class="hy-flow hy-flow2" d="M118 146 C 90 125, 52 134, 30 208" fill="none" stroke="#DFF9FF" stroke-width="2" stroke-linecap="round" stroke-dasharray="4 16"/>
+      <path class="hy-jetline" pathLength="100" stroke-dasharray="100" d="M98 203 C 78 196 54 214 36 264" fill="none" stroke="url(#hyW)" stroke-width="15" stroke-linecap="round" opacity=".3"/>
+      <path class="hy-jetline" pathLength="100" stroke-dasharray="100" d="M98 203 C 78 196 54 214 36 264" fill="none" stroke="url(#hyW)" stroke-width="8" stroke-linecap="round" opacity=".75"/>
+      <path class="hy-streak" d="M98 201 C 79 194 56 212 39 258" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="6 14"/>
     </g>
-    <g class="hy-drops" fill="#BFF3FF">
-      <circle class="hy-drop d1" cx="60" cy="140" r="3"/><circle class="hy-drop d2" cx="42" cy="168" r="2.6"/><circle class="hy-drop d3" cx="74" cy="132" r="2.2"/>
-      <circle class="hy-drop d4" cx="30" cy="188" r="2.4"/><circle class="hy-drop d5" cx="92" cy="134" r="2"/>
+    <g class="hy-flowwin">
+      <ellipse cx="38" cy="266" rx="29" ry="7" fill="#8FDFF0" opacity=".45"/>
+      <ellipse class="hy-rip r1" cx="38" cy="266" rx="24" ry="6" fill="none" stroke="#CFF5FF" stroke-width="2"/>
+      <ellipse class="hy-rip r2" cx="38" cy="266" rx="24" ry="6" fill="none" stroke="#CFF5FF" stroke-width="2"/>
+      <g fill="#CFF5FF">
+        <circle class="hy-drop d1" cx="79" cy="206" r="3"/>
+        <circle class="hy-drop d2" cx="60" cy="221" r="2.6"/>
+        <circle class="hy-drop d3" cx="44" cy="246" r="2.3"/>
+        <circle class="hy-drop d4" cx="69" cy="212" r="2"/>
+      </g>
+      <g fill="#E6FAFF" opacity=".5"><circle class="hy-mist m1" cx="88" cy="196" r="5"/><circle class="hy-mist m2" cx="82" cy="206" r="4"/><circle class="hy-mist m3" cx="90" cy="212" r="3.2"/></g>
     </g>
-    <ellipse class="hy-rip r1" cx="22" cy="218" rx="26" ry="5" fill="none" stroke="#BFF3FF" stroke-width="2"/>
-    <ellipse class="hy-rip r2" cx="22" cy="218" rx="26" ry="5" fill="none" stroke="#BFF3FF" stroke-width="2"/>
-    <!-- brida inferior -->
-    <rect x="128" y="204" width="116" height="16" rx="4" fill="url(#hyDark)"/>
-    <g fill="#7A5200"><circle cx="142" cy="212" r="3.2"/><circle cx="166" cy="212" r="3.2"/><circle cx="206" cy="212" r="3.2"/><circle cx="230" cy="212" r="3.2"/></g>
-    <g fill="#FFE98A" opacity=".8"><circle cx="141" cy="211" r="1.1"/><circle cx="165" cy="211" r="1.1"/><circle cx="205" cy="211" r="1.1"/><circle cx="229" cy="211" r="1.1"/></g>
-    <!-- cuerpo -->
-    <rect x="148" y="112" width="76" height="94" rx="12" fill="url(#hyBody)"/>
-    <rect x="142" y="150" width="88" height="11" rx="4" fill="url(#hyDark)"/>
-    <rect x="156" y="118" width="7" height="82" rx="3.5" fill="#fff" opacity=".32"/>
-    <!-- cúpula -->
-    <path d="M146 116 Q186 58 226 116 Z" fill="url(#hyBody)"/>
-    <path d="M160 100 Q172 84 186 80" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".38"/>
-    <rect x="176" y="64" width="20" height="30" rx="4" fill="url(#hyDark)"/>
-    <g class="hy-nut"><polygon points="186,42 198,49 198,62 186,69 174,62 174,49" fill="#FFD21F" stroke="#B57C00" stroke-width="2"/><circle cx="186" cy="55.5" r="3.5" fill="#B57C00"/></g>
-    <!-- boca izquierda con brida (agua) -->
-    <rect x="124" y="128" width="26" height="26" rx="5" fill="url(#hyBody)"/>
-    <rect x="114" y="118" width="12" height="46" rx="3" fill="url(#hyDark)"/>
-    <g fill="#7A5200"><circle cx="120" cy="125" r="2.6"/><circle cx="120" cy="157" r="2.6"/></g>
-    <ellipse cx="113" cy="141" rx="3.2" ry="15" fill="#073B63"/>
-    <!-- boca derecha con tapa roscada (hilo) -->
-    <rect x="222" y="128" width="20" height="26" rx="5" fill="url(#hyBody)"/>
-    <rect x="240" y="122" width="18" height="38" rx="5" fill="url(#hyDark)"/>
-    <g stroke="#8A5E00" stroke-width="1.6" stroke-linecap="round"><path d="M244 127v28"/><path d="M248 126v30"/><path d="M252 126v30"/><path d="M256 128v26"/></g>
-    <rect x="257" y="136" width="5" height="10" rx="2" fill="#B57C00"/>
-    <!-- vapor de presión -->
-    <g fill="#E3F7FF" opacity=".55"><circle class="hy-mist m1" cx="104" cy="136" r="5"/><circle class="hy-mist m2" cx="98" cy="146" r="4"/><circle class="hy-mist m3" cx="108" cy="150" r="3.4"/></g>
+
+    <!-- ================= OPERADOR ================= -->
+    <g class="op-body">
+      <rect x="262" y="182" width="19" height="80" rx="5" fill="#242A36"/>
+      <rect x="248" y="258" width="34" height="15" rx="6" fill="#141922"/>
+      <rect x="238" y="182" width="19" height="80" rx="5" fill="#333B49"/>
+      <rect x="224" y="258" width="34" height="15" rx="6" fill="#1D2432"/>
+      <rect x="224" y="269" width="34" height="4" rx="2" fill="#0E131B"/>
+      <rect x="234" y="106" width="50" height="82" rx="12" fill="#232936"/>
+
+      <!-- brazos y llave: nacen bajo el chaleco y giran sobre la tuerca del grifo -->
+      <g class="op-crank">
+        <path d="M252 132C234 137 210 148 180 158" fill="none" stroke="#1E2531" stroke-width="11.5" stroke-linecap="round"/>
+        <rect x="128" y="138" width="25" height="23" rx="5" fill="#8E99AB"/>
+        <rect x="132" y="142" width="17" height="15" rx="3" fill="#5F6A7D"/>
+        <path d="M140 150L242 170" stroke="#919DB0" stroke-width="7" stroke-linecap="round"/>
+        <path d="M140 148L242 168" stroke="#CBD6E3" stroke-width="2.4" stroke-linecap="round"/>
+        <path d="M264 146C246 153 226 159 208 164" fill="none" stroke="#333B4B" stroke-width="13.5" stroke-linecap="round"/>
+        <path d="M262 143C246 150 228 156 212 160" fill="none" stroke="#4C576C" stroke-width="2" stroke-linecap="round" opacity=".5"/>
+        <g transform="rotate(11 180 158)"><rect x="168" y="150" width="23" height="16" rx="7" fill="#FFC21A"/><rect x="188" y="151" width="7" height="14" rx="3" fill="#E09F00"/><path d="M173 155h11" stroke="#C98F00" stroke-width="1.5" stroke-linecap="round"/></g>
+        <g transform="rotate(11 208 164)"><rect x="197" y="156" width="22" height="16" rx="7" fill="#F5B600"/><rect x="215" y="157" width="7" height="14" rx="3" fill="#D29400"/></g>
+      </g>
+
+      <!-- chaleco reflectante: tapa el nacimiento de los brazos -->
+      <rect x="234" y="112" width="52" height="68" rx="10" fill="url(#opV)"/>
+      <rect x="234" y="131" width="52" height="8" fill="#CCEBF7" opacity=".85"/>
+      <rect x="234" y="141" width="52" height="4" fill="#7FA8BC" opacity=".55"/>
+      <path d="M259 112v68" stroke="#A33708" stroke-width="2" opacity=".45"/>
+      <rect x="238" y="150" width="15" height="13" rx="3" fill="#D85510" opacity=".9"/>
+      <rect x="234" y="112" width="15" height="18" rx="7" fill="#232936"/>
+
+      <rect x="252" y="94" width="15" height="16" rx="4" fill="#C9915E"/>
+      <circle cx="259" cy="80" r="19" fill="#DCA571"/>
+      <circle cx="277" cy="83" r="4.2" fill="#C98F5E"/>
+      <path d="M243 88q7 9 18 8" fill="none" stroke="#B37C4C" stroke-width="2" stroke-linecap="round"/>
+      <rect x="239" y="73" width="29" height="9.5" rx="4.5" fill="#161D2A"/>
+      <rect x="241" y="75" width="11" height="4" rx="2" fill="#3C4E6B" opacity=".75"/>
+      <path d="M239 72q20-24 41-3l1 6-42 2z" fill="#1E2A4A"/>
+      <path d="M240 70q-11 0-18 4 4 6 18 6z" fill="#16203A"/>
+    </g>
   </svg>
 </div>
 
