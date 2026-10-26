@@ -782,6 +782,44 @@ main{padding:20px 22px 56px;}
 
 /* Los formularios se mantienen en un ancho cómodo de lectura; el resto de las páginas usa todo el ancho. */
 main[data-page="nuevo"] .page,main[data-page="inspecciones"] .page{max-width:1240px;}
+
+/* Tablero compacto: menos alto arriba para que el mapa quede a la vista sin bajar. */
+main{padding:14px 22px 56px;}
+.hero{padding:19px 24px;margin-bottom:12px;gap:14px;}
+.hero h1{font-size:27px;margin:6px 0 3px;}
+.hero-sub{font-size:15px;}
+.hero-live{margin-top:7px;}
+.hero-stats{gap:10px;margin-top:13px;}
+.hs{padding:10px 13px;border-radius:13px;}
+.hs .hn{font-size:27px;}
+.hs .hl{font-size:10.5px;margin-top:5px;}
+.hs .hsub{font-size:10.5px;margin-top:2px;}
+.park-bar{margin-top:10px;}
+.pb-top{margin-bottom:5px;}
+.pb-track{height:10px;}
+.pb-leg{margin-top:5px;}
+.hero-actions{margin-top:13px;}
+.hero-ring{width:174px;height:174px;}
+.ring-txt .rn{font-size:40px;}
+.kpi-row{gap:10px;margin-bottom:12px;}
+.kpi{padding:11px 14px;}
+.kpi .num{font-size:28px;}
+.kpi .lbl{margin-top:4px;}
+.kpi .kbar{margin-top:8px;height:4px;}
+.pulse-row{gap:10px;margin-bottom:12px;}
+.pulse{padding:9px 13px;gap:11px;}
+.pulse .pi{width:34px;height:34px;border-radius:10px;font-size:16px;}
+.pulse .pn{font-size:19px;}
+.pulse .pl{font-size:11px;}
+.dash-row{margin-bottom:12px;}
+.panel{margin-bottom:12px;}
+@media(max-width:720px){
+  main{padding:12px 12px 50px;}
+  .hero{padding:17px 16px;}
+  .hero h1{font-size:22px;}
+  .hero-ring{width:140px;height:140px;}
+  .ring-txt .rn{font-size:32px;}
+}
 </style>
 </head>
 <body>
@@ -2193,7 +2231,7 @@ function cambiarFiltroSectorDashboard(valor){
 const MAPA_UI = {
   crit:{directa:true, indirecta:true, senaletica:true},
   estado:{pendiente:true, en_proceso:true, resuelto:true},
-  capa:'calles', agrupar:true, parque:false
+  capa:'calles', agrupar:false, parque:false
 };
 let MAPA_SEL = null;          // id del registro abierto en la ficha lateral
 let MAPA_VISTA = null;        // {center, zoom} de la última vista del usuario
