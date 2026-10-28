@@ -875,7 +875,15 @@ main{padding:14px 22px 56px;}
 }
 
 /* ---- Tres paneles ejecutivos (reemplazan las 9 tarjetas sueltas) ---- */
-.exec-row{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;margin-bottom:12px;}
+.exec-row{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-bottom:12px;}
+/* Zonas prioritarias (grifos a menos de 150 m de colegios/jardines, salud, municipalidades y cárceles) */
+.nota-norma{font-size:10.5px;line-height:1.4;color:var(--text-soft);margin-top:6px;}
+.hero .nota-norma{color:rgba(255,255,255,.62);margin-top:8px;max-width:720px;}
+.badge.zp{background:#FFF1D6;color:#8A4B00;border:1px solid #F2C46B;}
+.gpin.zp .gpin-dot{outline:3px solid #FFB020;outline-offset:1px;}
+.xcard.zp-card{border-color:#F2C46B;background:linear-gradient(180deg,#FFFBF2,var(--paper));}
+.zp-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:5px;font-size:12px;}
+.zp-list li{display:flex;gap:6px;align-items:flex-start;}
 .xcard{background:var(--paper);border:1px solid var(--line);border-radius:13px;padding:11px 14px 12px;display:flex;flex-direction:column;gap:8px;box-shadow:0 2px 8px rgba(0,35,89,.05);}
 .xc-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;}
 .xc-head h4{margin:0;font:700 12px 'Montserrat',sans-serif;color:var(--ink);white-space:nowrap;}
@@ -897,8 +905,8 @@ button.xc-leg:hover{background:#E9F4FA;transform:translateY(-1px);}
 .xc-leg b{font:800 12.5px 'Montserrat',sans-serif;color:var(--ink);flex:none;}
 .xc-leg.warn{background:#FDECEF;}
 .xc-leg.warn b{color:#C8334D;}
-@media(max-width:1180px){ .exec-row{grid-template-columns:1fr 1fr;} .exec-row .xcard:last-child{grid-column:1/-1;} }
-@media(max-width:720px){ .exec-row{grid-template-columns:1fr;} .exec-row .xcard:last-child{grid-column:auto;} .xc-head h4{white-space:normal;} }
+@media(max-width:1500px){ .exec-row{grid-template-columns:1fr 1fr;} }
+@media(max-width:720px){ .exec-row{grid-template-columns:1fr;} .xc-head h4{white-space:normal;} }
 </style>
 </head>
 <body>
@@ -1224,6 +1232,23 @@ function esInspeccion(h){ return h.origen === 'inspeccion'; }
 // categorizado — descarta las inspecciones sin hallazgo, que no necesitan
 // seguimiento de resolución.
 function tieneHallazgoReal(h){ return obtenerDetalleHallazgos(h).length > 0; }
+
+/* Zona prioritaria: la calcula el Panel Grifos de Singemelec y la deja en catalogo_grifos
+   (zona_prioritaria, zona_prioritaria_tipos, zona_prioritaria_detalle). Grifo a menos de 150 m
+   de un colegio/jardín, centro de salud, municipalidad o recinto penitenciario. */
+const NOTA_NORMA_PINTURA = 'Según NCh 1646.Of1998 vigente, la pintura en mal estado constituye hallazgo.';
+const ZP_TIPO_LABEL = {educacion:'Colegio / jardín', salud:'Centro de salud', municipal:'Municipalidad', carcel:'Recinto penitenciario'};
+const ZP_TIPO_ICONO = {educacion:'🏫', salud:'🏥', municipal:'🏛️', carcel:'🔒'};
+function zonaPrioritaria(cod){
+  const c = String(cod||'').trim().toUpperCase(), cat = CATALOGO_GRIFOS || {};
+  const g = cat[c] || cat[cod];
+  if(!g || !g.zona_prioritaria) return null;
+  return { tipos: Array.isArray(g.zona_prioritaria_tipos) ? g.zona_prioritaria_tipos : [], detalle: String(g.zona_prioritaria_detalle||'') };
+}
+function zpBadge(cod){
+  const z = zonaPrioritaria(cod);
+  return z ? `<span class="badge zp" title="${escHtml(z.detalle)}">⚠ Zona prioritaria ${z.tipos.map(t=>ZP_TIPO_ICONO[t]||'').join('')}</span>` : '';
+}
 
 function uid(){ return 'H-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2,6).toUpperCase(); }
 function fmtDate(d){ const dt=new Date(d); return dt.toLocaleString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
@@ -1892,6 +1917,8 @@ function renderDashboard(){
       const ca = ORDEN_CRITICIDAD.indexOf(criticidadDeRegistro(a));
       const cb = ORDEN_CRITICIDAD.indexOf(criticidadDeRegistro(b));
       if(ca!==cb) return ca-cb;
+      const za = zonaPrioritaria(a.codigo_grifo) ? 0 : 1, zb = zonaPrioritaria(b.codigo_grifo) ? 0 : 1;   // dentro de cada criticidad, primero los de zona prioritaria
+      if(za!==zb) return za-zb;
       return new Date(a.fecha_creacion) - new Date(b.fecha_creacion);
     });
 
@@ -1977,6 +2004,12 @@ function renderDashboard(){
   const abiertosTotales = conHallazgo.filter(h=>h.estado!=='resuelto').length;
 
   // Atención inmediata: operatividad directa abierta, los más antiguos primero
+  // Zona prioritaria: grifos con hallazgos abiertos (sin señalética) cerca de colegios, salud, municipalidad o cárcel
+  const zpGrifos = Array.from(codigosAbiertos).filter(c=>zonaPrioritaria(c));
+  const zpDirecta = new Set(directasAbiertas.map(h=>h.codigo_grifo).filter(c=>c && zonaPrioritaria(c)));
+  const zpPorTipo = {educacion:0, salud:0, municipal:0, carcel:0};
+  zpGrifos.forEach(c=>zonaPrioritaria(c).tipos.forEach(t=>{ if(t in zpPorTipo) zpPorTipo[t]++; }));
+  const zpParque = Object.keys(CATALOGO_GRIFOS||{}).filter(k=>(FILTRO_SECTOR_DASHBOARD==='todos' || (CATALOGO_GRIFOS[k].comuna||'')===FILTRO_SECTOR_DASHBOARD) && CATALOGO_GRIFOS[k].zona_prioritaria).length;
   const atencion = directasAbiertas.slice().sort((a,b)=>new Date(a.fecha_creacion)-new Date(b.fecha_creacion)).slice(0,7);
   const animarDash = !DASH_ANIMADO; DASH_ANIMADO = true;
   const RING_C = 2*Math.PI*66;
@@ -1995,6 +2028,7 @@ function renderDashboard(){
           <div class="hs hs-alert"><div class="hn" data-count="${directasAbiertas.length}">${directasAbiertas.length}</div><div class="hl">Operatividad directa abierta</div><div class="hsub">prioridad máxima</div></div>
           <div class="hs" style="cursor:pointer" onclick="irAListaConFiltro('prioridad','senaletica')" title="Pinturas y señalética: no se cuentan como hallazgos de operatividad"><div class="hn" data-count="${senPendientes}">${senPendientes}</div><div class="hl">Señalética / pinturas pendientes</div><div class="hsub">${senEjecutadas} ejecutada${senEjecutadas===1?'':'s'} · fuera de los indicadores</div></div>
         </div>
+        <div class="nota-norma">* ${NOTA_NORMA_PINTURA}</div>
         ${parqueTotal ? (()=>{ const con = Math.min(codigosAbiertos.size, parqueTotal), sin = parqueTotal-con, pc = con/parqueTotal*100;
           return `<div class="park-bar">
             <div class="pb-top"><b>Estado del parque de grifos</b><span>${sin} sin hallazgos abiertos (${(100-pc).toFixed(1).replace('.',',')}%)</span></div>
@@ -2149,6 +2183,14 @@ function renderDashboard(){
         </div>
         <div class="xc-legs">${buckets.map(b=>`<span class="xc-leg st ${(b.min>90 && b.n)?'warn':''}" title="${b.l}: ${b.n} hallazgo${b.n===1?'':'s'}"><i style="background:${b.c}"></i><span>${b.l.replace(' días','')}</span><b>${b.n}</b></span>`).join('')}</div>
       </div>
+
+      <div class="xcard zp-card" style="cursor:pointer" onclick="if(!MAPA_UI.soloZP) mapaToggleZP(); document.querySelector('.mapa-card').scrollIntoView({behavior:'smooth'})" title="Ver en el mapa solo los grifos de zona prioritaria">
+        <div class="xc-head"><h4>⚠ Zona prioritaria</h4><span class="xc-hint">${zpParque} grifos del parque a ≤150 m · clic para verlos</span></div>
+        <div class="xc-main"><div class="xc-big">${zpGrifos.length}</div>
+          <div style="font-size:11px;color:var(--text-soft);line-height:1.35">grifos con hallazgos abiertos${zpDirecta.size?`<br><b style="color:#C8334D">${zpDirecta.size} con operatividad directa</b>`:''}</div>
+        </div>
+        <div class="xc-legs">${Object.keys(zpPorTipo).map(t=>`<span class="xc-leg st" title="${ZP_TIPO_LABEL[t]}"><span>${ZP_TIPO_ICONO[t]}</span><b>${zpPorTipo[t]}</b></span>`).join('')}</div>
+      </div>
     </div>
     <div class="panel mapa-card">
       <div class="mapa-head">
@@ -2174,6 +2216,7 @@ function renderDashboard(){
           <span><i style="background:${PRIORIDAD_COLOR.directa}"></i>Directa</span>
           <span><i style="background:${PRIORIDAD_COLOR.indirecta}"></i>Indirecta / mec.</span>
           <span><i style="background:${PRIORIDAD_COLOR.senaletica}"></i>Señalética</span>
+          <span><i style="background:#fff;box-shadow:0 0 0 3px #FFB020;border-radius:50%"></i>Zona prioritaria</span>
           <span class="lg-parque"><i style="background:#2F9E78;border-radius:50%"></i>Grifo sin hallazgos abiertos</span>
           <span style="color:var(--text-soft);font-weight:500">✓ resuelto · clic en un punto para ver la ficha</span>
         </div>
@@ -2229,7 +2272,7 @@ function renderDashboard(){
           <tbody>${pendientesPorRiesgo.length ? pendientesPorRiesgo.map(h=>{
             const dias = diasTranscurridos(h.fecha_creacion);
             return `<tr>
-            <td class="mono" style="font-weight:700;color:var(--ink);">${h.codigo_grifo || '—'}</td>
+            <td class="mono" style="font-weight:700;color:var(--ink);">${h.codigo_grifo || '—'} ${zpBadge(h.codigo_grifo)}</td>
             <td>${h.comuna || '—'}</td>
             <td class="faddr-cell">${h.direccion || 'Sin dirección registrada'}</td>
             <td><span class="badge ${criticidadDeRegistro(h)}">${PRIORIDAD_LABEL[criticidadDeRegistro(h)]}</span></td>
@@ -2312,7 +2355,7 @@ function cambiarFiltroSectorDashboard(valor){
 const MAPA_UI = {
   crit:{directa:true, indirecta:true, senaletica:false}, // la señalética (pinturas) parte apagada para no tapar los hallazgos reales
   estado:{pendiente:true, en_proceso:true, resuelto:true},
-  capa:'calles', agrupar:false, parque:false
+  capa:'calles', agrupar:false, parque:false, soloZP:false
 };
 let MAPA_SEL = null;          // id del registro abierto en la ficha lateral
 let MAPA_VISTA = null;        // {center, zoom} de la última vista del usuario
@@ -2333,6 +2376,7 @@ function mapaRegistros(){
   );
 }
 function mapaPasaFiltros(h){
+  if(MAPA_UI.soloZP && !zonaPrioritaria(h.codigo_grifo)) return false;
   return MAPA_UI.crit[criticidadDeRegistro(h)] !== false && MAPA_UI.estado[h.estado||'pendiente'] !== false;
 }
 function mapaColor(h){ return PRIORIDAD_COLOR[criticidadDeRegistro(h)] || '#999'; }
@@ -2379,6 +2423,7 @@ function mapaToolbarHtml(){
         <button type="button" data-capa="calles" onclick="mapaSetCapa('calles')">Mapa</button>
         <button type="button" data-capa="satelite" onclick="mapaSetCapa('satelite')">Satélite</button>
       </div>
+      <button type="button" class="mapa-tool-btn" id="mapaBtnZP" onclick="mapaToggleZP()" title="Grifos a menos de 150 m de colegios/jardines, centros de salud, municipalidades o recintos penitenciarios">⚠ Solo zona prioritaria</button>
       <button type="button" class="mapa-tool-btn" id="mapaBtnAgrupar" onclick="mapaToggleAgrupar()">Agrupar cercanos</button>
       <button type="button" class="mapa-tool-btn" onclick="mapaVerTodo()">⤢ Ver todo</button>
     </div>
@@ -2405,6 +2450,7 @@ function mapaPintarControles(){
   document.querySelectorAll('#mapaSegCapa button').forEach(b=>b.classList.toggle('on', b.dataset.capa===MAPA_UI.capa));
   document.querySelectorAll('#mapaSegVista button').forEach(b=>b.classList.toggle('on', (b.dataset.v==='parque')===MAPA_UI.parque));
   const lgm = document.querySelector('.mapa-legend'); if(lgm) lgm.classList.toggle('con-parque', MAPA_UI.parque);
+  const bZ = document.getElementById('mapaBtnZP'); if(bZ) bZ.classList.toggle('on', !!MAPA_UI.soloZP);
   const bA = document.getElementById('mapaBtnAgrupar');
   if(bA) bA.classList.toggle('on', MAPA_UI.agrupar);
   const dl = document.getElementById('mapaListaCodigos');
@@ -2437,6 +2483,11 @@ function mapaAplicarCapa(){
   if(mapaBase.bringToBack) mapaBase.bringToBack();
 }
 
+function mapaToggleZP(){
+  MAPA_UI.soloZP = !MAPA_UI.soloZP;
+  mapaPintarControles();
+  mapaActualizarMarcadores();
+}
 function mapaToggleAgrupar(){
   MAPA_UI.agrupar = !MAPA_UI.agrupar;
   mapaPintarControles();
@@ -2463,7 +2514,7 @@ function mapaResumenGrupo(regs){
 function mapaIcono(h, seleccionado){
   const grupo = MAPA_GRUPOS[mapaClaveGrifo(h)] || [h];
   const r = mapaResumenGrupo(grupo);
-  const cls = 'gpin' + (r.resuelto ? ' res' : '') + (seleccionado ? ' sel' : '');
+  const cls = 'gpin' + (r.resuelto ? ' res' : '') + (seleccionado ? ' sel' : '') + (zonaPrioritaria(h.codigo_grifo) ? ' zp' : '');
   return L.divIcon({
     className: cls,
     html: `<span class="gpin-dot" style="--c:${PRIORIDAD_COLOR[r.crit]||'#999'}">${r.resuelto?'✓':(r.abiertos>1?r.abiertos:'')}</span>`,
@@ -2831,8 +2882,10 @@ function mapaRenderFicha(h){
         <div class="mp-badges">
           ${nAbiertos ? `<span class="badge ${resumen.crit}">${nAbiertos} hallazgo${nAbiertos===1?'':'s'} abierto${nAbiertos===1?'':'s'}</span>` : (principales.length ? `<span class="badge resuelto">Hallazgos resueltos</span>` : '')}
           ${senal.length ? `<span class="badge senaletica">Señalética: ${senal.filter(x=>x.estado!=='resuelto').length ? 'pendiente' : 'ejecutada'}</span>` : ''}
+          ${zpBadge(h.codigo_grifo)}
         </div>
       </div>
+      ${(()=>{ const z = zonaPrioritaria(h.codigo_grifo); return z && z.detalle ? `<div class="mp-sec"><h4>⚠ Zona prioritaria (a menos de 150 m)</h4><ul class="zp-list">${z.detalle.split(' · ').map(t=>`<li>${escHtml(t)}</li>`).join('')}</ul></div>` : ''; })()}
       ${kv.length ? `<div class="mp-sec"><h4>Datos del grifo</h4><dl class="mp-kv">${kv.map(([k,v])=>`<dt>${k}</dt><dd>${escHtml(v)}</dd>`).join('')}</dl></div>` : ''}
       ${principales.length ? `<div class="mp-sec"><h4>Hallazgos del grifo (${principales.length})</h4>${principales.map(tarjeta).join('')}</div>` : ''}
       ${senal.length ? `<div class="mp-sec"><h4>Señalética / pintura</h4>${senal.map(tarjeta).join('')}</div>` : ''}
@@ -4030,7 +4083,7 @@ function renderLista(){
     const nHallazgos = obtenerDetalleHallazgos(h).length;
     return `<tr data-id="${h.id}" class="${SELECCION_LISTA.has(h.id)?'selected':''}">
       <td><input type="checkbox" title="Seleccionar (para descargar, imprimir o eliminar)" onchange="toggleSeleccion('${h.id}')" ${SELECCION_LISTA.has(h.id)?'checked':''}></td>
-      <td class="mono" style="font-weight:700;color:var(--ink);">${h.codigo_grifo || '—'}</td>
+      <td class="mono" style="font-weight:700;color:var(--ink);">${h.codigo_grifo || '—'}${zonaPrioritaria(h.codigo_grifo) ? ` <span title="${escHtml(zonaPrioritaria(h.codigo_grifo).detalle)}" style="cursor:help">⚠</span>` : ''}</td>
       <td>${h.comuna || '—'}</td>
       <td class="faddr-cell">${h.direccion || 'Sin dirección registrada'}</td>
       <td><span class="badge ${h.prioridad}">${PRIORIDAD_LABEL[h.prioridad]}</span></td>
@@ -4283,6 +4336,7 @@ function openDetail(id){
   modal.innerHTML = `
     <button class="closeX" onclick="closeModal()">&times;</button>
     <h2>${h.codigo_grifo ? escHtml(h.codigo_grifo)+' · ' : ''}${h.direccion}</h2>
+    ${(()=>{ const z = zonaPrioritaria(h.codigo_grifo); return z ? `<div style="margin:6px 0;">${zpBadge(h.codigo_grifo)} <span style="font-size:12px;color:var(--text-soft);">${escHtml(z.detalle)}</span></div>` : ''; })()}
     <div class="fid mono">Registrado ${fmtDate(h.fecha_creacion)}${esInspeccion(h)?' · Inspección':''}</div>
     ${(()=>{ const regs = tieneHallazgoReal(h) ? registrosDelGrifo(h) : [];
       if(regs.length < 2) return '';
