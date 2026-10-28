@@ -253,8 +253,8 @@ main{flex:1;overflow-y:auto;padding:24px 28px 60px;}
 .criticidad-auto{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-soft);margin-top:6px;}
 .badge{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:14px;text-transform:uppercase;letter-spacing:.03em;}
 .badge.inmediato,.badge.directa{background:#fdecef;color:var(--hidrante);}
-.badge.corto,.badge.indirecta{background:#fdf3e1;color:#8a6109;}
-.badge.mediano,.badge.senaletica{background:#e9f1f5;color:var(--tuberia);}
+.badge.corto,.badge.indirecta{background:#FFEBDD;color:#B4530F;}
+.badge.mediano,.badge.senaletica{background:#FFF6CC;color:#8A6D00;}
 .badge.pendiente{background:#f1eee6;color:#7a7263;}
 .badge.en_proceso{background:#eaf1ec;color:#3f6e46;}
 .badge.resuelto{background:#e3f0e4;color:var(--musgo);}
@@ -427,7 +427,7 @@ nav.rail .rail-foot{color:#6E88B0;}
 .gpin{background:none;border:none;}
 .gpin-dot{
   display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;
-  background:var(--c);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,25,70,.5);transition:transform .15s,box-shadow .15s;
+  background:var(--c);border:3px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.55),0 2px 8px rgba(0,0,0,.6);transition:transform .15s,box-shadow .15s;
   color:#fff;font-size:11px;font-weight:800;box-sizing:border-box;
 }
 .gpin:hover .gpin-dot{transform:scale(1.28);}
@@ -879,9 +879,44 @@ main{padding:14px 22px 56px;}
 /* Zonas prioritarias (grifos a menos de 150 m de colegios/jardines, salud, municipalidades y cárceles) */
 .nota-norma{font-size:10.5px;line-height:1.4;color:var(--text-soft);margin-top:6px;}
 .hero .nota-norma{color:rgba(255,255,255,.62);margin-top:8px;max-width:720px;}
-.badge.zp{background:#FFF1D6;color:#8A4B00;border:1px solid #F2C46B;}
-.gpin.zp .gpin-dot{outline:3px solid #FFB020;outline-offset:1px;}
-.xcard.zp-card{border-color:#F2C46B;background:linear-gradient(180deg,#FFFBF2,var(--paper));}
+.badge.zp{background:#F1EAFE;color:#5B21B6;border:1px solid #C4B5FD;}
+.gpin.zp .gpin-dot{outline:3px solid #7C3AED;outline-offset:1px;}
+.xcard.zp-card{border-color:#C4B5FD;background:linear-gradient(180deg,#F7F3FF,var(--paper));}
+#mapaBtnZP.on{background:#7C3AED;border-color:#7C3AED;color:#fff;}
+/* ícono del motivo en la esquina del punto */
+.gpin{position:relative;}
+.gpin .gpin-zp{position:absolute;right:-9px;top:-9px;width:17px;height:17px;border-radius:50%;background:#fff;border:2px solid #7C3AED;display:flex;align-items:center;justify-content:center;font-size:9.5px;line-height:1;box-shadow:0 1px 4px rgba(0,0,0,.4);pointer-events:none;}
+.zp-lugar{background:none;border:none;}
+/* ===== Rediseño 28/10: menú sin "Operación en terreno", encabezado compacto y mapa más arriba ===== */
+#navGrupoTerreno,#navInspecciones,#navNuevo,#navGaleria{display:none !important;}
+.hero{grid-template-columns:1fr 118px !important;padding:12px 20px !important;gap:16px !important;margin-bottom:10px !important;border-radius:16px;}
+.hero-hydrant{display:none !important;}
+.hero-eyebrow{display:none;}
+.hero h1{font-size:20px !important;margin:0 !important;}
+.hero-sub{font-size:12px !important;}
+.hero-live{margin-top:3px !important;font-size:11px;}
+.hero-stats{margin-top:8px !important;gap:8px !important;}
+.hs{padding:7px 11px !important;}
+.hs .hn{font-size:22px !important;}
+.hs .hl{margin-top:3px !important;font-size:10px !important;}
+.hs .hsub{font-size:10px !important;}
+.hero .nota-norma{margin-top:5px;font-size:10px;}
+.park-bar{margin-top:6px !important;}
+.pb-track{height:7px !important;}
+.hero-actions{margin-top:8px !important;gap:7px !important;}
+.btn-hero,.btn-hero-ghost{padding:6px 10px !important;font-size:11.5px !important;}
+.hero-ring{width:112px !important;height:112px !important;}
+.ring-txt .rn{font-size:26px !important;}
+.ring-txt .rn small{font-size:13px;}
+.ring-txt .rl{font-size:9px;letter-spacing:.1em;}
+.ring-txt .rs{font-size:9.5px;}
+.mapa-card .com-cards{padding-top:6px;}
+.ccard .cc-n{font-size:18px;}
+.mapa-stage{height:max(600px,calc(100vh - 230px)) !important;}
+@media(max-width:720px){ .hero{grid-template-columns:1fr !important;} }
+.xc-sen{font-size:10.5px;color:#8A6D00;font-weight:600;}
+.ccard .cc-sen{color:#8A6D00;font-weight:700;}
+.zp-lugar span{display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;background:#7C3AED;border:2px solid #fff;font-size:14px;box-shadow:0 2px 6px rgba(0,0,0,.45);}
 .zp-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:5px;font-size:12px;}
 .zp-list li{display:flex;gap:6px;align-items:flex-start;}
 .xcard{background:var(--paper);border:1px solid var(--line);border-radius:13px;padding:11px 14px 12px;display:flex;flex-direction:column;gap:8px;box-shadow:0 2px 8px rgba(0,35,89,.05);}
@@ -1079,8 +1114,8 @@ const PRIORIDAD_LABEL = {
   inmediato:'Operatividad directa', corto:'Operatividad indirecta / mecánica', mediano:'Señalética / visibilidad'
 };
 const PRIORIDAD_COLOR = {
-  directa:'#C8334D', indirecta:'#E2A33D', senaletica:'#3B6E8F',
-  inmediato:'#C8334D', corto:'#E2A33D', mediano:'#3B6E8F'
+  directa:'#C8334D', indirecta:'#F07C1E', senaletica:'#F5C400',
+  inmediato:'#C8334D', corto:'#F07C1E', mediano:'#F5C400'
 };
 const ORDEN_CRITICIDAD = ['directa','indirecta','senaletica']; // de mayor a menor severidad
 const CRITICIDAD_LEGACY = {inmediato:'directa', corto:'indirecta', mediano:'senaletica'};
@@ -1245,6 +1280,9 @@ function zonaPrioritaria(cod){
   if(!g || !g.zona_prioritaria) return null;
   return { tipos: Array.isArray(g.zona_prioritaria_tipos) ? g.zona_prioritaria_tipos : [], detalle: String(g.zona_prioritaria_detalle||'') };
 }
+const ZP_ORDEN = ['salud','carcel','municipal','educacion'];   // el ícono del punto muestra el motivo más importante
+function zpIcono(cod){ const z = zonaPrioritaria(cod); if(!z) return ''; const t = ZP_ORDEN.find(x=>z.tipos.includes(x)); return t ? ZP_TIPO_ICONO[t] : '⚠'; }
+function zpDetalleConIconos(det){ let t = escHtml(det||''); Object.keys(ZP_TIPO_LABEL).forEach(k=>{ t = t.split(escHtml(ZP_TIPO_LABEL[k])+':').join(ZP_TIPO_ICONO[k]); }); return t.split(' · ').join('<br>'); }
 function zpBadge(cod){
   const z = zonaPrioritaria(cod);
   return z ? `<span class="badge zp" title="${escHtml(z.detalle)}">⚠ Zona prioritaria ${z.tipos.map(t=>ZP_TIPO_ICONO[t]||'').join('')}</span>` : '';
@@ -1801,7 +1839,9 @@ function updateRolePills(){
   const lbl = document.getElementById('roleLabel');
   if(lbl) lbl.textContent = ROLE==='singemelec' ? 'SINGEMELEC' : 'SACYR AGUAS';
   const av = document.getElementById('tbAvatar'); if(av) av.textContent = ROLE==='singemelec' ? 'SG' : 'SA';
-  const gt = document.getElementById('navGrupoTerreno'); if(gt) gt.style.display = (ROLE==='singemelec') ? '' : 'none';
+  // "Operación en terreno" (Inspecciones, Nuevo hallazgo, Galería) se oculta para todos: los hallazgos llegan desde el Panel Grifos.
+  // El código de esas pantallas se mantiene; para volver a mostrarlas, cambiar 'none' por ''.
+  const gt = document.getElementById('navGrupoTerreno'); if(gt) gt.style.display = 'none';
 }
 
 /* Barra superior y menú lateral: estado de conexión, contadores y buscador rápido de grifos. */
@@ -1923,7 +1963,7 @@ function renderDashboard(){
     });
 
   const porTipo = {};
-  hallazgosSector.forEach(h=>obtenerDetalleHallazgos(h).forEach(d=>{ porTipo[d.tipo_hallazgo] = (porTipo[d.tipo_hallazgo]||0)+1; }));
+  hallazgosSector.concat(senaleticaSector).forEach(h=>obtenerDetalleHallazgos(h).forEach(d=>{ porTipo[d.tipo_hallazgo] = (porTipo[d.tipo_hallazgo]||0)+1; }));
   const tiposOrd = Object.entries(porTipo).sort((a,b)=>b[1]-a[1]);
 
   // ---- Indicadores del "Parque de grifos" y pulso operativo ----
@@ -1948,6 +1988,7 @@ function renderDashboard(){
   const nuevos30 = hallazgosSector.filter(h=>ahoraMs - new Date(h.fecha_creacion).getTime() <= 30*DIA_MS).length;
   const abiertosPorCrit = {directa:0, indirecta:0, senaletica:0};
   abiertos.forEach(h=>{ abiertosPorCrit[criticidadDeRegistro(h)]++; });
+  abiertosPorCrit.senaletica = senPendientes;   // señalética (pinturas) como tercera categoría
   const vencidos90 = abiertos.filter(h=>diasTranscurridos(h.fecha_creacion) > 90).length;
   const edades = abiertos.map(h=>diasTranscurridos(h.fecha_creacion));
   const edadProm = edades.length ? Math.round(edades.reduce((a,b)=>a+b,0)/edades.length) : 0;
@@ -1977,11 +2018,18 @@ function renderDashboard(){
   const cruce = {directa:{pendiente:0,en_proceso:0,resuelto:0}, indirecta:{pendiente:0,en_proceso:0,resuelto:0}, senaletica:{pendiente:0,en_proceso:0,resuelto:0}};
   hallazgosSector.concat(senaleticaSector).forEach(h=>{ const c=criticidadDeRegistro(h), e=h.estado||'pendiente'; if(cruce[c] && cruce[c][e]!==undefined) cruce[c][e]++; });
 
+  // Señalética (pinturas) como categoría propia en los indicadores
+  const senAbiertasArr = senaleticaSector.filter(h=>h.estado!=='resuelto');
+  const senEdades = senAbiertasArr.map(h=>diasTranscurridos(h.fecha_creacion));
+  const sen90 = senEdades.filter(e=>e>90).length;
+  const senPct = senaleticaSector.length ? Math.round(senEjecutadas/senaleticaSector.length*100) : 0;
+  const senComuna = {}; senaleticaTodos.forEach(h=>{ if(h.estado!=='resuelto'){ const c=h.comuna||'Sin comuna'; senComuna[c]=(senComuna[c]||0)+1; } });
   // Antigüedad de los hallazgos abiertos
   const buckets = [
     {l:'0–7 días', min:0, max:7, c:'#63D1E0'}, {l:'8–30 días', min:8, max:30, c:'#01B3D7'},
     {l:'31–90 días', min:31, max:90, c:'#E2A33D'}, {l:'+90 días', min:91, max:1e9, c:'#C8334D'}];
-  buckets.forEach(b=>{ b.n = edades.filter(e=>e>=b.min && e<=b.max).length; });
+  buckets.forEach(b=>{ b.op = edades.filter(e=>e>=b.min && e<=b.max).length; b.s = senEdades.filter(e=>e>=b.min && e<=b.max).length; b.n = b.op + b.s; });
+  const edadPromTot = (edades.length+senEdades.length) ? Math.round(edades.concat(senEdades).reduce((a,b)=>a+b,0)/(edades.length+senEdades.length)) : 0;
   const maxBucket = Math.max(1, ...buckets.map(b=>b.n));
 
   // Hallazgos por comuna (siempre sobre todo el parque, sirve como navegador de sector)
@@ -1999,6 +2047,8 @@ function renderDashboard(){
     e.total++;
     if(h.estado!=='resuelto'){ e.abiertos++; if(criticidadDeRegistro(h)==='directa') e.directa++; }
   });
+  senaleticaTodos.forEach(h=>{ if(h.estado==='resuelto') return; const c = h.comuna || 'Sin comuna';
+    const e = comunaStats[c] = comunaStats[c] || {total:0, abiertos:0, directa:0, grifos:0}; e.sen = (e.sen||0)+1; });
   Object.keys(CATALOGO_GRIFOS||{}).forEach(k=>{ const c = (CATALOGO_GRIFOS[k].comuna)||'Sin comuna'; if(comunaStats[c]) comunaStats[c].grifos++; });
   const comunaCards = Object.keys(comunaStats).map(k=>[k, comunaStats[k]]).sort((a,b)=>b[1].abiertos-a[1].abiertos);
   const abiertosTotales = conHallazgo.filter(h=>h.estado!=='resuelto').length;
@@ -2010,6 +2060,7 @@ function renderDashboard(){
   const zpPorTipo = {educacion:0, salud:0, municipal:0, carcel:0};
   zpGrifos.forEach(c=>zonaPrioritaria(c).tipos.forEach(t=>{ if(t in zpPorTipo) zpPorTipo[t]++; }));
   const zpParque = Object.keys(CATALOGO_GRIFOS||{}).filter(k=>(FILTRO_SECTOR_DASHBOARD==='todos' || (CATALOGO_GRIFOS[k].comuna||'')===FILTRO_SECTOR_DASHBOARD) && CATALOGO_GRIFOS[k].zona_prioritaria).length;
+  const zpSen = new Set(senAbiertasArr.map(h=>h.codigo_grifo).filter(c=>c && zonaPrioritaria(c))).size;
   const atencion = directasAbiertas.slice().sort((a,b)=>new Date(a.fecha_creacion)-new Date(b.fecha_creacion)).slice(0,7);
   const animarDash = !DASH_ANIMADO; DASH_ANIMADO = true;
   const RING_C = 2*Math.PI*66;
@@ -2026,7 +2077,7 @@ function renderDashboard(){
           <div class="hs"><div class="hn" ${parqueTotal?`data-count="${parqueTotal}"`:''}>${parqueTotal||'—'}</div><div class="hl">Grifos en el parque</div></div>
           <div class="hs"><div class="hn" data-count="${codigosAbiertos.size}">${codigosAbiertos.size}</div><div class="hl">Grifos con hallazgos abiertos</div>${pctParque!==null?`<div class="hsub">${pctParque.toFixed(1).replace('.',',')}% del parque</div>`:''}</div>
           <div class="hs hs-alert"><div class="hn" data-count="${directasAbiertas.length}">${directasAbiertas.length}</div><div class="hl">Operatividad directa abierta</div><div class="hsub">prioridad máxima</div></div>
-          <div class="hs" style="cursor:pointer" onclick="irAListaConFiltro('prioridad','senaletica')" title="Pinturas y señalética: no se cuentan como hallazgos de operatividad"><div class="hn" data-count="${senPendientes}">${senPendientes}</div><div class="hl">Señalética / pinturas pendientes</div><div class="hsub">${senEjecutadas} ejecutada${senEjecutadas===1?'':'s'} · fuera de los indicadores</div></div>
+          <div class="hs" style="cursor:pointer" onclick="irAListaConFiltro('prioridad','senaletica')" title="Señalética (pintura): categoría propia, no afecta la operatividad del grifo"><div class="hn" data-count="${senPendientes}">${senPendientes}</div><div class="hl">Señalética pendiente</div><div class="hsub">${senEjecutadas} ejecutada${senEjecutadas===1?'':'s'} · ${senPct}% de avance</div></div>
         </div>
         <div class="nota-norma">* ${NOTA_NORMA_PINTURA}</div>
         ${parqueTotal ? (()=>{ const con = Math.min(codigosAbiertos.size, parqueTotal), sin = parqueTotal-con, pc = con/parqueTotal*100;
@@ -2155,43 +2206,6 @@ function renderDashboard(){
       </div>
     </section>
 
-    <div class="exec-row">
-      <div class="xcard">
-        <div class="xc-head"><h4>Hallazgos abiertos</h4><span class="xc-hint">${total?Math.round(abiertos.length/total*100):0}% de los ${total} registrados · clic para ver la lista</span></div>
-        <div class="xc-main"><div class="xc-big">${abiertos.length}</div>
-          <div class="xc-stack">${['directa','indirecta'].map(k=>abiertosPorCrit[k]?`<i style="flex:${abiertosPorCrit[k]};background:${PRIORIDAD_COLOR[k]}" title="${PRIORIDAD_LABEL[k]}: ${abiertosPorCrit[k]}"></i>`:'').join('')||'<i style="flex:1;background:#E6EEF5"></i>'}</div>
-        </div>
-        <div class="xc-legs">${['directa','indirecta'].map(k=>`<button type="button" class="xc-leg" onclick="irAListaConFiltro('prioridad','${k}')" title="Ver los hallazgos de ${PRIORIDAD_LABEL[k]}"><i style="background:${PRIORIDAD_COLOR[k]}"></i><span>${k==='directa'?'Directa':k==='indirecta'?'Indirecta':'Señalética'}</span><b>${abiertosPorCrit[k]}</b></button>`).join('')}</div>
-      </div>
-
-      <div class="xcard">
-        <div class="xc-head"><h4>Avance de resolución</h4><span class="xc-hint">${nuevos30>resueltos30 ? `entran ${nuevos30-resueltos30} más de los que se cierran` : (resueltos30>nuevos30 ? `se cierran ${resueltos30-nuevos30} más de los que entran` : 'entran y se cierran a la par')}</span></div>
-        <div class="xc-main"><div class="xc-big">${pctResuelto}<small>%</small></div>
-          <div class="xc-stack"><i style="flex:${Math.max(pctResuelto,0.01)};background:linear-gradient(90deg,#2F9E78,#35E0A1)"></i><i style="flex:${Math.max(100-pctResuelto,0.01)};background:#E6EEF5"></i></div>
-        </div>
-        <div class="xc-legs">
-          <span class="xc-leg st"><i style="background:var(--musgo)"></i><span>Resueltos</span><b>${estados.resuelto||0}</b></span>
-          <span class="xc-leg st"><i style="background:#C8334D"></i><span>Nuevos 30 d</span><b>+${nuevos30}</b></span>
-          <span class="xc-leg st"><i style="background:#2F9E78"></i><span>Cerrados 30 d</span><b>${resueltos30}</b></span>
-        </div>
-      </div>
-
-      <div class="xcard">
-        <div class="xc-head"><h4>Antigüedad de los abiertos</h4><span class="xc-hint">${nuevos7} nuevos en los últimos 7 días</span></div>
-        <div class="xc-main"><div class="xc-big">${edadProm}<small> d</small></div>
-          <div class="xc-stack">${buckets.map(b=>b.n?`<i style="flex:${b.n};background:${b.c}" title="${b.l}: ${b.n}"></i>`:'').join('')||'<i style="flex:1;background:#E6EEF5"></i>'}</div>
-        </div>
-        <div class="xc-legs">${buckets.map(b=>`<span class="xc-leg st ${(b.min>90 && b.n)?'warn':''}" title="${b.l}: ${b.n} hallazgo${b.n===1?'':'s'}"><i style="background:${b.c}"></i><span>${b.l.replace(' días','')}</span><b>${b.n}</b></span>`).join('')}</div>
-      </div>
-
-      <div class="xcard zp-card" style="cursor:pointer" onclick="if(!MAPA_UI.soloZP) mapaToggleZP(); document.querySelector('.mapa-card').scrollIntoView({behavior:'smooth'})" title="Ver en el mapa solo los grifos de zona prioritaria">
-        <div class="xc-head"><h4>⚠ Zona prioritaria</h4><span class="xc-hint">${zpParque} grifos del parque a ≤150 m · clic para verlos</span></div>
-        <div class="xc-main"><div class="xc-big">${zpGrifos.length}</div>
-          <div style="font-size:11px;color:var(--text-soft);line-height:1.35">grifos con hallazgos abiertos${zpDirecta.size?`<br><b style="color:#C8334D">${zpDirecta.size} con operatividad directa</b>`:''}</div>
-        </div>
-        <div class="xc-legs">${Object.keys(zpPorTipo).map(t=>`<span class="xc-leg st" title="${ZP_TIPO_LABEL[t]}"><span>${ZP_TIPO_ICONO[t]}</span><b>${zpPorTipo[t]}</b></span>`).join('')}</div>
-      </div>
-    </div>
     <div class="panel mapa-card">
       <div class="mapa-head">
         <h3>Mapa de grifos con hallazgos</h3>
@@ -2199,13 +2213,13 @@ function renderDashboard(){
       </div>
       <div class="com-cards">
         <button type="button" class="ccard ${FILTRO_SECTOR_DASHBOARD==='todos'?'sel':''}" onclick="cambiarFiltroSectorDashboard('todos')" title="Ver todas las comunas">
-          <span class="cc-top">Todas las comunas</span><span class="cc-n">${abiertosTotales}</span><span class="cc-s">hallazgos abiertos</span>
+          <span class="cc-top">Todas las comunas</span><span class="cc-n">${abiertosTotales}</span><span class="cc-s">hallazgos abiertos${senaleticaTodos.length?` · <b class="cc-sen">${senaleticaTodos.filter(h=>h.estado!=='resuelto').length} señalética</b>`:''}</span>
         </button>
         ${comunaCards.map(([nom,c])=>`
         <button type="button" class="ccard ${FILTRO_SECTOR_DASHBOARD===nom?'sel':''}" onclick="cambiarFiltroSectorDashboard(${FILTRO_SECTOR_DASHBOARD===nom ? "'todos'" : JSON.stringify(nom).replace(/"/g,'&quot;')})" title="${FILTRO_SECTOR_DASHBOARD===nom ? 'Volver a todas las comunas' : 'Ver solo '+escHtml(nom)}">
           <span class="cc-top">${escHtml(nom)}${c.directa?`<i class="cc-dot" title="${c.directa} de operatividad directa abiertos">${c.directa}</i>`:''}</span>
           <span class="cc-n">${c.abiertos}</span>
-          <span class="cc-s">${c.grifos?`${c.grifos} grifos · `:''}${c.total} hallazgo${c.total===1?'':'s'}</span>
+          <span class="cc-s">${c.grifos?`${c.grifos} grifos · `:''}${c.total} hallazgo${c.total===1?'':'s'}${c.sen?` · <b class="cc-sen">${c.sen} señalética</b>`:''}</span>
         </button>`).join('')}
       </div>
       ${mapaToolbarHtml()}
@@ -2216,11 +2230,50 @@ function renderDashboard(){
           <span><i style="background:${PRIORIDAD_COLOR.directa}"></i>Directa</span>
           <span><i style="background:${PRIORIDAD_COLOR.indirecta}"></i>Indirecta / mec.</span>
           <span><i style="background:${PRIORIDAD_COLOR.senaletica}"></i>Señalética</span>
-          <span><i style="background:#fff;box-shadow:0 0 0 3px #FFB020;border-radius:50%"></i>Zona prioritaria</span>
+          <span><i style="background:#fff;box-shadow:0 0 0 3px #7C3AED;border-radius:50%"></i>Zona prioritaria</span>
           <span class="lg-parque"><i style="background:#2F9E78;border-radius:50%"></i>Grifo sin hallazgos abiertos</span>
           <span style="color:var(--text-soft);font-weight:500">✓ resuelto · clic en un punto para ver la ficha</span>
         </div>
         <aside class="mapa-panel" id="mapaPanel" aria-label="Ficha del grifo"></aside>
+      </div>
+    </div>
+
+    <div class="exec-row">
+      <div class="xcard">
+        <div class="xc-head"><h4>Hallazgos abiertos</h4><span class="xc-hint">${abiertos.length} de operatividad + ${senPendientes} de señalética · clic para ver la lista</span></div>
+        <div class="xc-main"><div class="xc-big">${abiertos.length+senPendientes}</div>
+          <div class="xc-stack">${['directa','indirecta','senaletica'].map(k=>abiertosPorCrit[k]?`<i style="flex:${abiertosPorCrit[k]};background:${PRIORIDAD_COLOR[k]}" title="${PRIORIDAD_LABEL[k]}: ${abiertosPorCrit[k]}"></i>`:'').join('')||'<i style="flex:1;background:#E6EEF5"></i>'}</div>
+        </div>
+        <div class="xc-legs">${['directa','indirecta','senaletica'].map(k=>`<button type="button" class="xc-leg" onclick="irAListaConFiltro('prioridad','${k}')" title="Ver los hallazgos de ${PRIORIDAD_LABEL[k]}"><i style="background:${PRIORIDAD_COLOR[k]}"></i><span>${k==='directa'?'Directa':k==='indirecta'?'Indirecta':'Señalética'}</span><b>${abiertosPorCrit[k]}</b></button>`).join('')}</div>
+      </div>
+
+      <div class="xcard">
+        <div class="xc-head"><h4>Avance de resolución</h4><span class="xc-hint">${nuevos30>resueltos30 ? `entran ${nuevos30-resueltos30} más de los que se cierran` : (resueltos30>nuevos30 ? `se cierran ${resueltos30-nuevos30} más de los que entran` : 'entran y se cierran a la par')}</span></div>
+        <div class="xc-main"><div class="xc-big" title="Operatividad (directa e indirecta)">${pctResuelto}<small>%</small></div>
+          <div class="xc-stack"><i style="flex:${Math.max(pctResuelto,0.01)};background:linear-gradient(90deg,#2F9E78,#35E0A1)"></i><i style="flex:${Math.max(100-pctResuelto,0.01)};background:#E6EEF5"></i></div>
+        </div>
+        <div class="xc-legs">
+          <span class="xc-leg st"><i style="background:var(--musgo)"></i><span>Resueltos</span><b>${estados.resuelto||0}</b></span>
+          <span class="xc-leg st"><i style="background:#C8334D"></i><span>Nuevos 30 d</span><b>+${nuevos30}</b></span>
+          <span class="xc-leg st"><i style="background:#2F9E78"></i><span>Cerrados 30 d</span><b>${resueltos30}</b></span>
+          <button type="button" class="xc-leg" onclick="irAListaConFiltro('prioridad','senaletica')" title="Señalética: ${senEjecutadas} ejecutadas de ${senaleticaSector.length}"><i style="background:${PRIORIDAD_COLOR.senaletica}"></i><span>Señalética</span><b>${senPct}%</b></button>
+        </div>
+      </div>
+
+      <div class="xcard">
+        <div class="xc-head"><h4>Antigüedad de los abiertos</h4><span class="xc-hint">incluye ${senAbiertasArr.length} de señalética · ${nuevos7} nuevos en 7 días</span></div>
+        <div class="xc-main"><div class="xc-big" title="Edad promedio de los abiertos, operatividad y señalética">${edadPromTot}<small> d</small></div>
+          <div class="xc-stack">${buckets.map(b=>b.n?`<i style="flex:${b.n};background:${b.c}" title="${b.l}: ${b.n}"></i>`:'').join('')||'<i style="flex:1;background:#E6EEF5"></i>'}</div>
+        </div>
+        <div class="xc-legs">${buckets.map(b=>`<span class="xc-leg st ${(b.min>90 && b.n)?'warn':''}" title="${b.l}: ${b.op} de operatividad · ${b.s} de señalética"><i style="background:${b.c}"></i><span>${b.l.replace(' días','')}</span><b>${b.n}</b></span>`).join('')}</div>
+      </div>
+
+      <div class="xcard zp-card" style="cursor:pointer" onclick="if(!MAPA_UI.soloZP) mapaToggleZP(); document.querySelector('.mapa-card').scrollIntoView({behavior:'smooth'})" title="Ver en el mapa solo los grifos de zona prioritaria">
+        <div class="xc-head"><h4>⚠ Zona prioritaria</h4><span class="xc-hint">${zpParque} grifos del parque a ≤150 m · clic para verlos</span></div>
+        <div class="xc-main"><div class="xc-big">${zpGrifos.length}</div>
+          <div style="font-size:11px;color:var(--text-soft);line-height:1.35">grifos con hallazgos abiertos${zpDirecta.size?`<br><b style="color:#C8334D">${zpDirecta.size} con operatividad directa</b>`:''}${zpSen?`<br><span class="xc-sen">${zpSen} con señalética pendiente</span>`:''}</div>
+        </div>
+        <div class="xc-legs">${Object.keys(zpPorTipo).map(t=>`<span class="xc-leg st" title="${ZP_TIPO_LABEL[t]}"><span>${ZP_TIPO_ICONO[t]}</span><b>${zpPorTipo[t]}</b></span>`).join('')}</div>
       </div>
     </div>
 
@@ -2355,7 +2408,7 @@ function cambiarFiltroSectorDashboard(valor){
 const MAPA_UI = {
   crit:{directa:true, indirecta:true, senaletica:false}, // la señalética (pinturas) parte apagada para no tapar los hallazgos reales
   estado:{pendiente:true, en_proceso:true, resuelto:true},
-  capa:'calles', agrupar:false, parque:false, soloZP:false
+  capa:'satelite', agrupar:false, parque:false, soloZP:false   // el mapa parte en vista satélite
 };
 let MAPA_SEL = null;          // id del registro abierto en la ficha lateral
 let MAPA_VISTA = null;        // {center, zoom} de la última vista del usuario
@@ -2517,7 +2570,7 @@ function mapaIcono(h, seleccionado){
   const cls = 'gpin' + (r.resuelto ? ' res' : '') + (seleccionado ? ' sel' : '') + (zonaPrioritaria(h.codigo_grifo) ? ' zp' : '');
   return L.divIcon({
     className: cls,
-    html: `<span class="gpin-dot" style="--c:${PRIORIDAD_COLOR[r.crit]||'#999'}">${r.resuelto?'✓':(r.abiertos>1?r.abiertos:'')}</span>`,
+    html: `<span class="gpin-dot" style="--c:${PRIORIDAD_COLOR[r.crit]||'#999'}">${r.resuelto?'✓':(r.abiertos>1?r.abiertos:'')}</span>${zonaPrioritaria(h.codigo_grifo) ? `<span class="gpin-zp">${zpIcono(h.codigo_grifo)}</span>` : ''}`,
     iconSize:[24,24], iconAnchor:[12,12]
   });
 }
@@ -2550,13 +2603,15 @@ function mapaActualizarMarcadores(){
   Object.keys(MAPA_GRUPOS).forEach(k=>{
     const regs = MAPA_GRUPOS[k], r = mapaResumenGrupo(regs), h = r.rep;
     const m = L.marker([h.lat,h.lng], {icon:mapaIcono(h, k===claveSel), crit:r.crit, hid:h.id, riseOnHover:true});
-    m.bindTooltip(`${escHtml(h.codigo_grifo||'Grifo')} · ${r.n>1 ? `${r.n} hallazgos (${r.abiertos} abierto${r.abiertos===1?'':'s'})` : escHtml(PRIORIDAD_LABEL[r.crit])}`, {direction:'top', offset:[0,-12], className:'gtip'});
+    const zt = zonaPrioritaria(h.codigo_grifo);
+    m.bindTooltip(`<b>${escHtml(h.codigo_grifo||'Grifo')}</b> · ${r.n>1 ? `${r.n} hallazgos (${r.abiertos} abierto${r.abiertos===1?'':'s'})` : escHtml(PRIORIDAD_LABEL[r.crit])}${zt ? `<br><span style="color:#5B21B6;font-weight:700">⚠ Zona prioritaria</span><br>${zpDetalleConIconos(zt.detalle)}` : ''}`, {direction:'top', offset:[0,-12], className:'gtip'});
     m.on('click', ()=>mapaSeleccionar(h.id));
     regs.forEach(x=>{ mapaMarcadores[x.id] = m; });  // cualquier registro del grifo apunta al mismo punto
     mapaGrupo.addLayer(m);
   });
   mapaGrupo.addTo(dashMapInstance);
   const nParque = mapaActualizarParque();
+  mapaActualizarLugares();
   mapaActualizarComunas();
   const cnt = document.getElementById('mapaConteo');
   if(cnt) cnt.innerHTML = `Mostrando <b>${visibles.length}</b> de ${todos.length} hallazgos en <b>${Object.keys(MAPA_GRUPOS).length}</b> grifos` + (MAPA_UI.parque ? ` · <b>${nParque}</b> grifos del parque sin hallazgos abiertos` : '');
@@ -2564,6 +2619,37 @@ function mapaActualizarMarcadores(){
   if(vac) vac.style.display = (visibles.length===0) ? 'flex' : 'none';
   // si el registro abierto quedó oculto por los filtros, la ficha se mantiene
   // abierta (no se pierde lo que el usuario estaba mirando).
+}
+
+/* ---------- Lugares prioritarios (colegios, salud, municipalidad, cárcel) con su círculo de 150 m ----------
+   Se muestran solo con el filtro "Solo zona prioritaria". Vienen en catalogo_grifos
+   (zona_prioritaria_lugares), que llena el Panel Grifos de Singemelec. */
+let mapaLugaresLayer = null;
+function mapaActualizarLugares(){
+  if(!dashMapInstance) return;
+  if(mapaLugaresLayer){ dashMapInstance.removeLayer(mapaLugaresLayer); mapaLugaresLayer = null; }
+  if(!MAPA_UI.soloZP) return;
+  const vistos = {};
+  Object.keys(CATALOGO_GRIFOS||{}).forEach(k=>{
+    const g = CATALOGO_GRIFOS[k];
+    if(!g || !Array.isArray(g.zona_prioritaria_lugares)) return;
+    if(FILTRO_SECTOR_DASHBOARD!=='todos' && (g.comuna||'')!==FILTRO_SECTOR_DASHBOARD) return;
+    g.zona_prioritaria_lugares.forEach(l=>{
+      if(!l || typeof l.lat!=='number' || typeof l.lng!=='number') return;
+      const id = l.tipo+'|'+l.lat.toFixed(5)+'|'+l.lng.toFixed(5);
+      if(!vistos[id]) vistos[id] = {tipo:l.tipo, nombre:l.nombre, lat:l.lat, lng:l.lng, grifos:[]};
+      vistos[id].grifos.push(k+' ('+Math.round(l.d||0)+' m)');
+    });
+  });
+  mapaLugaresLayer = L.layerGroup();
+  Object.keys(vistos).forEach(id=>{
+    const l = vistos[id];
+    L.circle([l.lat,l.lng], {radius:150, color:'#7C3AED', weight:1.5, dashArray:'5 5', fillColor:'#7C3AED', fillOpacity:.08, interactive:false}).addTo(mapaLugaresLayer);
+    L.marker([l.lat,l.lng], {icon:L.divIcon({className:'zp-lugar', html:`<span>${ZP_TIPO_ICONO[l.tipo]||'⚠'}</span>`, iconSize:[26,26], iconAnchor:[13,13]}), zIndexOffset:-300})
+      .bindTooltip(`<b>${escHtml(l.nombre||ZP_TIPO_LABEL[l.tipo]||'Lugar prioritario')}</b><br>${escHtml(ZP_TIPO_LABEL[l.tipo]||'')} · radio 150 m<br>Grifos cerca: ${escHtml(l.grifos.slice(0,6).join(', '))}${l.grifos.length>6?' …':''}`, {direction:'top', offset:[0,-12], className:'gtip'})
+      .addTo(mapaLugaresLayer);
+  });
+  mapaLugaresLayer.addTo(dashMapInstance);
 }
 
 /* ---------- Parque completo: grifos del catastro sin hallazgos abiertos ---------- */
@@ -2629,6 +2715,10 @@ function mapaFichaParque(cod){
 
 /* Límites reales de lo que hay que mostrar: solo donde hay grifos, no un
    recuadro fijo gigante (antes se veía desde Valparaíso hasta Santiago). */
+/* Zona de trabajo (Lampa, Colina, Lo Barnechea): el encuadre del mapa ignora puntos
+   fuera de ella (coordenadas mal cargadas, registros de prueba), para que el mapa
+   siempre abra centrado en los grifos. */
+function enZonaTrabajo(p){ return p && p[0] >= -33.45 && p[0] <= -33.10 && p[1] >= -70.95 && p[1] <= -70.40; }
 function mapaBoundsDatos(){
   let pts = mapaRegistros().filter(mapaPasaFiltros).map(h=>[h.lat,h.lng]);
   if(MAPA_UI.parque){
@@ -2638,7 +2728,8 @@ function mapaBoundsDatos(){
          (FILTRO_SECTOR_DASHBOARD==='todos' || (g.comuna||'')===FILTRO_SECTOR_DASHBOARD)) pts.push([g.lat,g.lng]);
     });
   }
-  if(!pts.length) pts = mapaRegistros().map(h=>[h.lat,h.lng]);
+  pts = pts.filter(enZonaTrabajo);
+  if(!pts.length) pts = mapaRegistros().map(h=>[h.lat,h.lng]).filter(enZonaTrabajo);
   if(!pts.length) return L.latLngBounds(ZONA_CONCESION_BOUNDS);
   return L.latLngBounds(recorteSinDispersos(pts));
 }
@@ -2663,7 +2754,8 @@ function mapaBoundsSector(){
     if(g && typeof g.lat==='number' && typeof g.lng==='number' &&
        (FILTRO_SECTOR_DASHBOARD==='todos' || (g.comuna||'')===FILTRO_SECTOR_DASHBOARD)) pts.push([g.lat,g.lng]);
   });
-  return pts.length ? L.latLngBounds(pts) : null;
+  const enZona = pts.filter(enZonaTrabajo);
+  return enZona.length ? L.latLngBounds(enZona) : (pts.length ? L.latLngBounds(pts) : null);
 }
 function mapaAjustarVista(){
   dashMapInstance.fitBounds(mapaBoundsDatos(), {padding:[18,18], maxZoom:16});
@@ -4927,8 +5019,8 @@ footer{text-align:center;font-size:11px;color:var(--text-soft);font-family:'IBM 
     <div class="kpi-row">
       <div class="kpi"><div class="tab" style="background:var(--ink)"></div><div class="num">${total}</div><div class="lbl">Hallazgos totales</div></div>
       <div class="kpi"><div class="tab" style="background:var(--hidrante)"></div><div class="num">${counts.directa||0}</div><div class="lbl">Operatividad directa</div></div>
-      <div class="kpi"><div class="tab" style="background:var(--senal)"></div><div class="num">${counts.indirecta||0}</div><div class="lbl">Operatividad indirecta/mec.</div></div>
-      <div class="kpi"><div class="tab" style="background:var(--tuberia)"></div><div class="num">${senaleticaRep.length}</div><div class="lbl">Señalética / pinturas (aparte: ${senRepPend} pend. · ${senRepEjec} ejec.)</div></div>
+      <div class="kpi"><div class="tab" style="background:#F07C1E"></div><div class="num">${counts.indirecta||0}</div><div class="lbl">Operatividad indirecta/mec.</div></div>
+      <div class="kpi"><div class="tab" style="background:#F5C400"></div><div class="num">${senaleticaRep.length}</div><div class="lbl">Señalética / pinturas (aparte: ${senRepPend} pend. · ${senRepEjec} ejec.)</div></div>
       <div class="kpi"><div class="tab" style="background:var(--musgo)"></div><div class="num">${estados.resuelto||0}</div><div class="lbl">Resueltos (${pctResuelto}%)</div></div>
     </div>
 
@@ -4938,8 +5030,8 @@ footer{text-align:center;font-size:11px;color:var(--text-soft);font-family:'IBM 
         <div id="repMap"></div>
         <div class="legend">
           <span><i style="background:#C8334D"></i>Operatividad directa</span>
-          <span><i style="background:#E2A33D"></i>Operatividad indirecta/mec.</span>
-          <span><i style="background:#3B6E8F"></i>Señalética/visibilidad</span>
+          <span><i style="background:#F07C1E"></i>Operatividad indirecta/mec.</span>
+          <span><i style="background:#F5C400"></i>Señalética/visibilidad</span>
         </div>
       </div>
       <div>
@@ -4952,8 +5044,8 @@ footer{text-align:center;font-size:11px;color:var(--text-soft);font-family:'IBM 
 
     <div class="panel">
       ${bloquePrioridad('directa','Operatividad directa','var(--hidrante)')}
-      ${bloquePrioridad('indirecta','Operatividad indirecta / mecánica','#8a6109')}
-      ${bloquePrioridad('senaletica','Señalética / pinturas (no se suma a los totales de hallazgos)','var(--tuberia)')}
+      ${bloquePrioridad('indirecta','Operatividad indirecta / mecánica','#B4530F')}
+      ${bloquePrioridad('senaletica','Señalética / pinturas (no se suma a los totales de hallazgos)','#8A6D00')}
     </div>
   </section>
 
@@ -4967,7 +5059,7 @@ footer{text-align:center;font-size:11px;color:var(--text-soft);font-family:'IBM 
 <footer>Informe estático generado desde el catastro de grifos Singemelec / Sacyr Aguas — no se actualiza automáticamente. Vuelve a generarlo para reflejar el estado más reciente.</footer>
 <script>
 const DATA = ${dataJson};
-const PRIORIDAD_COLOR = {directa:'#C8334D', indirecta:'#E2A33D', senaletica:'#3B6E8F', inmediato:'#C8334D', corto:'#E2A33D', mediano:'#3B6E8F'};
+const PRIORIDAD_COLOR = {directa:'#C8334D', indirecta:'#F07C1E', senaletica:'#F5C400', inmediato:'#C8334D', corto:'#F07C1E', mediano:'#F5C400'};
 const PRIORIDAD_LABEL = {directa:'Operatividad directa', indirecta:'Operatividad indirecta / mecánica', senaletica:'Señalética / visibilidad', inmediato:'Operatividad directa', corto:'Operatividad indirecta / mecánica', mediano:'Señalética / visibilidad'};
 const CRITICIDAD_LEGACY = {inmediato:'directa', corto:'indirecta', mediano:'senaletica'};
 const ESTADO_LABEL = {pendiente:'Pendiente', en_proceso:'En proceso', resuelto:'Resuelto'};
@@ -4982,7 +5074,7 @@ DATA.forEach(h=>{
     .bindPopup('<strong>'+h.direccion+'</strong><br>'+PRIORIDAD_LABEL[h.prioridad]+' · '+ESTADO_LABEL[h.estado]);
 });
 new Chart(document.getElementById('repChart1'), {type:'doughnut',
-  data:{labels:['Operatividad directa','Operatividad indirecta/mecánica','Señalética/visibilidad'],datasets:[{data:[counts.directa||0,counts.indirecta||0,counts.senaletica||0],backgroundColor:['#C8334D','#E2A33D','#3B6E8F'],borderWidth:2,borderColor:'#fff'}]},
+  data:{labels:['Operatividad directa','Operatividad indirecta/mecánica','Señalética/visibilidad'],datasets:[{data:[counts.directa||0,counts.indirecta||0,counts.senaletica||0],backgroundColor:['#C8334D','#F07C1E','#F5C400'],borderWidth:2,borderColor:'#fff'}]},
   options:{plugins:{legend:{position:'bottom',labels:{font:{size:11}}}},cutout:'62%',maintainAspectRatio:false}});
 new Chart(document.getElementById('repChart2'), {type:'bar',
   data:{labels:['Pendiente','En proceso','Resuelto'],datasets:[{data:[estados.pendiente||0,estados.en_proceso||0,estados.resuelto||0],backgroundColor:['#cabfa1','#7fa688','#5C8A60'],borderRadius:6}]},
@@ -5211,8 +5303,8 @@ th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left;vertic
 th{font-family:'IBM Plex Mono',monospace;font-size:9.5px;text-transform:uppercase;color:var(--text-soft);letter-spacing:.03em;}
 .badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:12px;text-transform:uppercase;}
 .badge.inmediato,.badge.directa{background:#fdecef;color:var(--hidrante);}
-.badge.corto,.badge.indirecta{background:#fdf3e1;color:#8a6109;}
-.badge.mediano,.badge.senaletica{background:#e9f1f5;color:var(--tuberia);}
+.badge.corto,.badge.indirecta{background:#FFEBDD;color:#B4530F;}
+.badge.mediano,.badge.senaletica{background:#FFF6CC;color:#8A6D00;}
 .badge.pendiente{background:#f1eee6;color:#7a7263;}
 .badge.en_proceso{background:#eaf1ec;color:#3f6e46;}
 .badge.resuelto{background:#e3f0e4;color:var(--musgo);}
