@@ -2803,6 +2803,22 @@ function mapaVerTodo(){
 }
 
 function construirMapaDashboard(){
+  /* Si el mapa ya existe (llegó el catastro o una actualización en tiempo real),
+     se reutiliza: se vuelve a poner en la página y solo se redibujan los puntos.
+     Antes se destruía y se creaba de nuevo, y el mapa saltaba mientras el
+     usuario lo estaba moviendo o haciendo zoom. */
+  const nuevoDiv = document.getElementById('dashMap');
+  if(dashMapInstance && nuevoDiv){
+    const cont = dashMapInstance.getContainer();
+    if(cont !== nuevoDiv){ nuevoDiv.replaceWith(cont); }
+    dashMapInstance.invalidateSize({animate:false});
+    mapaPintarControles();
+    mapaActualizarMarcadores();
+    if(!MAPA_VISTA) mapaAjustarVista();   // cambio de sector: se reencuadra; si no, se respeta la vista del usuario
+    if(MAPA_SEL && HALLAZGOS.some(h=>h.id===MAPA_SEL)) mapaSeleccionar(MAPA_SEL, {centrar:false});
+    else { MAPA_SEL = null; mapaCerrarFicha(true); }
+    return;
+  }
   if(dashMapInstance){ dashMapInstance.remove(); dashMapInstance = null; }
   mapaBase = null; mapaEtiquetas = null; mapaGrupo = null; mapaMarcadores = {}; mapaComunasLayer = null; mapaParqueLayer = null;
   dashMapInstance = L.map('dashMap', {zoomControl:true, preferCanvas:false}).setView([-33.33,-70.75], 10);
