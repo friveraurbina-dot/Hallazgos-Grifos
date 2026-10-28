@@ -483,6 +483,21 @@ nav.rail .rail-foot{color:#6E88B0;}
 .mp-kv dd{margin:0;font-weight:600;color:var(--ink);}
 .mp-coment{background:var(--concrete-2);border-left:3px solid var(--accent);border-radius:8px;padding:9px 12px;font-size:12.5px;line-height:1.45;color:var(--text);}
 .mp-coment .ca{font-size:11px;color:var(--text-soft);margin-bottom:3px;font-weight:600;}
+/* Ficha por grifo: una tarjeta por hallazgo */
+.mp-hz{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:7px;background:var(--paper);}
+.mp-hz.sel{border-color:var(--accent);box-shadow:0 0 0 2px rgba(1,179,215,.18);}
+.mp-hz.senal{background:var(--concrete-2);}
+.mp-hz-head{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.mp-hz-tit{font-size:13px;font-weight:700;color:var(--ink);width:100%;}
+.mp-hz-lbl{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-soft);}
+.mp-hz-fotos{display:flex;gap:6px;flex-wrap:wrap;}
+.mp-hz-fotos img{width:64px;height:64px;object-fit:cover;border-radius:6px;border:1px solid var(--line);cursor:zoom-in;}
+.mp-hz .mp-coment + .mp-coment{margin-top:4px;}
+.mp-sec > .mp-hz + .mp-hz{margin-top:8px;}
+.det-grifo{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0;}
+.det-grifo button{border:1px solid var(--line);background:var(--paper);border-radius:8px;padding:6px 10px;font:inherit;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;color:var(--text);}
+.det-grifo button.on{border-color:var(--accent);background:#E8F8FC;font-weight:700;}
+.det-grifo button i{width:9px;height:9px;border-radius:50%;display:inline-block;}
 .mp-otro{
   all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:9px;width:100%;padding:8px 10px;
   border:1px solid var(--line);border-radius:10px;margin-bottom:6px;font-size:12.5px;font-weight:600;color:var(--ink);
@@ -1020,7 +1035,7 @@ let FILTRO_CODIGO = ''; // texto libre para filtrar la pestaña Hallazgos por c�
 let FILTRO_SECTOR_DASHBOARD = 'todos'; // comuna seleccionada (o 'todos') en el Tablero ejecutivo
 let FILTRO_HALLAZGO_TIPO = 'todos'; // tipo de hallazgo (p.ej. "Pintura en mal estado") en la pestaña Hallazgos
 let FILTRO_COMUNA_LISTA = 'todos'; // comuna en la pestaña Hallazgos
-let FILTRO_PRIORIDAD_LISTA = 'todos'; // criticidad (directa/indirecta/senaletica) en la pestaña Hallazgos
+let FILTRO_PRIORIDAD_LISTA = 'operatividad'; // por defecto solo directa + indirecta (sin señalética/pinturas); criticidad (directa/indirecta/senaletica) en la pestaña Hallazgos
 
 // Plan de inspección diario: qué grifos hay que inspeccionar cada día,
 // cargado por quien coordina (p.ej. Felipe) y visible por cualquiera
@@ -1076,6 +1091,7 @@ const CATALOGO_HALLAZGOS = [
   {nombre:'Boquilla dañada', criticidad:'directa', tipo_elemento:'grifo'},
   {nombre:'Vástago dañado', criticidad:'directa', tipo_elemento:'grifo'},
   {nombre:'Grifo dañado', criticidad:'directa', tipo_elemento:'grifo'},
+  {nombre:'Grifo obstruido', criticidad:'directa', tipo_elemento:'grifo'},
   {nombre:'Grifo retirado / inexistente', criticidad:'directa', tipo_elemento:'grifo'},
   {nombre:'Sin acceso', criticidad:'directa', tipo_elemento:'grifo'},
   // Operatividad indirecta / mecánica
@@ -1084,7 +1100,6 @@ const CATALOGO_HALLAZGOS = [
   {nombre:'Tapa de cámara agripada', criticidad:'indirecta', tipo_elemento:'camara'},
   {nombre:'Cámara dañada', criticidad:'indirecta', tipo_elemento:'camara'},
   {nombre:'Cámara Inundada', criticidad:'indirecta', tipo_elemento:'camara'},
-  // Pendiente de confirmar con Valeria (no existe en el Panel Grifos): se mantiene por ahora
   {nombre:'Cámara obstruida', criticidad:'indirecta', tipo_elemento:'camara'},
   // Señalética / visibilidad
   {nombre:'Pintura en mal estado', criticidad:'senaletica', tipo_elemento:'grifo'}
@@ -1767,7 +1782,7 @@ function updateRolePills(){
 /* Barra superior y menú lateral: estado de conexión, contadores y buscador rápido de grifos. */
 function actualizarChromeApp(){
   try{
-    const abiertos = HALLAZGOS.filter(h=>tieneHallazgoReal(h) && h.estado!=='resuelto').length;
+    const abiertos = HALLAZGOS.filter(h=>tieneHallazgoReal(h) && h.estado!=='resuelto' && criticidadDeRegistro(h)!=='senaletica').length;
     const nb = document.getElementById('nbHallazgos');
     if(nb){ nb.textContent = abiertos > 999 ? '999+' : String(abiertos); nb.classList.toggle('on', abiertos>0); nb.title = abiertos+' hallazgos abiertos'; }
     const estado = conexionPerdida ? 'off' : (STORAGE_MODE==='remote' ? 'ok' : 'warn');
@@ -1838,17 +1853,27 @@ const ZONA_CONCESION_BOUNDS = [[-33.62, -71.02], [-33.05, -70.48]];
 let DASH_ANIMADO = false;
 function renderDashboard(){
   const main = document.getElementById('main');
-  const conHallazgo = HALLAZGOS.filter(tieneHallazgoReal);
+  // Las pinturas y demás señalética NO son hallazgos de operatividad: se
+  // separan para que no inflen los indicadores principales (grifos con
+  // hallazgos abiertos, % del parque, totales, % resuelto). La señalética
+  // tiene su propio indicador y su propia fila en "Avance por criticidad".
+  const todosConHallazgo = HALLAZGOS.filter(tieneHallazgoReal);
+  const esSenaleticaReg = h => criticidadDeRegistro(h) === 'senaletica';
+  const conHallazgo = todosConHallazgo.filter(h => !esSenaleticaReg(h));
+  const senaleticaTodos = todosConHallazgo.filter(esSenaleticaReg);
 
   // Sectores (comunas) disponibles para el filtro del tablero — se calculan
   // desde los datos reales, no están fijos, porque el catastro de grifos se
   // carga dinámicamente desde Firestore/CSV.
-  const sectores = Array.from(new Set(conHallazgo.map(h=>h.comuna).filter(Boolean))).sort();
+  const sectores = Array.from(new Set(todosConHallazgo.map(h=>h.comuna).filter(Boolean))).sort();
   if(FILTRO_SECTOR_DASHBOARD!=='todos' && !sectores.includes(FILTRO_SECTOR_DASHBOARD)) FILTRO_SECTOR_DASHBOARD='todos';
 
   // Todo el tablero (KPIs, mapa, gráficos y el TOP de críticos) respeta el
   // sector elegido, igual que las pestañas de zona en Hallazgos.
   const hallazgosSector = FILTRO_SECTOR_DASHBOARD==='todos' ? conHallazgo : conHallazgo.filter(h=>h.comuna===FILTRO_SECTOR_DASHBOARD);
+  const senaleticaSector = FILTRO_SECTOR_DASHBOARD==='todos' ? senaleticaTodos : senaleticaTodos.filter(h=>h.comuna===FILTRO_SECTOR_DASHBOARD);
+  const senPendientes = senaleticaSector.filter(h=>h.estado!=='resuelto').length;
+  const senEjecutadas = senaleticaSector.length - senPendientes;
   const total = hallazgosSector.length;
   const totalInspecciones = HALLAZGOS.filter(h => esInspeccion(h) && (FILTRO_SECTOR_DASHBOARD==='todos' || h.comuna===FILTRO_SECTOR_DASHBOARD)).length;
   const counts = {directa:0, indirecta:0, senaletica:0};
@@ -1923,7 +1948,7 @@ function renderDashboard(){
 
   // Avance por criticidad (cruce criticidad × estado)
   const cruce = {directa:{pendiente:0,en_proceso:0,resuelto:0}, indirecta:{pendiente:0,en_proceso:0,resuelto:0}, senaletica:{pendiente:0,en_proceso:0,resuelto:0}};
-  hallazgosSector.forEach(h=>{ const c=criticidadDeRegistro(h), e=h.estado||'pendiente'; if(cruce[c] && cruce[c][e]!==undefined) cruce[c][e]++; });
+  hallazgosSector.concat(senaleticaSector).forEach(h=>{ const c=criticidadDeRegistro(h), e=h.estado||'pendiente'; if(cruce[c] && cruce[c][e]!==undefined) cruce[c][e]++; });
 
   // Antigüedad de los hallazgos abiertos
   const buckets = [
@@ -1968,6 +1993,7 @@ function renderDashboard(){
           <div class="hs"><div class="hn" ${parqueTotal?`data-count="${parqueTotal}"`:''}>${parqueTotal||'—'}</div><div class="hl">Grifos en el parque</div></div>
           <div class="hs"><div class="hn" data-count="${codigosAbiertos.size}">${codigosAbiertos.size}</div><div class="hl">Grifos con hallazgos abiertos</div>${pctParque!==null?`<div class="hsub">${pctParque.toFixed(1).replace('.',',')}% del parque</div>`:''}</div>
           <div class="hs hs-alert"><div class="hn" data-count="${directasAbiertas.length}">${directasAbiertas.length}</div><div class="hl">Operatividad directa abierta</div><div class="hsub">prioridad máxima</div></div>
+          <div class="hs" style="cursor:pointer" onclick="irAListaConFiltro('prioridad','senaletica')" title="Pinturas y señalética: no se cuentan como hallazgos de operatividad"><div class="hn" data-count="${senPendientes}">${senPendientes}</div><div class="hl">Señalética / pinturas pendientes</div><div class="hsub">${senEjecutadas} ejecutada${senEjecutadas===1?'':'s'} · fuera de los indicadores</div></div>
         </div>
         ${parqueTotal ? (()=>{ const con = Math.min(codigosAbiertos.size, parqueTotal), sin = parqueTotal-con, pc = con/parqueTotal*100;
           return `<div class="park-bar">
@@ -1982,7 +2008,7 @@ function renderDashboard(){
             </select></div>
           <button class="btn btn-hero" onclick="descargarReporteEjecutivo()">📄 Reporte ejecutivo (HTML)</button>
           <button class="btn btn-hero" onclick="imprimirReportePDF()">🖨️ Reporte ejecutivo (PDF)</button>
-          <button class="btn btn-hero-ghost" onclick="document.getElementById('csvInput').click()">⬆ Importar base de grifos (CSV)</button>
+          ${ROLE==='singemelec' ? `<button class="btn btn-hero-ghost" onclick="document.getElementById('csvInput').click()" title="Cada fila del archivo se guarda como un HALLAZGO nuevo (no carga grifos al catastro)">⬆ Importar hallazgos (CSV)</button>` : ''}
           <input type="file" id="csvInput" accept=".csv" style="display:none" onchange="handleCSVImport(event)">
         </div>
       </div>
@@ -2099,9 +2125,9 @@ function renderDashboard(){
       <div class="xcard">
         <div class="xc-head"><h4>Hallazgos abiertos</h4><span class="xc-hint">${total?Math.round(abiertos.length/total*100):0}% de los ${total} registrados · clic para ver la lista</span></div>
         <div class="xc-main"><div class="xc-big">${abiertos.length}</div>
-          <div class="xc-stack">${['directa','indirecta','senaletica'].map(k=>abiertosPorCrit[k]?`<i style="flex:${abiertosPorCrit[k]};background:${PRIORIDAD_COLOR[k]}" title="${PRIORIDAD_LABEL[k]}: ${abiertosPorCrit[k]}"></i>`:'').join('')||'<i style="flex:1;background:#E6EEF5"></i>'}</div>
+          <div class="xc-stack">${['directa','indirecta'].map(k=>abiertosPorCrit[k]?`<i style="flex:${abiertosPorCrit[k]};background:${PRIORIDAD_COLOR[k]}" title="${PRIORIDAD_LABEL[k]}: ${abiertosPorCrit[k]}"></i>`:'').join('')||'<i style="flex:1;background:#E6EEF5"></i>'}</div>
         </div>
-        <div class="xc-legs">${['directa','indirecta','senaletica'].map(k=>`<button type="button" class="xc-leg" onclick="irAListaConFiltro('prioridad','${k}')" title="Ver los hallazgos de ${PRIORIDAD_LABEL[k]}"><i style="background:${PRIORIDAD_COLOR[k]}"></i><span>${k==='directa'?'Directa':k==='indirecta'?'Indirecta':'Señalética'}</span><b>${abiertosPorCrit[k]}</b></button>`).join('')}</div>
+        <div class="xc-legs">${['directa','indirecta'].map(k=>`<button type="button" class="xc-leg" onclick="irAListaConFiltro('prioridad','${k}')" title="Ver los hallazgos de ${PRIORIDAD_LABEL[k]}"><i style="background:${PRIORIDAD_COLOR[k]}"></i><span>${k==='directa'?'Directa':k==='indirecta'?'Indirecta':'Señalética'}</span><b>${abiertosPorCrit[k]}</b></button>`).join('')}</div>
       </div>
 
       <div class="xcard">
@@ -2284,7 +2310,7 @@ function cambiarFiltroSectorDashboard(valor){
    - Agrupa grifos cercanos (leaflet.markercluster) y permite vista satélite.
    - Recuerda filtros, capa y vista del usuario aunque lleguen datos nuevos. */
 const MAPA_UI = {
-  crit:{directa:true, indirecta:true, senaletica:true},
+  crit:{directa:true, indirecta:true, senaletica:false}, // la señalética (pinturas) parte apagada para no tapar los hallazgos reales
   estado:{pendiente:true, en_proceso:true, resuelto:true},
   capa:'calles', agrupar:false, parque:false
 };
@@ -2362,7 +2388,9 @@ function mapaToolbarHtml(){
 function mapaPintarControles(){
   const regs = mapaRegistros();
   const nC = {directa:0, indirecta:0, senaletica:0}, nE = {pendiente:0, en_proceso:0, resuelto:0};
-  regs.forEach(h=>{ nC[criticidadDeRegistro(h)]++; nE[h.estado||'pendiente']++; });
+  // los contadores de estado respetan la criticidad visible (así las pinturas
+  // no inflan "Pendiente" mientras la señalética está apagada)
+  regs.forEach(h=>{ const c = criticidadDeRegistro(h); nC[c]++; if(MAPA_UI.crit[c] !== false) nE[h.estado||'pendiente']++; });
   const chip = (grupo, k, label, color, n, on)=>
     `<button type="button" class="mchip ${on?'on':''}" style="--c:${color};--cg:${color}33" onclick="mapaToggle('${grupo}','${k}')"><i></i>${label} <span class="n">${n}</span></button>`;
   const elC = document.getElementById('mapaChipsCrit'), elE = document.getElementById('mapaChipsEstado');
@@ -2416,11 +2444,29 @@ function mapaToggleAgrupar(){
 }
 
 /* ---------- Marcadores ---------- */
+/* Un solo punto por grifo: los registros visibles se agrupan por
+   codigo_grifo (si no tiene código, el registro va solo). */
+let MAPA_GRUPOS = {};         // clave de grifo → registros visibles de ese grifo
+function mapaClaveGrifo(h){
+  const c = (h.codigo_grifo||'').trim().toUpperCase();
+  return c ? 'G:'+c : 'R:'+h.id;
+}
+/* Resumen de un grupo: el hallazgo abierto más grave define el color; si
+   todos están resueltos, el punto se ve como resuelto. */
+function mapaResumenGrupo(regs){
+  const abiertos = regs.filter(x=>x.estado!=='resuelto');
+  const base = abiertos.length ? abiertos : regs;
+  let peor = base[0];
+  base.forEach(x=>{ if(ORDEN_CRITICIDAD.indexOf(criticidadDeRegistro(x)) < ORDEN_CRITICIDAD.indexOf(criticidadDeRegistro(peor))) peor = x; });
+  return {rep:peor, crit:criticidadDeRegistro(peor), resuelto:abiertos.length===0, n:regs.length, abiertos:abiertos.length};
+}
 function mapaIcono(h, seleccionado){
-  const cls = 'gpin' + (h.estado==='resuelto' ? ' res' : '') + (seleccionado ? ' sel' : '');
+  const grupo = MAPA_GRUPOS[mapaClaveGrifo(h)] || [h];
+  const r = mapaResumenGrupo(grupo);
+  const cls = 'gpin' + (r.resuelto ? ' res' : '') + (seleccionado ? ' sel' : '');
   return L.divIcon({
     className: cls,
-    html: `<span class="gpin-dot" style="--c:${mapaColor(h)}">${h.estado==='resuelto'?'✓':''}</span>`,
+    html: `<span class="gpin-dot" style="--c:${PRIORIDAD_COLOR[r.crit]||'#999'}">${r.resuelto?'✓':(r.abiertos>1?r.abiertos:'')}</span>`,
     iconSize:[24,24], iconAnchor:[12,12]
   });
 }
@@ -2447,18 +2493,22 @@ function mapaActualizarMarcadores(){
     : L.layerGroup();
   const todos = mapaRegistros();
   const visibles = todos.filter(mapaPasaFiltros);
-  visibles.forEach(h=>{
-    const m = L.marker([h.lat,h.lng], {icon:mapaIcono(h, h.id===MAPA_SEL), crit:criticidadDeRegistro(h), hid:h.id, riseOnHover:true});
-    m.bindTooltip(`${escHtml(h.codigo_grifo||'Grifo')} · ${escHtml(PRIORIDAD_LABEL[criticidadDeRegistro(h)])}`, {direction:'top', offset:[0,-12], className:'gtip'});
+  MAPA_GRUPOS = {};
+  visibles.forEach(h=>{ const k = mapaClaveGrifo(h); (MAPA_GRUPOS[k] = MAPA_GRUPOS[k] || []).push(h); });
+  const claveSel = (()=>{ const hs = MAPA_SEL && HALLAZGOS.find(x=>x.id===MAPA_SEL); return hs ? mapaClaveGrifo(hs) : null; })();
+  Object.keys(MAPA_GRUPOS).forEach(k=>{
+    const regs = MAPA_GRUPOS[k], r = mapaResumenGrupo(regs), h = r.rep;
+    const m = L.marker([h.lat,h.lng], {icon:mapaIcono(h, k===claveSel), crit:r.crit, hid:h.id, riseOnHover:true});
+    m.bindTooltip(`${escHtml(h.codigo_grifo||'Grifo')} · ${r.n>1 ? `${r.n} hallazgos (${r.abiertos} abierto${r.abiertos===1?'':'s'})` : escHtml(PRIORIDAD_LABEL[r.crit])}`, {direction:'top', offset:[0,-12], className:'gtip'});
     m.on('click', ()=>mapaSeleccionar(h.id));
-    mapaMarcadores[h.id] = m;
+    regs.forEach(x=>{ mapaMarcadores[x.id] = m; });  // cualquier registro del grifo apunta al mismo punto
     mapaGrupo.addLayer(m);
   });
   mapaGrupo.addTo(dashMapInstance);
   const nParque = mapaActualizarParque();
   mapaActualizarComunas();
   const cnt = document.getElementById('mapaConteo');
-  if(cnt) cnt.innerHTML = `Mostrando <b>${visibles.length}</b> de ${todos.length} hallazgos` + (MAPA_UI.parque ? ` · <b>${nParque}</b> grifos del parque sin hallazgos abiertos` : '');
+  if(cnt) cnt.innerHTML = `Mostrando <b>${visibles.length}</b> de ${todos.length} hallazgos en <b>${Object.keys(MAPA_GRUPOS).length}</b> grifos` + (MAPA_UI.parque ? ` · <b>${nParque}</b> grifos del parque sin hallazgos abiertos` : '');
   const vac = document.getElementById('mapaVacio');
   if(vac) vac.style.display = (visibles.length===0) ? 'flex' : 'none';
   // si el registro abierto quedó oculto por los filtros, la ficha se mantiene
@@ -2477,7 +2527,7 @@ function mapaActualizarParque(){
   if(!dashMapInstance) return 0;
   if(mapaParqueLayer){ dashMapInstance.removeLayer(mapaParqueLayer); mapaParqueLayer = null; }
   if(!MAPA_UI.parque) return 0;
-  const abiertos = new Set(HALLAZGOS.filter(h=>tieneHallazgoReal(h) && h.estado!=='resuelto').map(h=>h.codigo_grifo));
+  const abiertos = new Set(HALLAZGOS.filter(h=>tieneHallazgoReal(h) && h.estado!=='resuelto' && criticidadDeRegistro(h)!=='senaletica').map(h=>h.codigo_grifo));
   const lienzo = L.canvas({padding:.5});
   mapaParqueLayer = L.layerGroup();
   let n = 0;
@@ -2633,7 +2683,7 @@ function mapaSeleccionar(id, opts){
   if(!h) return;
   const previo = MAPA_SEL;
   MAPA_SEL = id;
-  if(previo && previo!==id && mapaMarcadores[previo]){
+  if(previo && previo!==id && mapaMarcadores[previo] && mapaMarcadores[previo]!==mapaMarcadores[id]){
     const hp = HALLAZGOS.find(x=>x.id===previo);
     if(hp) mapaMarcadores[previo].setIcon(mapaIcono(hp,false));
   }
@@ -2695,25 +2745,80 @@ function abrirLightbox(url){
   document.body.appendChild(d);
 }
 
+/* Comentarios visibles: se esconden las notas técnicas que deja el panel
+   de Singemelec al separar registros ("Registro separado de …"). */
+function comentariosVisibles(h){
+  return (h.comentarios||[]).filter(c=>c && !String(c.texto||'').trim().startsWith('Registro separado de'));
+}
+/* Todos los registros con hallazgo de un mismo grifo: primero los abiertos
+   más graves, luego los resueltos, y la señalética (pinturas) al final. */
+function registrosDelGrifo(h){
+  const cod = (h.codigo_grifo||'').trim().toUpperCase();
+  const regs = cod ? HALLAZGOS.filter(x=>tieneHallazgoReal(x) && (x.codigo_grifo||'').trim().toUpperCase()===cod) : [h];
+  if(!regs.some(x=>x.id===h.id)) regs.push(h);
+  const peso = x=>{ const c = criticidadDeRegistro(x); return (c==='senaletica'?20:0) + (x.estado==='resuelto'?10:0) + ORDEN_CRITICIDAD.indexOf(c); };
+  return regs.slice().sort((a,b)=> peso(a)-peso(b) || new Date(a.fecha_creacion)-new Date(b.fecha_creacion));
+}
+function fotosComentario(c){
+  const out = [];
+  if(c.foto_antes) out.push(c.foto_antes);
+  const fd = (c.fotos_despues && c.fotos_despues.length) ? c.fotos_despues : (c.foto_despues ? [c.foto_despues] : []);
+  fd.forEach(u=>out.push(u));
+  if(c.foto && !out.includes(c.foto)) out.push(c.foto);
+  return out.filter(u=>u && typeof u==='string');
+}
+function miniFotosHtml(urls){
+  const u = Array.from(new Set(urls.filter(Boolean)));
+  return u.length ? `<div class="mp-hz-fotos">${u.map(x=>`<img src="${escHtml(x)}" alt="Foto" loading="lazy" onclick="abrirLightbox(this.src)">`).join('')}</div>` : '';
+}
+
 function mapaRenderFicha(h){
   const panel = document.getElementById('mapaPanel');
   if(!panel) return;
-  const crit = criticidadDeRegistro(h);
-  const dias = diasTranscurridos(h.fecha_creacion);
-  const detalle = obtenerDetalleHallazgos(h);
-  MAPA_FOTOS = fotosDeRegistro(h);
+  const regs = registrosDelGrifo(h);
+  const resumen = mapaResumenGrupo(regs.filter(x=>criticidadDeRegistro(x)!=='senaletica').length ? regs.filter(x=>criticidadDeRegistro(x)!=='senaletica') : regs);
+  // Carrusel: todas las fotos de todos los registros del grifo, sin repetir.
+  const vistos = new Set();
+  MAPA_FOTOS = [];
+  regs.forEach(x=>fotosDeRegistro(x).forEach(f=>{ if(!vistos.has(f.url)){ vistos.add(f.url); MAPA_FOTOS.push(f); } }));
   MAPA_FOTO_IDX = 0;
-  const ultCom = (h.comentarios||[]).filter(c=>c && c.texto).slice(-1)[0];
-  const otros = HALLAZGOS.filter(x=>x.id!==h.id && h.codigo_grifo && x.codigo_grifo===h.codigo_grifo && tieneHallazgoReal(x));
   const gps = enlaceGpsHallazgo(h);
+  const g = (CATALOGO_GRIFOS||{})[h.codigo_grifo] || {};
   const kv = [];
-  if(h.modelo_grifo) kv.push(['Modelo', h.modelo_grifo]);
-  if(h.diametro_conexion) kv.push(['Diámetro', `Ø${h.diametro_conexion} mm`]);
-  if(h.ano_instalacion) kv.push(['Instalado', h.ano_instalacion]);
-  if(h.presion_grifo) kv.push(['Presión', h.presion_grifo]);
-  if(h.fecha_ejecucion) kv.push(['Inspección', `${fmtFechaSolo(h.fecha_ejecucion)}${h.horario_ejecucion?' · '+h.horario_ejecucion:''}`]);
-  kv.push(['Registrado', fmtDate(h.fecha_creacion)]);
-  kv.push(['Registro', h.id]);
+  const modelo = h.modelo_grifo || g.modelo, diam = h.diametro_conexion || g.diametro_conexion, ano = h.ano_instalacion || g.ano_instalacion;
+  if(modelo) kv.push(['Modelo', modelo]);
+  if(diam) kv.push(['Diámetro', `Ø${diam} mm`]);
+  if(ano) kv.push(['Instalado', ano]);
+  const conPresion = regs.find(x=>x.presion_grifo);
+  if(conPresion) kv.push(['Presión', conPresion.presion_grifo]);
+  const conInsp = regs.filter(x=>x.fecha_ejecucion).sort((a,b)=>String(b.fecha_ejecucion).localeCompare(String(a.fecha_ejecucion)))[0];
+  if(conInsp) kv.push(['Última inspección', `${fmtFechaSolo(conInsp.fecha_ejecucion)}${conInsp.horario_ejecucion?' · '+conInsp.horario_ejecucion:''}`]);
+  const nAbiertos = regs.filter(x=>x.estado!=='resuelto' && criticidadDeRegistro(x)!=='senaletica').length;
+
+  const tarjeta = x=>{
+    const crit = criticidadDeRegistro(x), dias = diasTranscurridos(x.fecha_creacion);
+    const detalle = obtenerDetalleHallazgos(x);
+    const fotosSG = [].concat(
+      (x.fotos_grifo && x.fotos_grifo.length) ? x.fotos_grifo : (x.foto_grifo ? [x.foto_grifo] : []),
+      (x.fotos_hallazgo && x.fotos_hallazgo.length) ? x.fotos_hallazgo : (x.foto_hallazgo ? [x.foto_hallazgo] : []));
+    const coms = comentariosVisibles(x);
+    return `<div class="mp-hz ${x.id===h.id?'sel':''} ${crit==='senaletica'?'senal':''}">
+      <div class="mp-hz-head">
+        <div class="mp-hz-tit">${detalle.map(d=>escHtml(d.tipo_hallazgo)).join(' · ') || 'Hallazgo'}</div>
+        <span class="badge ${crit}">${PRIORIDAD_LABEL[crit]}</span>
+        ${x.estado ? `<span class="badge ${x.estado}">${ESTADO_LABEL[x.estado]}</span>` : ''}
+        ${x.estado && x.estado!=='resuelto' ? `<span class="badge" style="background:#EAF1F8;color:#33557F;">${dias} día${dias===1?'':'s'} pendiente</span>` : ''}
+      </div>
+      ${detalle.length>1 || detalle.some(d=>resumenValvula(d)) ? detalle.map(d=>{ const c = criticidadDeDetalle(d,x), v = resumenValvula(d);
+        return `<div class="mp-find"><i style="background:${PRIORIDAD_COLOR[c]}"></i><div>${escHtml(d.tipo_hallazgo)}<small>${d.tipo_elemento==='camara'?'Cámara':'Grifo'} · ${PRIORIDAD_LABEL[c]}${v?` · ${escHtml(v)}`:''}</small></div></div>`; }).join('') : ''}
+      ${fotosSG.length ? `<div class="mp-hz-lbl">Fotos Singemelec</div>${miniFotosHtml(fotosSG)}` : ''}
+      ${x.descripcion ? `<div class="mp-hz-lbl">Comentario Singemelec</div><div class="mp-coment">${escHtml(x.descripcion)}</div>` : ''}
+      ${coms.length ? `<div class="mp-hz-lbl">Comentarios (${coms.length})</div>${coms.map(c=>`<div class="mp-coment"><div class="ca">${escHtml(c.autor||'')} · ${escHtml(fmtDate(c.fecha))}${c.estado_nuevo?` · ${escHtml(ESTADO_LABEL[c.estado_nuevo]||c.estado_nuevo)}`:''}</div>${escHtml(c.texto||'')}${miniFotosHtml(fotosComentario(c))}</div>`).join('')}` : ''}
+      <div><button type="button" class="btn btn-ghost btn-sm" onclick="openDetail('${x.id}')">Gestionar este hallazgo</button></div>
+    </div>`;
+  };
+  const principales = regs.filter(x=>criticidadDeRegistro(x)!=='senaletica');
+  const senal = regs.filter(x=>criticidadDeRegistro(x)==='senaletica');
 
   panel.innerHTML = `
     <button type="button" class="mp-close" onclick="mapaCerrarFicha()" aria-label="Cerrar ficha">&times;</button>
@@ -2722,30 +2827,18 @@ function mapaRenderFicha(h){
     <div class="mp-body">
       <div>
         <div class="mp-cod">${escHtml(h.codigo_grifo || 'Grifo sin código')}</div>
-        <div class="mp-sub">${escHtml(h.direccion || 'Sin dirección registrada')}${h.comuna?`<br>${escHtml([h.localidad,h.comuna].filter((v,i,a)=>v && a.indexOf(v)===i).join(' · '))}`:''}</div>
+        <div class="mp-sub">${escHtml(h.direccion || g.ubicacion || 'Sin dirección registrada')}${h.comuna?`<br>${escHtml([h.localidad,h.comuna].filter((v,i,a)=>v && a.indexOf(v)===i).join(' · '))}`:''}</div>
         <div class="mp-badges">
-          <span class="badge ${crit}">${PRIORIDAD_LABEL[crit]}</span>
-          ${h.estado ? `<span class="badge ${h.estado}">${ESTADO_LABEL[h.estado]}</span>` : ''}
-          ${h.estado && h.estado!=='resuelto' ? `<span class="badge" style="background:#EAF1F8;color:#33557F;">${dias} día${dias===1?'':'s'} pendiente</span>` : ''}
+          ${nAbiertos ? `<span class="badge ${resumen.crit}">${nAbiertos} hallazgo${nAbiertos===1?'':'s'} abierto${nAbiertos===1?'':'s'}</span>` : (principales.length ? `<span class="badge resuelto">Hallazgos resueltos</span>` : '')}
+          ${senal.length ? `<span class="badge senaletica">Señalética: ${senal.filter(x=>x.estado!=='resuelto').length ? 'pendiente' : 'ejecutada'}</span>` : ''}
         </div>
       </div>
-      <div class="mp-sec">
-        <h4>Hallazgos detectados (${detalle.length})</h4>
-        ${detalle.map(d=>{
-          const c = criticidadDeDetalle(d,h), v = resumenValvula(d);
-          return `<div class="mp-find"><i style="background:${PRIORIDAD_COLOR[c]}"></i><div>${escHtml(d.tipo_hallazgo)}<small>${d.tipo_elemento==='camara'?'Cámara':'Grifo'} · ${PRIORIDAD_LABEL[c]}${v?` · ${escHtml(v)}`:''}</small></div></div>`;
-        }).join('')}
-      </div>
-      ${h.descripcion ? `<div class="mp-sec"><h4>Descripción</h4><div class="mp-coment">${escHtml(h.descripcion)}</div></div>` : ''}
-      ${ultCom ? `<div class="mp-sec"><h4>Último comentario</h4><div class="mp-coment"><div class="ca">${escHtml(ultCom.autor||'')} · ${escHtml(fmtDate(ultCom.fecha))}</div>${escHtml(ultCom.texto)}</div></div>` : ''}
-      <div class="mp-sec"><h4>Datos del grifo</h4><dl class="mp-kv">${kv.map(([k,v])=>`<dt>${k}</dt><dd>${escHtml(v)}</dd>`).join('')}</dl></div>
-      ${otros.length ? `<div class="mp-sec"><h4>Otros registros en este grifo (${otros.length})</h4>${otros.map(x=>{
-        const cx = criticidadDeRegistro(x);
-        return `<button type="button" class="mp-otro" onclick="mapaSeleccionar('${x.id}',{centrar:false})"><i style="background:${PRIORIDAD_COLOR[cx]}"></i>${escHtml(obtenerDetalleHallazgos(x).map(d=>d.tipo_hallazgo).join(', ')).slice(0,60)}<small>${escHtml(ESTADO_LABEL[x.estado]||'')}</small></button>`;
-      }).join('')}</div>` : ''}
+      ${kv.length ? `<div class="mp-sec"><h4>Datos del grifo</h4><dl class="mp-kv">${kv.map(([k,v])=>`<dt>${k}</dt><dd>${escHtml(v)}</dd>`).join('')}</dl></div>` : ''}
+      ${principales.length ? `<div class="mp-sec"><h4>Hallazgos del grifo (${principales.length})</h4>${principales.map(tarjeta).join('')}</div>` : ''}
+      ${senal.length ? `<div class="mp-sec"><h4>Señalética / pintura</h4>${senal.map(tarjeta).join('')}</div>` : ''}
     </div>
     <div class="mp-actions">
-      <button type="button" class="btn btn-primary btn-sm" onclick="openDetail('${h.id}')">Ver detalle completo</button>
+      <button type="button" class="btn btn-primary btn-sm" onclick="openDetail('${(principales[0]||regs[0]).id}')">Ver detalle completo</button>
       ${gps ? `<a class="btn btn-amber btn-sm" href="${gps}" target="_blank" rel="noopener">📍 Cómo llegar</a>` : ''}
     </div>`;
   panel.scrollTop = 0;
@@ -3889,7 +3982,8 @@ function renderLista(){
       <div class="filter-group">
         <label for="filtroPrioridadSelect">Prioridad</label>
         <select id="filtroPrioridadSelect" onchange="cambiarFiltroPrioridadLista(this.value)">
-          <option value="todos" ${FILTRO_PRIORIDAD_LISTA==='todos'?'selected':''}>Todas</option>
+          <option value="operatividad" ${FILTRO_PRIORIDAD_LISTA==='operatividad'?'selected':''}>Directa + indirecta (sin señalética)</option>
+          <option value="todos" ${FILTRO_PRIORIDAD_LISTA==='todos'?'selected':''}>Todas (incluye señalética)</option>
           ${CATEGORIAS_CRITICIDAD.map(cat=>`<option value="${cat.clave}" ${FILTRO_PRIORIDAD_LISTA===cat.clave?'selected':''}>${cat.titulo}</option>`).join('')}
         </select>
       </div>
@@ -4054,7 +4148,9 @@ function pasaFiltrosLista(h){
   const codigoBuscado = FILTRO_CODIGO.trim().toUpperCase();
   if(codigoBuscado && !(h.codigo_grifo||'').toUpperCase().includes(codigoBuscado)) return false;
   if(FILTRO_COMUNA_LISTA!=='todos' && h.comuna!==FILTRO_COMUNA_LISTA) return false;
-  if(FILTRO_PRIORIDAD_LISTA!=='todos' && criticidadDeRegistro(h)!==FILTRO_PRIORIDAD_LISTA) return false;
+  // (si se eligió un tipo de hallazgo puntual, p.ej. "Pintura en mal estado", ese filtro manda)
+  if(FILTRO_PRIORIDAD_LISTA==='operatividad'){ if(FILTRO_HALLAZGO_TIPO==='todos' && criticidadDeRegistro(h)==='senaletica') return false; }
+  else if(FILTRO_PRIORIDAD_LISTA!=='todos' && criticidadDeRegistro(h)!==FILTRO_PRIORIDAD_LISTA) return false;
   if(FILTRO_HALLAZGO_TIPO!=='todos'){
     const tieneEseTipo = obtenerDetalleHallazgos(h).some(d=>d.tipo_hallazgo===FILTRO_HALLAZGO_TIPO);
     if(!tieneEseTipo) return false;
@@ -4186,8 +4282,13 @@ function openDetail(id){
 
   modal.innerHTML = `
     <button class="closeX" onclick="closeModal()">&times;</button>
-    <h2>${h.direccion}</h2>
-    <div class="fid mono">${h.id} · registrado ${fmtDate(h.fecha_creacion)}${esInspeccion(h)?' · Inspección':''}</div>
+    <h2>${h.codigo_grifo ? escHtml(h.codigo_grifo)+' · ' : ''}${h.direccion}</h2>
+    <div class="fid mono">Registrado ${fmtDate(h.fecha_creacion)}${esInspeccion(h)?' · Inspección':''}</div>
+    ${(()=>{ const regs = tieneHallazgoReal(h) ? registrosDelGrifo(h) : [];
+      if(regs.length < 2) return '';
+      return `<div class="mp-hz-lbl" style="margin-top:8px;">Hallazgos de este grifo (${regs.length}) · elige cuál gestionar</div>
+      <div class="det-grifo">${regs.map(x=>{ const c = criticidadDeRegistro(x);
+        return `<button type="button" class="${x.id===h.id?'on':''}" onclick="openDetail('${x.id}')"><i style="background:${PRIORIDAD_COLOR[c]}"></i>${escHtml(obtenerDetalleHallazgos(x).map(d=>d.tipo_hallazgo).join(', ')||'Hallazgo')} · ${escHtml(ESTADO_LABEL[x.estado||'pendiente'])}</button>`; }).join('')}</div>`; })()}
     <div style="display:flex;gap:6px;margin:10px 0;flex-wrap:wrap;">
       ${h.estado ? `<span class="badge ${h.prioridad}">${PRIORIDAD_LABEL[h.prioridad]}</span><span class="badge ${h.estado}">${ESTADO_LABEL[h.estado]}</span>` : `<span class="badge" style="background:var(--concrete-2);color:var(--text-soft);">Inspección sin hallazgo</span>`}
     </div>
@@ -4243,8 +4344,8 @@ function openDetail(id){
 
     <div class="panel" style="margin-top:14px;">
       <h3>Historial de avances <span style="font-size:11px;color:var(--text-soft);font-weight:400;text-transform:none;">(traza completa, no se borra)</span></h3>
-      ${h.comentarios.length===0 ? '<div style="font-size:12.5px;color:var(--text-soft);">Sin comentarios aún.</div>' :
-        h.comentarios.map(c=>{
+      ${comentariosVisibles(h).length===0 ? '<div style="font-size:12.5px;color:var(--text-soft);">Sin comentarios aún.</div>' :
+        comentariosVisibles(h).map(c=>{
           const fotos = [];
           if(c.foto_antes) fotos.push({url:c.foto_antes, label:'Antes'});
           const fotosDespuesC = (c.fotos_despues && c.fotos_despues.length) ? c.fotos_despues : (c.foto_despues ? [c.foto_despues] : []);
@@ -4470,7 +4571,7 @@ function abrirEdicionHallazgo(id){
   modal.innerHTML = `
     <button class="closeX" onclick="closeModal()">&times;</button>
     <h2>Editar hallazgo</h2>
-    <div class="fid mono">${h.id}</div>
+    <div class="fid mono">${escHtml(h.codigo_grifo||'')}</div>
     <div class="field">
       <label>Código de grifo (catastro Sacyr)</label>
       <input type="text" id="eCodigoGrifo" value="${(h.codigo_grifo||'').replace(/"/g,'&quot;')}" style="text-transform:uppercase;max-width:260px;">
@@ -4619,7 +4720,13 @@ async function guardarEdicionHallazgo(id){
    descarga en HTML como para la generación de PDF vía impresión). */
 function construirReporteHTML(soloIds){
   const baseHallazgos = HALLAZGOS.filter(tieneHallazgoReal);
-  const conHallazgo = soloIds ? baseHallazgos.filter(h=>soloIds.includes(h.id)) : baseHallazgos;
+  const conHallazgoTodo = soloIds ? baseHallazgos.filter(h=>soloIds.includes(h.id)) : baseHallazgos;
+  // La señalética (pinturas) va en su propio bloque y NO entra en el total,
+  // en el % resuelto ni en los estados del informe.
+  const conHallazgo = conHallazgoTodo.filter(h=>criticidadDeRegistro(h)!=='senaletica');
+  const senaleticaRep = conHallazgoTodo.filter(h=>criticidadDeRegistro(h)==='senaletica');
+  const senRepPend = senaleticaRep.filter(h=>h.estado!=='resuelto').length;
+  const senRepEjec = senaleticaRep.length - senRepPend;
   const total = conHallazgo.length;
   const counts = {directa:0, indirecta:0, senaletica:0};
   const estados = {pendiente:0, en_proceso:0, resuelto:0};
@@ -4633,7 +4740,7 @@ function construirReporteHTML(soloIds){
 
   // Tablas por criticidad para el desarrollo
   function bloquePrioridad(clave, etiqueta, color){
-    const items = conHallazgo.filter(h=>criticidadDeRegistro(h)===clave);
+    const items = (clave==='senaletica' ? senaleticaRep : conHallazgo).filter(h=>criticidadDeRegistro(h)===clave);
     if(items.length===0) return `<h3 style="color:${color}">${etiqueta} <span class="mono" style="font-size:12px;color:var(--text-soft);font-weight:400;">(0 hallazgos)</span></h3><p style="font-size:13px;color:var(--text-soft);">Sin hallazgos registrados en esta categoría.</p>`;
     const rows = items.map(h=>{
       const detalle = obtenerDetalleHallazgos(h);
@@ -4767,7 +4874,7 @@ footer{text-align:center;font-size:11px;color:var(--text-soft);font-family:'IBM 
       <div class="kpi"><div class="tab" style="background:var(--ink)"></div><div class="num">${total}</div><div class="lbl">Hallazgos totales</div></div>
       <div class="kpi"><div class="tab" style="background:var(--hidrante)"></div><div class="num">${counts.directa||0}</div><div class="lbl">Operatividad directa</div></div>
       <div class="kpi"><div class="tab" style="background:var(--senal)"></div><div class="num">${counts.indirecta||0}</div><div class="lbl">Operatividad indirecta/mec.</div></div>
-      <div class="kpi"><div class="tab" style="background:var(--tuberia)"></div><div class="num">${counts.senaletica||0}</div><div class="lbl">Señalética/visibilidad</div></div>
+      <div class="kpi"><div class="tab" style="background:var(--tuberia)"></div><div class="num">${senaleticaRep.length}</div><div class="lbl">Señalética / pinturas (aparte: ${senRepPend} pend. · ${senRepEjec} ejec.)</div></div>
       <div class="kpi"><div class="tab" style="background:var(--musgo)"></div><div class="num">${estados.resuelto||0}</div><div class="lbl">Resueltos (${pctResuelto}%)</div></div>
     </div>
 
@@ -4792,7 +4899,7 @@ footer{text-align:center;font-size:11px;color:var(--text-soft);font-family:'IBM 
     <div class="panel">
       ${bloquePrioridad('directa','Operatividad directa','var(--hidrante)')}
       ${bloquePrioridad('indirecta','Operatividad indirecta / mecánica','#8a6109')}
-      ${bloquePrioridad('senaletica','Señalética / visibilidad','var(--tuberia)')}
+      ${bloquePrioridad('senaletica','Señalética / pinturas (no se suma a los totales de hallazgos)','var(--tuberia)')}
     </div>
   </section>
 
@@ -5180,7 +5287,6 @@ function construirFilasExcel(soloIds){
     const detalle = obtenerDetalleHallazgos(h);
     const zona = zonaDeHallazgo(h)==='lampa' ? 'Lampa' : zonaDeHallazgo(h)==='metropolitana' ? 'Metropolitana' : 'Sin zona';
     const base = {
-      'ID registro': h.id,
       'Fecha registro': fmtDate(h.fecha_creacion),
       'Creado por': h.creado_por || '',
       'Zona': zona,
