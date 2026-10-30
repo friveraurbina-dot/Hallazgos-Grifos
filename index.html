@@ -884,7 +884,10 @@ main{padding:14px 22px 56px;}
 .xcard.zp-card{border-color:#C4B5FD;background:linear-gradient(180deg,#F7F3FF,var(--paper));}
 #mapaBtnZP.on{background:#7C3AED;border-color:#7C3AED;color:#fff;}
 /* ícono del motivo en la esquina del punto */
-.gpin{position:relative;}
+/* Leaflet posiciona los marcadores con position:absolute; dejarlo en relative
+   los sacaba del mapa y los apilaba en una columna. El distintivo de zona
+   prioritaria se ancla igual, porque absolute también sirve de referencia. */
+.gpin{position:absolute;}
 .gpin .gpin-zp{position:absolute;right:-9px;top:-9px;width:17px;height:17px;border-radius:50%;background:#fff;border:2px solid #7C3AED;display:flex;align-items:center;justify-content:center;font-size:9.5px;line-height:1;box-shadow:0 1px 4px rgba(0,0,0,.4);pointer-events:none;}
 .zp-lugar{background:none;border:none;}
 /* ===== Rediseño 28/10: menú sin "Operación en terreno", encabezado compacto y mapa más arriba ===== */
