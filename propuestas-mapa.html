@@ -192,7 +192,7 @@ function pintarA(fit){
    L.circleMarker([r.la,r.ln],{radius:sen?5:7.5,color:col,weight:proc?3:1.6,
      fillColor:proc?'#FFFFFF':(s.resuelto?'#D7E0EA':col),fillOpacity:s.resuelto&&!proc?.75:1})
     .bindTooltip('<b>'+esc(k)+'</b> · '+(s.resuelto?'Todo resuelto':NOMC[s.crit]),{direction:'top',offset:[0,-4]})
-    .bindPopup(popGrifo(k,rs,s),{maxWidth:300,className:'popA'}).addTo(g);
+    .bindPopup(popGrifo(k,rs,s),{maxWidth:300,className:'popA',autoPanPaddingTopLeft:[60,40],autoPanPaddingBottomRight:[60,30]}).addTo(g);
    L.marker([r.la,r.ln],{interactive:false,icon:L.divIcon({className:'',iconSize:[1,1],iconAnchor:[-10,6],
      html:'<div class="gcod">'+esc(k)+'</div>'})}).addTo(g);
    pts.push([r.la,r.ln]);});
