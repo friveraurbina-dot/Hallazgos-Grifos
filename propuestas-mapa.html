@@ -36,10 +36,10 @@ header p{margin:0;font-size:12.5px;color:rgba(255,255,255,.75)}
 .leyenda.osc .tt{color:#8FD6E8}
 .ctrl{position:absolute;right:12px;top:12px;z-index:800;background:rgba(255,255,255,.96);border:1px solid var(--line);border-radius:10px;padding:8px 11px;font:600 11.5px Inter,sans-serif;box-shadow:0 4px 14px rgba(0,35,89,.18)}
 .ctrl label{display:flex;gap:7px;align-items:center;cursor:pointer;color:var(--text)}
-.lug{border-radius:2px;border:1px solid rgba(255,255,255,.85);opacity:.78}
+.lug{border-radius:3px;background:rgba(255,255,255,.30);opacity:.8;box-shadow:0 0 0 .8px rgba(255,255,255,.75)}
 .lugnom{font:700 9.5px Montserrat,sans-serif;color:#1F3B5C;text-shadow:0 1px 2px #fff,0 0 6px #fff,0 0 6px #fff;white-space:nowrap}
 #mapa.lejos .lugnom{display:none}
-.leyenda s{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:-1px;border:1.2px solid #fff;box-shadow:0 0 0 .8px rgba(23,35,59,.45)}
+.leyenda s{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-2px;background:transparent}
 .leyenda .hueco{background:#fff !important}
 .cargando{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(237,243,248,.92);z-index:900;font:600 13px Inter,sans-serif;color:var(--soft)}
 table.cmp{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:18px;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
@@ -90,9 +90,9 @@ function limpiar(){[capaDatos,capaLugares].forEach(c=>{if(c)map.removeLayer(c);}
 function lugares(){
   const g=L.layerGroup();
   (datos.lug||[]).forEach(p=>{const t=TIPOS[p.tipo]||{nom:p.tipo,col:'#5A6F8C'};
-    const pocos=p.tipo!=='educacion',lado=pocos?10:7;
+    const pocos=p.tipo!=='educacion',lado=pocos?19:16;
     L.marker([p.lat,p.lng],{pane:'lugares',icon:L.divIcon({className:'',iconSize:[lado,lado],iconAnchor:[lado/2,lado/2],
-      html:'<div class="lug" style="width:'+lado+'px;height:'+lado+'px;background:'+t.col+'"></div>'})})
+      html:'<div class="lug" style="width:'+lado+'px;height:'+lado+'px;border:'+(pocos?2.5:2)+'px solid '+t.col+'"></div>'})})
      .bindTooltip('<b>'+p.nombre+'</b><br>'+t.nom,{direction:'top'}).addTo(g);
     if(pocos) L.marker([p.lat,p.lng],{interactive:false,icon:L.divIcon({className:'',iconSize:[1,1],iconAnchor:[-8,6],
       html:'<div class="lugnom">'+p.nombre+'</div>'})}).addTo(g);});
@@ -131,7 +131,7 @@ const OPCIONES=[
    +pt(C.directa)+'Directa &nbsp;'+pt(C.indirecta)+'Indirecta &nbsp;'+pt(C.senaletica)+'Señalética<br>'
    +pt(C.directa,1)+'Relleno blanco = ya en proceso &nbsp;'+pt('#8FA3B8')+'Todo resuelto'
    +'<div style="margin-top:5px;border-top:1px solid #D6E2EC;padding-top:5px">'
-   +Object.keys(TIPOS).map(t=>'<s style="background:'+TIPOS[t].col+'"></s>'+TIPOS[t].nom).join(' &nbsp;')+'</div>');}},
+   +Object.keys(TIPOS).map(t=>'<s style="border:2.5px solid '+TIPOS[t].col+'"></s>'+TIPOS[t].nom).join(' &nbsp;')+'</div>');}},
 
 {id:'B',nom:'Mapa oscuro corporativo',
  resp:'La misma lectura por punto, pero sobre base oscura en la línea del tablero. Los colores encendidos resaltan y la ciudad queda en segundo plano.',
