@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Propuestas de mapa — Tablero ejecutivo Gestión Sacyr</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#002359;--paper:#fff;--bg:#EDF3F8;--line:#D6E2EC;--text:#0E2142;--soft:#5A6F8C;--accent:#01B3D7;
+ --directa:#C8334D;--indirecta:#D9660A;--senal:#8A6D00;--ok:#2F9E78;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif}
+header{background:linear-gradient(110deg,#001640,#002359 45%,#00507f);color:#fff;padding:18px 24px 16px;box-shadow:0 6px 20px rgba(0,35,89,.25)}
+header .eyebrow{font:700 10.5px Montserrat,sans-serif;letter-spacing:.2em;text-transform:uppercase;color:#63D1E0}
+header h1{margin:5px 0 2px;font:800 23px Montserrat,sans-serif;letter-spacing:-.01em}
+header p{margin:0;font-size:12.5px;color:rgba(255,255,255,.75)}
+.wrap{max-width:1500px;margin:0 auto;padding:16px 16px 40px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 12px}
+.tab{all:unset;cursor:pointer;padding:9px 14px;border:1.5px solid var(--line);border-radius:11px;background:#fff;font:600 12.5px Inter,sans-serif;color:var(--soft);display:flex;gap:8px;align-items:center}
+.tab b{font:800 12px Montserrat,sans-serif;color:var(--ink)}
+.tab:hover{border-color:var(--accent)}
+.tab.on{border-color:var(--accent);background:#E9F6FB;color:var(--ink);box-shadow:inset 2px 0 0 var(--accent)}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 2px 10px rgba(0,35,89,.06)}
+.card-head{padding:13px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.card-head h2{margin:0;font:700 15px Montserrat,sans-serif;color:var(--ink)}
+.card-head .resp{font-size:12px;color:var(--soft);margin-top:3px;max-width:760px;line-height:1.5}
+.pros{display:flex;gap:18px;flex-wrap:wrap;font-size:11.5px}
+.pros div{max-width:260px}.pros b{display:block;font:700 10px Montserrat,sans-serif;letter-spacing:.09em;text-transform:uppercase;margin-bottom:3px}
+.pros .si b{color:var(--ok)}.pros .no b{color:var(--directa)}
+#mapa{height:min(68vh,720px);background:#dfeaf2;position:relative}
+.leyenda{position:absolute;left:12px;bottom:12px;z-index:800;background:rgba(255,255,255,.96);border:1px solid var(--line);border-radius:10px;padding:9px 12px;font:600 11.5px Inter,sans-serif;line-height:1.75;box-shadow:0 4px 14px rgba(0,35,89,.18);max-width:320px}
+.leyenda.osc{background:rgba(5,16,40,.92);border-color:rgba(255,255,255,.18);color:#E6EDF7}
+.leyenda i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px;border:1.5px solid #17233B}
+.leyenda .tt{font:800 10.5px Montserrat,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:var(--ink);display:block;margin-bottom:3px}
+.leyenda.osc .tt{color:#8FD6E8}
+.cargando{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(237,243,248,.92);z-index:900;font:600 13px Inter,sans-serif;color:var(--soft)}
+table.cmp{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:18px;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+table.cmp th,table.cmp td{padding:9px 11px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+table.cmp th{font:700 10px Montserrat,sans-serif;letter-spacing:.07em;text-transform:uppercase;color:var(--soft);background:#F7FAFD}
+table.cmp td b{color:var(--ink)}
+.rec{background:#E9F7F1;border:1px solid #9BD9C2;border-radius:12px;padding:13px 16px;margin-top:18px;font-size:13px;line-height:1.6}
+.rec b{font:700 11px Montserrat,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#1F7A5C;display:block;margin-bottom:5px}
+</style></head><body>
+<header>
+  <div class="eyebrow">Gestión Sacyr · Parque Grifos Sacyr</div>
+  <h1>Propuestas de mapa para el tablero ejecutivo</h1>
+  <p id="sub">Cargando datos reales del catastro…</p>
+</header>
+<div class="wrap">
+  <div class="tabs" id="tabs"></div>
+  <div class="card">
+    <div class="card-head">
+      <div><h2 id="tt">—</h2><div class="resp" id="resp"></div></div>
+      <div class="pros"><div class="si"><b>A favor</b><span id="si"></span></div><div class="no"><b>En contra</b><span id="no"></span></div></div>
+    </div>
+    <div id="mapa"><div class="cargando" id="cargando">Cargando mapa…</div></div>
+  </div>
+  <table class="cmp"><thead><tr><th>Opción</th><th>Qué responde de un vistazo</th><th>Para quién</th></tr></thead><tbody id="cmp"></tbody></table>
+  <div class="rec"><b>Recomendación</b><span id="recomendacion"></span></div>
+</div>
+<script>
+const E='https://server.arcgisonline.com/ArcGIS/rest/services/';
+const BASES={
+ gris:[E+'Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',E+'Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}'],
+ oscuro:[E+'Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',E+'Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}'],
+ calle:[E+'World_Street_Map/MapServer/tile/{z}/{y}/{x}',null],
+ satelite:[E+'World_Imagery/MapServer/tile/{z}/{y}/{x}',E+'Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}']};
+const C={directa:'#C8334D',indirecta:'#D9660A',senaletica:'#8A6D00'};
+const CB={directa:'#FF5A6E',indirecta:'#FF9A3C',senaletica:'#FFD83D'};
+const ORD=['directa','indirecta','senaletica'];
+let map,capas=[],datos=null,capaDatos=null,leyendaEl=null;
+
+function base(n){capas.forEach(c=>map.removeLayer(c));capas=[];BASES[n].filter(Boolean).forEach(u=>{const l=L.tileLayer(u,{maxZoom:19,attribution:'© Esri'});l.addTo(map);capas.push(l);});}
+function limpiar(){if(capaDatos){map.removeLayer(capaDatos);capaDatos=null;}if(leyendaEl){leyendaEl.remove();leyendaEl=null;}}
+function leyenda(html,osc){leyendaEl=document.createElement('div');leyendaEl.className='leyenda'+(osc?' osc':'');leyendaEl.innerHTML=html;document.getElementById('mapa').appendChild(leyendaEl);}
+function porGrifo(){const g={};datos.hall.forEach(h=>{(g[h.c||h.id]=g[h.c||h.id]||[]).push(h);});return g;}
+function peorDe(rs){const ab=rs.filter(x=>x.e!=='resuelto');const b=ab.length?ab:rs;let p='senaletica';b.forEach(x=>{if(ORD.indexOf(x.cr)<ORD.indexOf(p))p=x.cr;});return{crit:p,resuelto:ab.length===0,abiertos:ab.length,n:rs.length};}
+function encuadrar(){const pts=datos.hall.map(h=>[h.la,h.ln]);map.fitBounds(L.latLngBounds(pts),{padding:[28,28]});}
+
+const OPCIONES=[
+{id:'A',nom:'Puntos sobre mapa gris',
+ resp:'Cada grifo es un punto sobre una base gris y silenciosa. El color indica el hallazgo abierto más grave y el tamaño separa la operatividad de la pintura.',
+ si:'Base neutra: el dato manda. Se imprime y se proyecta bien. Permite llegar al grifo exacto.',
+ no:'Con 554 grifos, en Chicureo y Lampa los puntos se superponen y se pierde la lectura de cuántos hay.',
+ ve:'Dónde está cada grifo con problema',para:'Jefatura operativa',
+ dibuja(){base('gris');const g=L.layerGroup(),pg=porGrifo();
+  Object.keys(pg).forEach(k=>{const rs=pg[k],s=peorDe(rs),r=rs[0],sen=s.crit==='senaletica';
+   L.circleMarker([r.la,r.ln],{radius:sen?4.5:7,color:s.resuelto?'#7C8AA0':'#17233B',weight:s.resuelto?1.2:1.6,
+    fillColor:s.resuelto?'#CBD5E1':C[s.crit],fillOpacity:s.resuelto?.55:.95})
+    .bindTooltip('<b>'+k+'</b><br>'+s.n+' hallazgo(s) · '+s.abiertos+' abierto(s)',{direction:'top'}).addTo(g);});
+  g.addTo(map);capaDatos=g;
+  leyenda('<span class="tt">A · Puntos sobre mapa gris</span><i style="background:'+C.directa+'"></i>Directa &nbsp;<i style="background:'+C.indirecta+'"></i>Indirecta<br><i style="background:'+C.senaletica+';width:7px;height:7px"></i>Señalética &nbsp;<i style="background:#CBD5E1;border-color:#7C8AA0"></i>Todo resuelto');}},
+
+{id:'B',nom:'Mapa oscuro corporativo',
+ resp:'La misma lectura por punto, pero sobre base oscura en la línea del tablero. Los colores encendidos resaltan y la ciudad queda en segundo plano.',
+ si:'Combina con la portada azul del tablero. Máximo contraste del dato en pantalla y en proyector.',
+ no:'En impresión en blanco y negro pierde; gasta mucha tinta si se imprime en color.',
+ ve:'Dónde está cada grifo con problema',para:'Presentación en pantalla',
+ dibuja(){base('oscuro');const g=L.layerGroup(),pg=porGrifo();
+  Object.keys(pg).forEach(k=>{const rs=pg[k],s=peorDe(rs),r=rs[0],sen=s.crit==='senaletica';
+   L.circleMarker([r.la,r.ln],{radius:sen?4:6.5,color:s.resuelto?'#64748B':'#0B1220',weight:1.4,
+    fillColor:s.resuelto?'#475569':CB[s.crit],fillOpacity:s.resuelto?.6:.96})
+    .bindTooltip('<b>'+k+'</b><br>'+s.n+' hallazgo(s) · '+s.abiertos+' abierto(s)',{direction:'top'}).addTo(g);});
+  g.addTo(map);capaDatos=g;
+  leyenda('<span class="tt">B · Mapa oscuro corporativo</span><i style="background:'+CB.directa+';border-color:#0B1220"></i>Directa &nbsp;<i style="background:'+CB.indirecta+';border-color:#0B1220"></i>Indirecta<br><i style="background:'+CB.senaletica+';border-color:#0B1220;width:7px;height:7px"></i>Señalética &nbsp;<i style="background:#475569;border-color:#64748B"></i>Todo resuelto',true);}},
+
+{id:'C',nom:'Burbujas por comuna',
+ resp:'Una burbuja por comuna. El tamaño es proporcional a los hallazgos abiertos (por área, no por radio) y el borde muestra cuántos son de operatividad directa.',
+ si:'Responde en dos segundos dónde se concentra el problema. Nada se superpone. Funciona en una lámina.',
+ no:'No sirve para ubicar un grifo puntual: es una vista de resumen, no de terreno.',
+ ve:'En qué comuna se concentra el problema',para:'Plana ejecutiva',
+ dibuja(){base('gris');const g=L.layerGroup(),com={};
+  datos.hall.forEach(h=>{const k=h.co||'Sin comuna';const e=com[k]=com[k]||{n:0,ab:0,dir:0,la:0,ln:0};e.n++;e.la+=h.la;e.ln+=h.ln;
+   if(h.e!=='resuelto'){e.ab++;if(h.cr==='directa')e.dir++;}});
+  const maxAb=Math.max(...Object.values(com).map(c=>c.ab));
+  Object.keys(com).forEach(k=>{const c=com[k];const r=14+46*Math.sqrt(c.ab/maxAb);
+   L.circleMarker([c.la/c.n,c.ln/c.n],{radius:r,color:'#C8334D',weight:Math.max(2,Math.round(2+6*(c.dir/Math.max(c.ab,1)))),
+     fillColor:'#01B3D7',fillOpacity:.32}).addTo(g);
+   L.marker([c.la/c.n,c.ln/c.n],{interactive:false,icon:L.divIcon({className:'',iconSize:[150,46],
+     html:'<div style="text-align:center;transform:translate(-50%,-50%);width:150px;font-family:Montserrat,sans-serif"><div style="font:800 24px Montserrat;color:#002359;text-shadow:0 1px 3px #fff,0 0 8px #fff">'+c.ab+'</div><div style="font:700 10.5px Montserrat;letter-spacing:.07em;color:#002359;text-shadow:0 1px 3px #fff,0 0 8px #fff">'+k+'</div><div style="font:600 10px Inter;color:#C8334D;text-shadow:0 1px 3px #fff,0 0 8px #fff">'+c.dir+' directa</div></div>'})}).addTo(g);});
+  g.addTo(map);capaDatos=g;
+  leyenda('<span class="tt">C · Burbujas por comuna</span>Tamaño = hallazgos abiertos (área proporcional)<br>Grosor del borde rojo = peso de la operatividad directa');}},
+
+{id:'D',nom:'Concentración (mapa de calor)',
+ resp:'Mancha de calor con los hallazgos abiertos. No muestra grifos uno a uno: muestra dónde se acumulan.',
+ si:'Deja ver corredores y focos que con puntos sueltos no se notan. Muy claro en proyector.',
+ no:'No permite contar ni identificar grifos. La intensidad depende del zoom, así que engaña si se compara entre vistas.',
+ ve:'Dónde se acumulan los hallazgos',para:'Plana ejecutiva',
+ dibuja(){base('gris');const g=L.layerGroup();
+  const ab=datos.hall.filter(h=>h.e!=='resuelto');
+  const paso=.004,cel={};
+  ab.forEach(h=>{const k=Math.round(h.la/paso)+'|'+Math.round(h.ln/paso);(cel[k]=cel[k]||{n:0,la:0,ln:0,d:0});cel[k].n++;cel[k].la+=h.la;cel[k].ln+=h.ln;if(h.cr==='directa')cel[k].d++;});
+  const mx=Math.max(...Object.values(cel).map(c=>c.n));
+  const esc=[[0,'#FFE9B8'],[.25,'#FFC35A'],[.5,'#F08A22'],[.75,'#D6452F'],[1,'#8E1B2E']];
+  const color=t=>{for(let i=esc.length-1;i>=0;i--)if(t>=esc[i][0])return esc[i][1];return esc[0][1];};
+  Object.values(cel).sort((a,b)=>a.n-b.n).forEach(c=>{const t=c.n/mx;
+   L.circleMarker([c.la/c.n,c.ln/c.n],{radius:9+26*Math.sqrt(t),color:'transparent',weight:0,fillColor:color(t),fillOpacity:.52})
+    .bindTooltip(c.n+' hallazgos abiertos aquí',{direction:'top'}).addTo(g);});
+  g.addTo(map);capaDatos=g;
+  leyenda('<span class="tt">D · Concentración de hallazgos abiertos</span>'+esc.map(e=>'<i style="background:'+e[1]+';border:none"></i>').join('')+' de menos a más<br><span style="font-weight:500;color:#5A6F8C">Celdas de ~400 m · '+Object.keys(cel).length+' focos</span>');}},
+
+{id:'E',nom:'Satélite (el actual)',
+ resp:'Lo que hay hoy en el tablero: imagen satelital con un pin por grifo.',
+ si:'Da contexto físico real: se ve el terreno, el camino y el entorno del grifo.',
+ no:'La imagen compite con el dato. En una reunión cuesta leer dónde está el problema; los pines se pierden sobre el terreno.',
+ ve:'Cómo es el entorno de cada grifo',para:'Revisión en terreno',
+ dibuja(){base('satelite');const g=L.layerGroup(),pg=porGrifo();
+  Object.keys(pg).forEach(k=>{const rs=pg[k],s=peorDe(rs),r=rs[0];
+   L.circleMarker([r.la,r.ln],{radius:7,color:'#fff',weight:2,fillColor:s.resuelto?'#9FB0C6':CB[s.crit],fillOpacity:1})
+    .bindTooltip('<b>'+k+'</b>',{direction:'top'}).addTo(g);});
+  g.addTo(map);capaDatos=g;
+  leyenda('<span class="tt">E · Satélite (el actual)</span><i style="background:'+CB.directa+';border-color:#fff"></i>Directa &nbsp;<i style="background:'+CB.indirecta+';border-color:#fff"></i>Indirecta &nbsp;<i style="background:'+CB.senaletica+';border-color:#fff"></i>Señalética');}}
+];
+
+function pintar(id){
+  const o=OPCIONES.find(x=>x.id===id);
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.id===id));
+  document.getElementById('tt').textContent=o.id+' · '+o.nom;
+  document.getElementById('resp').textContent=o.resp;
+  document.getElementById('si').textContent=o.si;
+  document.getElementById('no').textContent=o.no;
+  limpiar();o.dibuja();
+  try{localStorage.setItem('propMapa',id);}catch(e){}
+}
+function arrancar(){
+  document.getElementById('cargando').remove();
+  const ab=datos.hall.filter(h=>h.e!=='resuelto').length;
+  const sen=datos.hall.filter(h=>h.cr==='senaletica').length;
+  document.getElementById('sub').textContent=datos.hall.length+' hallazgos con coordenada · '+ab+' abiertos · '+sen+' de señalética · '+datos.parque+' grifos en el parque · datos reales del catastro';
+  document.getElementById('tabs').innerHTML=OPCIONES.map(o=>'<button class="tab" data-id="'+o.id+'" onclick="pintar(\''+o.id+'\')"><b>'+o.id+'</b> '+o.nom+'</button>').join('');
+  document.getElementById('cmp').innerHTML=OPCIONES.map(o=>'<tr><td><b>'+o.id+' · '+o.nom+'</b></td><td>'+o.ve+'</td><td>'+o.para+'</td></tr>').join('');
+  document.getElementById('recomendacion').textContent='Para la plana ejecutiva, C (burbujas por comuna) como vista de entrada del tablero y A (puntos sobre mapa gris) como segundo nivel al hacer clic en una comuna. El satélite conviene dejarlo como opción, no como vista por defecto: en reunión compite con el dato.';
+  map=L.map('mapa',{zoomControl:true});
+  encuadrar();
+  let ini='C'; try{ini=localStorage.getItem('propMapa')||'C';}catch(e){}
+  pintar(OPCIONES.some(o=>o.id===ini)?ini:'C');
+}
+(function cargar(){
+  try{ const s=sessionStorage.getItem('propMapaDatos'); if(s){ datos=JSON.parse(s); return arrancar(); } }catch(e){}
+  try{
+    firebase.initializeApp({apiKey:"AIzaSyApa-zy4sV8iM1-MNgtIvRcev9j8CAve10",authDomain:"hallazgos-grifos-app.firebaseapp.com",
+      projectId:"hallazgos-grifos-app",storageBucket:"hallazgos-grifos-app.firebasestorage.app",
+      messagingSenderId:"156705018338",appId:"1:156705018338:web:9c35d7983923aaa123e9bb"});
+    const db=firebase.firestore();
+    Promise.all([db.collection('hallazgos').get(),db.collection('catalogo_grifos').get()]).then(([h,c])=>{
+      const LEG={inmediato:'directa',corto:'indirecta',mediano:'senaletica'};
+      const hall=[];
+      h.forEach(d=>{const x=d.data();
+        const det=Array.isArray(x.hallazgos_detalle)?x.hallazgos_detalle:[];
+        if(!det.length && !x.tipo_hallazgo) return;
+        if(typeof x.lat!=='number'||typeof x.lng!=='number') return;
+        let cr=LEG[x.prioridad]||x.prioridad||'senaletica';
+        if(det.length && det.every(d2=>/pintura/i.test(d2.tipo_hallazgo||''))) cr='senaletica';
+        hall.push({id:d.id,c:(x.codigo_grifo||'').toUpperCase(),co:x.comuna||'',cr:cr,e:x.estado||'pendiente',la:x.lat,ln:x.lng});});
+      datos={hall,parque:c.size};arrancar();
+    }).catch(e=>{document.getElementById('cargando').textContent='No se pudo leer el catastro: '+e.message;});
+  }catch(e){document.getElementById('cargando').textContent='No se pudo iniciar Firebase: '+e.message;}
+})();
+</script></body></html>
