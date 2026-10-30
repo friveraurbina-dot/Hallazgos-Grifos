@@ -114,11 +114,11 @@ const OPCIONES=[
   datos.hall.forEach(h=>{const k=h.co||'Sin comuna';const e=com[k]=com[k]||{n:0,ab:0,dir:0,la:0,ln:0};e.n++;e.la+=h.la;e.ln+=h.ln;
    if(h.e!=='resuelto'){e.ab++;if(h.cr==='directa')e.dir++;}});
   const maxAb=Math.max(...Object.values(com).map(c=>c.ab));
-  Object.keys(com).forEach(k=>{const c=com[k];const r=14+46*Math.sqrt(c.ab/maxAb);
+  Object.keys(com).forEach(k=>{const c=com[k];const r=20+44*Math.sqrt(c.ab/maxAb);
    L.circleMarker([c.la/c.n,c.ln/c.n],{radius:r,color:'#C8334D',weight:Math.max(2,Math.round(2+6*(c.dir/Math.max(c.ab,1)))),
      fillColor:'#01B3D7',fillOpacity:.32}).addTo(g);
-   L.marker([c.la/c.n,c.ln/c.n],{interactive:false,icon:L.divIcon({className:'',iconSize:[150,46],
-     html:'<div style="text-align:center;transform:translate(-50%,-50%);width:150px;font-family:Montserrat,sans-serif"><div style="font:800 24px Montserrat;color:#002359;text-shadow:0 1px 3px #fff,0 0 8px #fff">'+c.ab+'</div><div style="font:700 10.5px Montserrat;letter-spacing:.07em;color:#002359;text-shadow:0 1px 3px #fff,0 0 8px #fff">'+k+'</div><div style="font:600 10px Inter;color:#C8334D;text-shadow:0 1px 3px #fff,0 0 8px #fff">'+c.dir+' directa</div></div>'})}).addTo(g);});
+   L.marker([c.la/c.n,c.ln/c.n],{interactive:false,icon:L.divIcon({className:'',iconSize:[150,46],iconAnchor:[75,23],
+     html:'<div style="text-align:center;width:150px;font-family:Montserrat,sans-serif"><div style="font:800 24px Montserrat;color:#002359;text-shadow:0 1px 3px #fff,0 0 8px #fff">'+c.ab+'</div><div style="font:700 10.5px Montserrat;letter-spacing:.07em;color:#002359;text-shadow:0 1px 3px #fff,0 0 8px #fff">'+k+'</div><div style="font:600 10px Inter;color:#C8334D;text-shadow:0 1px 3px #fff,0 0 8px #fff">'+c.dir+' directa</div></div>'})}).addTo(g);});
   g.addTo(map);capaDatos=g;
   leyenda('<span class="tt">C · Burbujas por comuna</span>Tamaño = hallazgos abiertos (área proporcional)<br>Grosor del borde rojo = peso de la operatividad directa');}},
 
