@@ -990,6 +990,29 @@ main{padding:14px 22px 56px;}
 .ring-txt .rn small{font-size:13px;}
 .ring-txt .rl{font-size:9px;letter-spacing:.1em;}
 .ring-txt .rs{font-size:9.5px;}
+/* Encabezado compacto (31/10, "lo principal es el mapa"): una franja de ~120 px */
+@media(min-width:761px){
+  .hero{grid-template-columns:1fr 118px 88px !important;padding:8px 16px 9px !important;gap:12px !important;margin-bottom:8px !important;border-radius:14px;}
+  .hero h1{font-size:16px !important;}
+  .hero-sub,.nota-norma{display:none !important;}
+  .hero-live{margin-top:1px !important;font-size:10.5px;}
+  .park-bar{margin-top:5px !important;max-width:640px;}
+  .pb-top{font-size:10px;}
+  .pb-track{height:6px !important;}
+  .hero-actions{margin-top:7px !important;gap:6px !important;}
+  .hero-actions .btn-hero,.hero-actions .btn-hero-ghost,.hero-actions .btn-cc{padding:6px 10px;font-size:11px;}
+  .hero-sector select{padding:5px 8px;font-size:11.5px;}
+  .hero-ring{width:88px !important;height:88px !important;}
+  .hero-live{font-size:10.5px !important;}
+  .ring-txt .rn{font-size:21px !important;}
+  .ring-txt .rn small{font-size:11px;}
+  .ring-txt .rl{font-size:8px;letter-spacing:.08em;margin-top:2px;}
+  .ring-txt .rs{font-size:8.5px;margin-top:1px;}
+  .hero-hydrant{width:118px !important;margin:0 0 -9px !important;}
+  .hero-hydrant svg{filter:drop-shadow(0 5px 10px rgba(0,0,0,.35));}
+}
+@media(max-width:1340px) and (min-width:761px){ .hero{grid-template-columns:1fr 88px !important;} }
+
 .mapa-card .com-cards{padding-top:6px;}
 .ccard .cc-n{font-size:18px;}
 .mapa-stage{height:max(600px,calc(100vh - 230px)) !important;}
@@ -2588,6 +2611,12 @@ function construirCentroControl(){
   ccProgramar();
 }
 function ccEnviar(m){ try{ if(CC_FRAME && CC_FRAME.contentWindow) CC_FRAME.contentWindow.postMessage(m, location.origin); }catch(e){} }
+// Mensajes que llegan desde el centro de control (mismo origen): abrir el detalle completo de un hallazgo.
+window.addEventListener('message', e=>{
+  if(e.origin!==location.origin) return;
+  const m = e.data || {};
+  if(m.accion==='detalle' && m.id && HALLAZGOS.some(h=>h.id===m.id)) openDetail(m.id);
+});
 function ccProgramar(){ if(CC_RAF) return; CC_RAF = requestAnimationFrame(()=>{ CC_RAF = 0; ccPosicionar(); }); }
 function ccPosicionar(){
   if(!CC_CAPA) return;
