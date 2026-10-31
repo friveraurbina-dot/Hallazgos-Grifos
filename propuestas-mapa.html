@@ -2,9 +2,12 @@
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Propuestas de mapa — Tablero ejecutivo Gestión Sacyr</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore-compat.js"></script>
+<link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://server.arcgisonline.com" crossorigin>
+<link rel="preload" href="capas-mapa.json" as="fetch" crossorigin>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore-compat.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--ink:#002359;--paper:#fff;--bg:#EDF3F8;--line:#D6E2EC;--text:#0E2142;--soft:#5A6F8C;--accent:#01B3D7;
@@ -220,10 +223,7 @@ const GRUPOS={
  salud:{nom:'Salud',col:'#2F9E78',kpi:'Junto a salud'},
  educ:{nom:'Educación',col:'#3E5FA8',kpi:'Junto a colegios y jardines'},
  emer:{nom:'Emergencias',col:'#1F8A9E',kpi:'Junto a bomberos o policía'},
- pen:{nom:'Recintos penitenciarios',col:'#4A4A52',kpi:'Junto a cárceles'},
- publico:{nom:'Aglomeración de público',col:'#8A5A9E',kpi:'Junto a malls y supermercados'},
- riesgo:{nom:'Riesgo de incendio',col:'#8C6A3F',kpi:'Junto a bencineras'},
- serv:{nom:'Servicios públicos',col:'#5A6F8C',kpi:'Junto a municipios'}};
+ pen:{nom:'Recintos penitenciarios',col:'#4A4A52',kpi:'Junto a cárceles'}};
 const ICO={ /* pictogramas propios, 16×16, blancos */
  cruz:'<path d="M6 2h4v4h4v4h-4v4H6v-4H2V6h4z" fill="#fff"/>',
  cruzc:'<circle cx="8" cy="8" r="6.2" fill="none" stroke="#fff" stroke-width="1.6"/><path d="M7 4.5h2v2.5h2.5v2H9v2.5H7V9H4.5V7H7z" fill="#fff"/>',
@@ -247,11 +247,7 @@ const CATS={
  superior:{nom:'Universidad / instituto',g:'educ',ic:'birrete'},
  bomberos:{nom:'Bomberos',g:'emer',ic:'llama'},
  policia:{nom:'Carabineros / PDI',g:'emer',ic:'escudo'},
- carcel:{nom:'Cárcel',g:'pen',ic:'rejas'},
- mall:{nom:'Mall / centro comercial',g:'publico',ic:'bolsa'},
- super:{nom:'Supermercado',g:'publico',ic:'carro'},
- bencinera:{nom:'Bencinera',g:'riesgo',ic:'surtidor'},
- municipal:{nom:'Municipalidad',g:'serv',ic:'edificio'}};
+ carcel:{nom:'Cárcel',g:'pen',ic:'rejas'}};
 const colCat=c=>(GRUPOS[(CATS[c]||{}).g]||{col:'#5A6F8C'}).col;
 const svgCat=(c,px)=>'<svg viewBox="0 0 16 16" width="'+px+'" height="'+px+'" aria-hidden="true">'+(ICO[(CATS[c]||{}).ic]||ICO.cruz)+'</svg>';
 const VISTAS={hall:'Hallazgos',parque:'Parque completo',lug:'Lugares sensibles'};
@@ -311,9 +307,7 @@ function capaContexto(){
  if(A.capas.pobl){
   (cp.sect||[]).forEach(s=>{L.polygon(s.p,{pane:'sectores',color:'#5A6F8C',weight:1,opacity:.55,fillColor:'#5A6F8C',fillOpacity:.05})
     .bindTooltip(esc(s.n),{sticky:true,className:'tipSec'}).addTo(g);});
-  (cp.places||[]).forEach(p=>{const grande=/^(town|village|suburb|quarter)$/.test(p.t);
-   L.marker([p.la,p.ln],{pane:'etiquetas',interactive:false,icon:L.divIcon({className:'',iconSize:[1,1],
-    html:'<div class="pobl '+(grande?'pobl-g':'pobl-c')+'">'+esc(p.n)+'</div>'})}).addTo(g);});}
+}
  if(A.capas.sect)sectoresParque().forEach(s=>{
   L.polygon(s.poly,{pane:'sectores',color:'#01799A',weight:1.6,opacity:.75,dashArray:'5 4',fillColor:'#01B3D7',fillOpacity:.07})
    .bindTooltip('<b>Sector '+esc(s.n)+'</b><br>'+s.total+' grifos en el catastro',{sticky:true}).addTo(g);
@@ -379,9 +373,8 @@ function pintarA2(fit){
  visibles.sort((a,b)=>peso(a)-peso(b)).forEach(gr=>{
   L.circleMarker([gr.la,gr.ln],estiloGrifo(gr)).bindTooltip('<b>'+esc(gr.k)+'</b> · '+(!gr.s?'sin hallazgos':(gr.s.resuelto?'todo resuelto':NOMC[gr.s.crit])),{direction:'top',offset:[0,-4]})
    .bindPopup(()=>popGrifoA(gr),{maxWidth:320,className:'popA',autoPanPaddingTopLeft:[60,40],autoPanPaddingBottomRight:[60,30]}).addTo(g);
-  if(A.vista!=='lug')L.marker([gr.la,gr.ln],{interactive:false,icon:L.divIcon({className:'',iconSize:[1,1],iconAnchor:[-10,6],html:'<div class="gcod">'+esc(gr.k)+'</div>'})}).addTo(g);
   pts.push([gr.la,gr.ln]);});
- g.addTo(map);capaDatos=g;
+ g.addTo(map);capaDatos=g;A.visibles=visibles;
  /* lugares */
  const lg=L.layerGroup(),lpts=[];
  lugaresActivos().forEach(l=>{
@@ -397,6 +390,7 @@ function pintarA2(fit){
    .bindPopup(()=>popLugar(l,A.idxGrifos.cerca(l.la,l.ln,A.radio)),{maxWidth:320,className:'popA'}).addTo(lg);
   lpts.push([l.la,l.ln]);});
  lg.addTo(map);capaLugares=lg;
+ etiquetasA();
  if(fit){const b=(A.vista==='lug'&&A.filtro!=='todos')?lpts:pts;b.length?map.fitBounds(L.latLngBounds(b),{padding:[50,50],maxZoom:15}):encuadrar();}
 }
 
@@ -469,19 +463,32 @@ function leyendaA(){
  if(A.vista==='lug')h+='<div>Cada lugar muestra su radio de '+A.radio+' m. Los grifos van pequeños: rojo = falla directa.</div>';
  h+='<div><b class="mini" style="background:#3E5FA8">'+svgCat('colegio',10)+'</b>Lugar sensible (color = grupo)</div>';
  el.innerHTML=h;}
+/* Etiquetas (códigos de grifo y nombres de poblaciones): en vez de crear cientos
+   de elementos ocultos, se crean sólo las que caen en pantalla al nivel de zoom
+   que corresponde, y se rehacen al terminar cada movimiento del mapa. */
+let capaEtiq=null;
+function etiquetasA(){
+ if(capaEtiq){map.removeLayer(capaEtiq);capaEtiq=null;}
+ if(!document.getElementById('mapwrap').classList.contains('con-panel'))return;
+ const z=map.getZoom(),b=map.getBounds().pad(.1),g=L.layerGroup();let n=0;
+ const et=(ll,html,anc)=>{L.marker(ll,{pane:'etiquetas',interactive:false,keyboard:false,icon:L.divIcon({className:'',iconSize:[1,1],iconAnchor:anc||[0,0],html})}).addTo(g);n++;};
+ if(z>=16&&A.vista!=='lug')(A.visibles||[]).forEach(gr=>{if(b.contains([gr.la,gr.ln]))et([gr.la,gr.ln],'<div class="gcod">'+esc(gr.k)+'</div>',[-10,6]);});
+ if(A.capas.pobl&&z>=12)((datos.capas||{}).places||[]).forEach(p=>{const grande=/^(town|village|suburb|quarter)$/.test(p.t);
+   if((grande||z>=15)&&b.contains([p.la,p.ln]))et([p.la,p.ln],'<div class="pobl '+(grande?'pobl-g':'pobl-c')+'">'+esc(p.n)+'</div>');});
+ capaEtiq=g.addTo(map);A.nEtiq=n;}
 function redibujarA(fit){A.cacheCerca={};pintarA2(fit);kpisA2();leyendaA();}
 function iniciarA(){
  if(!A.cats)A.cats=new Set(Object.keys(CATS));
  A.idxLug=indexar(datos.capas.lug||[],o=>o.la,o=>o.ln);
  panelA();redibujarA(false);
  setTimeout(()=>{map.invalidateSize();if(!A.encuadrado){A.encuadrado=true;map.setMinZoom(8);encuadrar();map.setMinZoom(Math.max(8,map.getZoom()-1));}},0);}
-function salirA(){const w=document.getElementById('mapwrap');if(w.classList.contains('con-panel')){w.classList.remove('con-panel');document.getElementById('panel').innerHTML='';setTimeout(()=>map.invalidateSize(),0);}
+function salirA(){if(capaEtiq){map.removeLayer(capaEtiq);capaEtiq=null;}const w=document.getElementById('mapwrap');if(w.classList.contains('con-panel')){w.classList.remove('con-panel');document.getElementById('panel').innerHTML='';setTimeout(()=>map.invalidateSize(),0);}
  if(capaCtx){map.removeLayer(capaCtx);capaCtx=null;}}
 
 
 const OPCIONES=[
 {id:'A',nom:'Mapa gris con lugares sensibles',
- resp:'Tres lecturas del mismo mapa: los hallazgos, el parque completo de grifos y los lugares sensibles. Sobre una base gris se pueden encender los sectores del parque, las poblaciones y villas y los límites comunales, y elegir qué lugares sensibles mostrar (salud, educación, emergencias, cárceles, comercio, bencineras, municipios). Las tarjetas filtran; cada punto y cada lugar abre su ficha.',
+ resp:'Tres lecturas del mismo mapa: los hallazgos, el parque completo de grifos y los lugares sensibles. Sobre una base gris se pueden encender los sectores del parque, las poblaciones y villas y los límites comunales, y elegir qué lugares sensibles mostrar (salud, educación, emergencias y cárceles). Las tarjetas filtran; cada punto y cada lugar abre su ficha.',
  si:'Responde lo que pregunta la plana ejecutiva: cuántos grifos con falla hay junto a colegios, centros de salud o bomberos, en qué sector están y qué lugares tienen un grifo en falla directa cerca. Base neutra: se imprime y se proyecta bien.',
  no:'Los lugares sensibles vienen de OpenStreetMap: conviene revisar la lista de la comuna antes de presentarla. Al zoom de resumen los puntos de Chicureo se superponen; se resuelve con las tarjetas o acercando.',
  ve:'Qué grifos fallan, en qué sector y junto a qué lugar sensible',para:'Plana ejecutiva y jefatura operativa',
@@ -555,18 +562,20 @@ function pintar(id){
   document.getElementById('resp').textContent=o.resp;
   document.getElementById('si').textContent=o.si;
   document.getElementById('no').textContent=o.no;
-  limpiar();o.dibuja();
+  idActual=id;limpiar();o.dibuja();
   try{localStorage.setItem('propMapa',id);}catch(e){}
 }
-function arrancar(){
-  document.getElementById('cargando').remove();
-  const ab=datos.hall.filter(h=>h.e!=='resuelto').length;
-  const sen=datos.hall.filter(h=>h.cr==='senaletica').length;
-  document.getElementById('sub').textContent=datos.hall.length+' hallazgos con coordenada · '+ab+' abiertos · '+sen+' de señalética · '+datos.parque+' grifos en el parque · '+((datos.capas&&datos.capas.lug)||datos.lug||[]).length+' lugares sensibles · datos reales del catastro';
+function subtitulo(extra){
+  const ab=datos.hall.filter(h=>h.e!=='resuelto').length,sen=datos.hall.filter(h=>h.cr==='senaletica').length;
+  document.getElementById('sub').textContent=datos.hall.length+' hallazgos con coordenada · '+ab+' abiertos · '+sen+' de señalética · '+datos.parque+' grifos en el parque · '+((datos.capas&&datos.capas.lug)||[]).length+' lugares sensibles · '+(extra||'datos reales del catastro');}
+let idActual=null;
+function arrancar(desdeCache){
+  const cg=document.getElementById('cargando');if(cg)cg.remove();
+  subtitulo(desdeCache?'datos guardados, actualizando…':'');
   document.getElementById('tabs').innerHTML=OPCIONES.map(o=>'<button class="tab" data-id="'+o.id+'" onclick="pintar(\''+o.id+'\')"><b>'+o.id+'</b> '+o.nom+'</button>').join('');
   document.getElementById('cmp').innerHTML=OPCIONES.map(o=>'<tr><td><b>'+o.id+' · '+o.nom+'</b></td><td>'+o.ve+'</td><td>'+o.para+'</td></tr>').join('');
-  document.getElementById('recomendacion').textContent='A (mapa gris con lugares sensibles) es la vista de trabajo del tablero: dice qué grifo falla, en qué estado está y junto a qué colegio, centro de salud o cárcel. C (burbujas por comuna) sirve como lámina de apertura cuando sólo hay que mostrar dónde se concentra el problema. El satélite conviene dejarlo como opción, no como vista por defecto: en reunión compite con el dato.';
-  map=L.map('mapa',{zoomControl:true,maxZoom:19,zoomSnap:.25,zoomDelta:.5});
+  document.getElementById('recomendacion').textContent='A (mapa gris con lugares sensibles) es la vista de trabajo del tablero: dice qué grifo falla, en qué estado está, en qué sector y junto a qué colegio, centro de salud, cuartel de bomberos o cárcel. C (burbujas por comuna) sirve como lámina de apertura cuando sólo hay que mostrar dónde se concentra el problema. El satélite conviene dejarlo como opción, no como vista por defecto: en reunión compite con el dato.';
+  map=L.map('mapa',{zoomControl:true,maxZoom:19,zoomSnap:.25,zoomDelta:.5,preferCanvas:true});
   map.createPane('sectores').style.zIndex=350;
   map.createPane('zonas').style.zIndex=360;
   map.createPane('etiquetas').style.zIndex=420;
@@ -575,6 +584,7 @@ function arrancar(){
   const nombres=()=>{const z=map.getZoom();elMapa.classList.toggle('lejos',z<13);elMapa.classList.toggle('cerca',z>=16);
     elMapa.classList.toggle('z-lt12',z<12);elMapa.classList.toggle('z-lt14',z<14);elMapa.classList.toggle('z-lt15',z<15);};
   map.on('zoomend',nombres);
+  map.on('moveend',()=>{if(A.lista)etiquetasA();});
   encuadrar();
   map.setMinZoom(Math.max(8,map.getZoom()-1));
   map.setMaxBounds(L.latLngBounds(datos.hall.map(h=>[h.la,h.ln])).pad(.6));
@@ -582,49 +592,77 @@ function arrancar(){
   pintar(OPCIONES.some(o=>o.id===ini)?ini:'A');
   nombres();
 }
+/* Llegaron datos frescos de Firestore después de dibujar con los guardados:
+   se reemplazan y se redibuja la opción abierta sin mover el mapa. */
+function refrescar(nuevo){
+  nuevo.capas=datos.capas;datos=nuevo;A.sectores=null;A.cacheCerca={};
+  subtitulo();if(idActual)pintar(idActual);}
+
 /* Capas de contexto (lugares sensibles, poblaciones, límites) en un archivo
    estático del repo. Si no se puede leer, se usan los lugares del catastro. */
-function cargarCapas(){
-  const desdeCatastro=()=>({gen:'',comunas:[],sect:[],places:[],lug:(datos.lug||[]).map(p=>({n:p.nombre,la:p.lat,ln:p.lng,o:'cat',
+function fijarCapas(j){
+  if(j){j.lug=(j.lug||[]).filter(l=>CATS[l.c]);datos.capas=j;return;}
+  datos.capas={gen:'',comunas:[],sect:[],places:[],lug:(datos.lug||[]).map(p=>({n:p.nombre,la:p.lat,ln:p.lng,o:'cat',
     c:p.tipo==='educacion'?(/jard|sala cuna|infantil|parvul/i.test(p.nombre)?'jardin':'colegio'):p.tipo==='salud'?(/hospital/i.test(p.nombre)?'hospital':'clinica'):p.tipo}))
-    .filter(l=>CATS[l.c])});
-  return fetch('capas-mapa.json',{cache:'no-cache'}).then(r=>r.ok?r.json():Promise.reject(r.status))
-    .then(j=>{datos.capas=j;j.lug=(j.lug||[]).filter(l=>CATS[l.c]);})
-    .catch(()=>{datos.capas=desdeCatastro();});
-}
-(function cargar(){
-  try{ const s=sessionStorage.getItem('propMapaDatos'); if(s){ datos=JSON.parse(s); return cargarCapas().then(arrancar); } }catch(e){}
+    .filter(l=>CATS[l.c])};}
+
+function procesar(h,c){
+  const LEG={inmediato:'directa',corto:'indirecta',mediano:'senaletica'};
+  const hall=[];
+  h.forEach(d=>{const x=d.data();
+    const det=Array.isArray(x.hallazgos_detalle)?x.hallazgos_detalle:[];
+    if(!det.length && !x.tipo_hallazgo) return;
+    if(typeof x.lat!=='number'||typeof x.lng!=='number') return;
+    let cr=LEG[x.prioridad]||x.prioridad||'senaletica';
+    if(det.length && det.every(d2=>/pintura/i.test(d2.tipo_hallazgo||''))) cr='senaletica';
+    const t=det.length?det.map(d2=>d2&&d2.tipo_hallazgo).filter(Boolean).map(String):(x.tipo_hallazgo?[String(x.tipo_hallazgo)]:[]);
+    hall.push({id:d.id,c:(x.codigo_grifo||'').toUpperCase(),co:x.comuna||'',cr:cr,e:x.estado||'pendiente',la:x.lat,ln:x.lng,t:t});});
+  const vistos={},lug=[],cat={},grifos=[];
+  c.forEach(d=>{const x=d.data(),L2=x.zona_prioritaria_lugares;
+    const ficha={co:x.comuna||'',lug:(Array.isArray(L2)?L2:[]).filter(p=>p&&p.nombre)
+      .map(p=>({nombre:p.nombre,tipo:p.tipo||'otro',d:Number(p.d)||0}))};
+    cat[String(d.id).toUpperCase()]=ficha;
+    if(x.codigo)cat[String(x.codigo).toUpperCase()]=ficha;
+    if(typeof x.lat==='number'&&typeof x.lng==='number')grifos.push({k:String(x.codigo||d.id).toUpperCase(),la:x.lat,ln:x.lng,
+      co:x.comuna||'',loc:x.localidad||'',mod:x.modelo||'',dia:x.diametro_conexion||'',ano:x.ano_instalacion||''});
+    if(!Array.isArray(L2))return;
+    L2.forEach(p=>{if(typeof p.lat!=='number'||typeof p.lng!=='number')return;
+      const k=(p.nombre||'')+'|'+p.lat.toFixed(5)+'|'+p.lng.toFixed(5);
+      if(vistos[k])return;vistos[k]=1;
+      lug.push({nombre:p.nombre||'Sin nombre',tipo:p.tipo||'otro',lat:p.lat,lng:p.lng});});});
+  return {hall,parque:c.size,lug,cat,grifos};}
+
+/* Carga rápida:
+   1) el archivo de capas se pide de inmediato, en paralelo con Firestore;
+   2) si el navegador ya tiene una copia de la última visita, se dibuja al tiro
+      con ella mientras Firestore responde;
+   3) cuando llegan los datos frescos se guardan y, si cambiaron, se redibuja.
+   La copia vive sólo en este navegador (localStorage); nada se escribe en Firestore. */
+const CLAVE_CACHE='propMapaCache.v1';
+function cargar(){
+  const pCapas=fetch('capas-mapa.json').then(r=>r.ok?r.json():null).catch(()=>null);
+  try{ const s=sessionStorage.getItem('propMapaDatos'); if(s){ datos=JSON.parse(s); pCapas.then(j=>{fijarCapas(j);arrancar();}); return; } }catch(e){}
+  let guardado=null,dibujado=false;
+  try{guardado=JSON.parse(localStorage.getItem(CLAVE_CACHE)||'null');}catch(e){guardado=null;}
+  if(guardado&&guardado.datos&&Array.isArray(guardado.datos.hall)){
+    datos=guardado.datos;pCapas.then(j=>{fijarCapas(j);arrancar(true);dibujado=true;});}
   try{
     firebase.initializeApp({apiKey:"AIzaSyApa-zy4sV8iM1-MNgtIvRcev9j8CAve10",authDomain:"hallazgos-grifos-app.firebaseapp.com",
       projectId:"hallazgos-grifos-app",storageBucket:"hallazgos-grifos-app.firebasestorage.app",
       messagingSenderId:"156705018338",appId:"1:156705018338:web:9c35d7983923aaa123e9bb"});
     const db=firebase.firestore();
     Promise.all([db.collection('hallazgos').get(),db.collection('catalogo_grifos').get()]).then(([h,c])=>{
-      const LEG={inmediato:'directa',corto:'indirecta',mediano:'senaletica'};
-      const hall=[];
-      h.forEach(d=>{const x=d.data();
-        const det=Array.isArray(x.hallazgos_detalle)?x.hallazgos_detalle:[];
-        if(!det.length && !x.tipo_hallazgo) return;
-        if(typeof x.lat!=='number'||typeof x.lng!=='number') return;
-        let cr=LEG[x.prioridad]||x.prioridad||'senaletica';
-        if(det.length && det.every(d2=>/pintura/i.test(d2.tipo_hallazgo||''))) cr='senaletica';
-        const t=det.length?det.map(d2=>d2&&d2.tipo_hallazgo).filter(Boolean).map(String):(x.tipo_hallazgo?[String(x.tipo_hallazgo)]:[]);
-        hall.push({id:d.id,c:(x.codigo_grifo||'').toUpperCase(),co:x.comuna||'',cr:cr,e:x.estado||'pendiente',la:x.lat,ln:x.lng,t:t});});
-      const vistos={},lug=[],cat={},grifos=[];
-      c.forEach(d=>{const x=d.data(),L2=x.zona_prioritaria_lugares;
-        const ficha={co:x.comuna||'',lug:(Array.isArray(L2)?L2:[]).filter(p=>p&&p.nombre)
-          .map(p=>({nombre:p.nombre,tipo:p.tipo||'otro',d:Number(p.d)||0}))};
-        cat[String(d.id).toUpperCase()]=ficha;
-        if(x.codigo)cat[String(x.codigo).toUpperCase()]=ficha;
-        if(typeof x.lat==='number'&&typeof x.lng==='number')grifos.push({k:String(x.codigo||d.id).toUpperCase(),la:x.lat,ln:x.lng,
-          co:x.comuna||'',loc:x.localidad||'',mod:x.modelo||'',dia:x.diametro_conexion||'',ano:x.ano_instalacion||''});
-        if(!Array.isArray(L2))return;
-        L2.forEach(p=>{if(typeof p.lat!=='number'||typeof p.lng!=='number')return;
-          const k=(p.nombre||'')+'|'+p.lat.toFixed(5)+'|'+p.lng.toFixed(5);
-          if(vistos[k])return;vistos[k]=1;
-          lug.push({nombre:p.nombre||'Sin nombre',tipo:p.tipo||'otro',lat:p.lat,lng:p.lng});});});
-      datos={hall,parque:c.size,lug,cat,grifos};cargarCapas().then(arrancar);
-    }).catch(e=>{document.getElementById('cargando').textContent='No se pudo leer el catastro: '+e.message;});
-  }catch(e){document.getElementById('cargando').textContent='No se pudo iniciar Firebase: '+e.message;}
-})();
+      const nuevo=procesar(h,c),txt=JSON.stringify(nuevo);
+      const igual=!!guardado&&JSON.stringify(guardado.datos)===txt;
+      try{localStorage.setItem(CLAVE_CACHE,JSON.stringify({t:Date.now(),datos:nuevo}));}catch(e){}
+      pCapas.then(j=>{
+        if(!dibujado){datos=nuevo;fijarCapas(j);arrancar();dibujado=true;}
+        else if(!igual)refrescar(nuevo);
+        else subtitulo();});
+    }).catch(e=>{if(dibujado)subtitulo('sin conexión al catastro: se muestran los datos guardados');
+      else{const cg=document.getElementById('cargando');if(cg)cg.textContent='No se pudo leer el catastro: '+e.message;}});
+  }catch(e){const cg=document.getElementById('cargando');if(cg&&!dibujado)cg.textContent='No se pudo iniciar Firebase: '+e.message;}
+}
+/* los scripts van con "defer": se espera a que estén listos */
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',cargar);else cargar();
 </script></body></html>
