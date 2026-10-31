@@ -926,8 +926,11 @@ main{padding:14px 22px 56px;}
 .zp-lugar{background:none;border:none;}
 /* ===== Rediseño 28/10: menú sin "Operación en terreno", encabezado compacto y mapa más arriba ===== */
 #navGrupoTerreno,#navInspecciones,#navNuevo,#navGaleria{display:none !important;}
-.hero{grid-template-columns:1fr 118px !important;padding:12px 20px !important;gap:16px !important;margin-bottom:10px !important;border-radius:16px;}
-.hero-hydrant{display:none !important;}
+.hero{grid-template-columns:1fr 205px 118px !important;padding:12px 20px !important;gap:16px !important;margin-bottom:10px !important;border-radius:16px;}
+/* Animación del operador y el grifo, en versión pequeña, entre las cifras y el anillo (pedido 31/10) */
+.hero-hydrant{display:block !important;width:205px;align-self:end;justify-self:center;margin:0 0 -10px;}
+.hero-hydrant svg{filter:drop-shadow(0 8px 14px rgba(0,0,0,.35));}
+@media(max-width:1340px){ .hero{grid-template-columns:1fr 118px !important;} .hero-hydrant{display:none !important;} }
 .hero-eyebrow{display:none;}
 .hero h1{font-size:20px !important;margin:0 !important;}
 .hero-sub{font-size:12px !important;}
