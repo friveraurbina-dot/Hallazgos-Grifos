@@ -126,6 +126,10 @@ html,body{margin:0;height:100%;background:#020a1c;color:var(--txt);font:500 13px
 .pli .pd{width:9px;height:9px;border-radius:50%;flex:none;box-shadow:0 0 8px currentColor}
 .pli em{font-style:normal;color:var(--mute);font-size:10.5px}
 .pli span{margin-left:auto;padding-left:8px;color:var(--soft);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pz{margin-top:7px;padding:5px 8px;border-radius:7px;font-size:11px;background:rgba(54,211,153,.14);color:#BFF5DF;border:1px solid rgba(54,211,153,.35)}
+.pz.aviso{background:rgba(255,216,61,.14);color:#FFE99A;border-color:rgba(255,216,61,.4)}
+.pz.vencido{background:rgba(255,77,99,.16);color:#FFC3CB;border-color:rgba(255,77,99,.5)}
+.pz.sin_fecha{background:rgba(255,255,255,.06);color:var(--soft);border-color:rgba(255,255,255,.12)}
 .sinl{margin-top:9px;padding-top:7px;border-top:1px solid rgba(255,255,255,.1);color:var(--mute);font-size:11px}
 .pacc{display:flex;gap:6px;margin-top:10px}
 .pacc button{all:unset;cursor:pointer;flex:1;text-align:center;padding:6px 8px;border-radius:8px;background:rgba(1,179,215,.16);border:1px solid var(--borde);font:700 10.5px Inter,sans-serif;color:#fff}
@@ -156,6 +160,13 @@ body.presentando .cap{bottom:40px}
 .aviso.on{display:block}
 .mov{display:none}
 
+/* ---- modo tablero (dentro del tablero ejecutivo) ---- */
+body.tablero .marca,body.tablero .pan.der{display:none}
+body.tablero .top{padding:10px 12px}
+body.tablero .pan.izq{top:72px;left:12px;bottom:12px;width:250px}
+body.tablero .kpi{min-width:124px;padding:7px 12px}
+body.tablero .kpi .n{font-size:22px}
+body.tablero .cap{bottom:18px}
 /* ---- móvil ---- */
 @media(max-width:1000px){
  .pan.der{display:none}
@@ -218,7 +229,8 @@ const NOMC={directa:'Operatividad directa',indirecta:'Operatividad indirecta',se
 const ESTN={pendiente:'Pendiente',en_proceso:'En proceso',resuelto:'Resuelto',sin:''};
 const ORD=['directa','indirecta','senaletica'];
 const GRUPOS={salud:{nom:'Salud',col:'#36D399',kpi:'salud'},educ:{nom:'Educación',col:'#5B8DEF',kpi:'colegios y jardines'},
- emer:{nom:'Emergencias',col:'#24C3D9',kpi:'bomberos o policía'},pen:{nom:'Recintos penitenciarios',col:'#B9C4D6',kpi:'cárceles'}};
+ emer:{nom:'Emergencias',col:'#24C3D9',kpi:'bomberos o policía'},pen:{nom:'Recintos penitenciarios',col:'#B9C4D6',kpi:'cárceles'},
+ publico:{nom:'Centros comerciales',col:'#B47CE0',kpi:'centros comerciales'}};
 /* pictogramas propios: trazos SVG (viewBox 16) */
 const ICO={
  cruz:[{d:'M6 2h4v4h4v4h-4v4H6v-4H2V6h4z'}],
@@ -229,7 +241,8 @@ const ICO={
  birrete:[{d:'M8 3 1 6.5 8 10l7-3.5zM4 8.2v2.6c0 1 1.8 2 4 2s4-1 4-2V8.2L8 10.2z'}],
  llama:[{d:'M8 1.2c.9 2.8 4.3 4 4.3 8.2a4.3 4.3 0 0 1-8.6 0c0-2.2 1.2-3.4 2.2-4.3 0 2 .9 3.1 2 3.1 0-2.8-1-4.6.1-7z'}],
  escudo:[{d:'M8 1.3 14 3.5v4.6c0 3.6-2.6 6-6 7.2-3.4-1.2-6-3.6-6-7.2V3.5z'}],
- rejas:[{d:'M2.5 2.5h11v11h-11zM6 2.5v11M10 2.5v11',s:1.7}]};
+ rejas:[{d:'M2.5 2.5h11v11h-11zM6 2.5v11M10 2.5v11',s:1.7}],
+ bolsa:[{d:'M3 5.5h10l-.9 8.5H3.9z'},{d:'M5.8 5.5V4.3a2.2 2.2 0 0 1 4.4 0v1.2',s:1.5}]};
 const CATS={
  hospital:{nom:'Hospital',g:'salud',ic:'cruz',pri:1},
  clinica:{nom:'Clínica / CESFAM / consultorio',g:'salud',ic:'cruzc',pri:3},
@@ -239,7 +252,8 @@ const CATS={
  superior:{nom:'Universidad / instituto',g:'educ',ic:'birrete',pri:4},
  bomberos:{nom:'Bomberos',g:'emer',ic:'llama',pri:1},
  policia:{nom:'Carabineros / PDI',g:'emer',ic:'escudo',pri:2},
- carcel:{nom:'Cárcel',g:'pen',ic:'rejas',pri:1}};
+ carcel:{nom:'Cárcel',g:'pen',ic:'rejas',pri:1},
+ mall:{nom:'Centro comercial',g:'publico',ic:'bolsa',pri:2}};
 const colCat=c=>(GRUPOS[(CATS[c]||{}).g]||{col:'#9FB3CC'}).col;
 const esc=t=>String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const svgIco=(c,px)=>'<svg viewBox="0 0 16 16" width="'+px+'" height="'+px+'" aria-hidden="true">'+(ICO[(CATS[c]||{}).ic]||ICO.cruz).map(p=>'<path d="'+p.d+'" '+(p.s?'fill="none" stroke="#fff" stroke-width="'+p.s+'"':'fill="#fff"')+'/>').join('')+'</svg>';
@@ -248,7 +262,12 @@ const titulo=t=>String(t||'').toLowerCase().split(/\s+/).map((w,i)=>i&&MIN.has(w
 const fmt=n=>Number(n||0).toLocaleString('es-CL');
 
 /* ---------- estado ---------- */
-const S={vista:'hall',filtro:'todos',radio:150,cats:new Set(Object.keys(CATS)),
+/* Plazos de reparación SISS (PR036): directa 48 h desde que se conoce la falla;
+   indirecta y señalética entre 1 semana y 3 meses según magnitud. */
+const PLAZO={directa:{h:48,txt:'48 h'},indirecta:{h:24*90,aviso:24*7,txt:'1 semana a 3 meses'},senaletica:{h:24*90,aviso:24*7,txt:'1 semana a 3 meses'}};
+const PARAMS=new URLSearchParams(location.search);
+const MODO_TABLERO=PARAMS.get('modo')==='tablero';
+const S={vista:'hall',filtro:'todos',radio:150,cats:new Set(Object.keys(CATS)),comuna:'todos',
  capas:{sect:true,pobl:true,com:true,relieve:false,edif:false,calor:false,hex:false},
  tres:false,sat:false,tour:null,listo:false,geo:null};
 let datos=null,map=null,popup=null,tip=null;
@@ -268,9 +287,14 @@ function envolvente(pts){const p=pts.slice().sort((a,b)=>a[0]-b[0]||a[1]-b[1]);i
 function circulo(la,ln,m,n){const out=[];for(let i=0;i<=n;i++){const t=i/n*2*Math.PI;out.push([ln+Math.cos(t)*m/(111320*Math.cos(la*RAD)),la+Math.sin(t)*m/111320]);}return out;}
 
 /* ---------- datos ---------- */
+function horasDesde(f){const t=f?new Date(f).getTime():NaN;return isNaN(t)?null:Math.max(0,(Date.now()-t)/36e5);}
+/* plazo SISS del grifo: se mide sobre el hallazgo abierto más antiguo de su peor criticidad */
+function plazoDe(crit,ab){const p=PLAZO[crit];if(!p||!ab.length)return null;
+ const hs=ab.filter(x=>x.cr===crit).map(x=>horasDesde(x.f)).filter(x=>x!=null);if(!hs.length)return{estado:'sin_fecha',txt:p.txt};
+ const h=Math.max(...hs);if(h>p.h)return{estado:'vencido',h,txt:p.txt,exceso:h-p.h};if(p.aviso&&h>p.aviso)return{estado:'aviso',h,txt:p.txt};return{estado:'en_plazo',h,txt:p.txt};}
 function peorDe(rs){const ab=rs.filter(x=>x.e!=='resuelto');const b=ab.length?ab:rs;let p='senaletica';b.forEach(x=>{if(ORD.indexOf(x.cr)<ORD.indexOf(p))p=x.cr;});
  const est=ab.length?(ab.some(x=>x.e!=='en_proceso')?'pendiente':'en_proceso'):'resuelto';
- return{crit:ab.length?p:'resuelto',est,abiertos:ab.length,n:rs.length,tipos:[...new Set(ab.flatMap(x=>x.t||[]))].slice(0,4)};}
+ return{crit:ab.length?p:'resuelto',est,abiertos:ab.length,n:rs.length,tipos:[...new Set(ab.flatMap(x=>x.t||[]))].slice(0,4),plazo:ab.length?plazoDe(p,ab):null};}
 function lugaresActivos(){return (datos.capas.lug||[]).filter(l=>S.cats.has(l.c));}
 function construirGeo(){
  const pg={};datos.hall.forEach(h=>{(pg[h.c||h.id]=pg[h.c||h.id]||[]).push(h);});
@@ -283,7 +307,7 @@ function construirGeo(){
  lug.forEach(l=>{const c=idxG.cerca(l.la,l.ln,S.radio);l.cer=c;l.nab=c.filter(x=>x.o.s&&x.o.s.abiertos).length;l.ndir=c.filter(x=>x.o.s&&x.o.s.abiertos&&x.o.s.crit==='directa').length;});
  const fG={type:'FeatureCollection',features:grifos.map(g=>({type:'Feature',geometry:{type:'Point',coordinates:[g.ln,g.la]},
    properties:{k:g.k,crit:g.s?g.s.crit:'sin',est:g.s?g.s.est:'sin',ab:g.s?g.s.abiertos:0,n:g.s?g.s.n:0,co:g.co,loc:g.loc,sens:g.cer.length?1:0,grp:g.grp.join(','),
-     pulso:(g.s&&g.s.crit==='directa'&&g.s.est==='pendiente')?1:0}}))};
+     pulso:(g.s&&g.s.crit==='directa'&&g.s.est==='pendiente')?1:0,venc:(g.s&&g.s.plazo&&g.s.plazo.estado==='vencido')?1:0}}))};
  const fL={type:'FeatureCollection',features:lug.map((l,i)=>({type:'Feature',geometry:{type:'Point',coordinates:[l.ln,l.la]},
    properties:{i,n:l.n,c:l.c,g:CATS[l.c].g,nom:CATS[l.c].nom,pri:CATS[l.c].pri,ncer:l.cer.length,nab:l.nab,ndir:l.ndir,riesgo:l.ndir?1:0}}))};
  const fR={type:'FeatureCollection',features:lug.map(l=>({type:'Feature',geometry:{type:'Polygon',coordinates:[circulo(l.la,l.ln,S.radio,40)]},properties:{g:CATS[l.c].g,riesgo:l.ndir?1:0}}))};
@@ -413,7 +437,9 @@ function mostrarTip(ll,html,fijo){if(tip)tip.remove();tip=new maplibregl.Popup({
 function aplicarVista(){
  const v=S.vista,g=S.geo;
  const f=[];
- if(v==='hall')f.push(['!=',['get','crit'],'sin']);
+ if(S.comuna!=='todos')f.push(['==',['get','co'],S.comuna]);
+ if(v==='hall'&&!MODO_TABLERO)f.push(['!=',['get','crit'],'sin']);
+ if(S.filtro==='vencido')f.push(['==',['get','venc'],1]);
  if(S.filtro==='abierta')f.push(v==='hall'?['==',['get','est'],'en_proceso']:['>',['get','ab'],0]);
  if(S.filtro==='directa')f.push(['==',['get','crit'],'directa']);
  if(S.filtro==='sensible')f.push(['all',['>',['get','ab'],0],['==',['get','sens'],1]]);
@@ -429,12 +455,14 @@ function aplicarVista(){
  if(S.filtro.startsWith('g:'))fl.push(['==',['get','g'],S.filtro.slice(2)]);
  map.setFilter('lug-ico',fl.length?['all',...fl]:null);
  map.setFilter('radios-f',fl.length?['all',...fl.filter(x=>x[1][1]!=='ncer')]:null);map.setFilter('radios-l',map.getFilter('radios-f'));
- map.setPaintProperty('grifo-core','circle-opacity',v==='lug'?.75:1);
+ /* en el tablero el parque sano queda como fondo tenue y sólo resaltan las fallas */
+ map.setPaintProperty('grifo-core','circle-opacity',MODO_TABLERO&&v==='hall'?['match',['get','crit'],'sin',.28,'resuelto',.4,1]:(v==='lug'?.75:1));
+ map.setPaintProperty('grifo-core','circle-stroke-opacity',MODO_TABLERO&&v==='hall'?['match',['get','crit'],'sin',.25,'resuelto',.4,1]:1);
  map.setLayoutProperty('lug-ico','icon-size',['interpolate',['linear'],['zoom'],9,v==='lug'?.6:.42,13,v==='lug'?1:.75,16,v==='lug'?1.15:.95]);
  map.setLayoutProperty('lug-ico','text-field',['step',['zoom'],'',v==='lug'?12.5:13.5,['get','n']]);
  map.setPaintProperty('lug-ico','icon-opacity',v==='hall'?.78:.97);
  ['radios-f','radios-l'].forEach(id=>map.setLayoutProperty(id,'visibility',v==='lug'?'visible':'none'));
- map.setPaintProperty('grifo-glow','circle-opacity',['match',['get','crit'],'sin',v==='parque'?.25:.1,'resuelto',.18,v==='lug'?.3:.5]);
+ map.setPaintProperty('grifo-glow','circle-opacity',['match',['get','crit'],'sin',v==='parque'?.25:0,'resuelto',MODO_TABLERO?.08:.18,v==='lug'?.3:.5]);
  ['sect-f','sect-l','sect-t'].forEach(id=>map.setLayoutProperty(id,'visibility',S.capas.sect?'visible':'none'));
  ['pobl-f','pobl-l','pobl-t','pobl-t2'].forEach(id=>map.setLayoutProperty(id,'visibility',S.capas.pobl?'visible':'none'));
  map.setLayoutProperty('com-l','visibility',S.capas.com?'visible':'none');
@@ -446,19 +474,20 @@ function aplicarVista(){
  kpis();panelDer();leyenda();}
 function recalcular(fit){S.geo=construirGeo();['grifos','lug','radios','sect','sectl','calor','hex'].forEach(k=>{const src=map.getSource(k);if(!src)return;src.setData({grifos:S.geo.fG,lug:S.geo.fL,radios:S.geo.fR,sect:S.geo.fS,sectl:S.geo.fSl,calor:S.geo.fC,hex:S.geo.fH}[k]);});aplicarVista();if(fit)encuadrar();}
 function limitesParque(pad){const b=new maplibregl.LngLatBounds();datos.grifos.forEach(g=>b.extend([g.ln,g.la]));datos.hall.forEach(h=>b.extend([h.ln,h.la]));return b;}
-function padding(){const w=innerWidth;return w>1000?{top:100,bottom:40,left:310,right:340}:w>720?{top:100,bottom:40,left:300,right:30}:{top:120,bottom:60,left:20,right:20};}
+function padding(){const w=innerWidth,der=MODO_TABLERO?30:340;return w>1000?{top:100,bottom:40,left:310,right:der}:w>720?{top:100,bottom:40,left:300,right:30}:{top:120,bottom:60,left:20,right:20};}
 function encuadrar(anim){map.fitBounds(limitesParque(),{padding:padding(),pitch:S.tres?52:0,bearing:S.tres?-14:0,duration:anim?1800:0,maxZoom:14});}
 
 /* ---------- tarjetas, paneles y leyenda ---------- */
 function kpis(){
- const g=S.geo,gs=g.grifos,v=S.vista,el=document.getElementById('kpis');
+ const g=S.geo,gs=g.grifos.filter(x=>S.comuna==='todos'||x.co===S.comuna),v=S.vista,el=document.getElementById('kpis');
  const abierto=x=>x.s&&x.s.abiertos>0;
  const card=(id,n,l,s,c)=>'<button class="kpi'+(S.filtro===id?' on':'')+'" data-f="'+id+'" style="--c:'+(c||'#01B3D7')+'" aria-pressed="'+(S.filtro===id)+'"><span class="n">'+fmt(n)+'</span><span class="l">'+l+'</span><span class="s">'+s+'</span></button>';
  let h='';
  if(v==='hall'){const ab=gs.filter(abierto),dir=ab.filter(x=>x.s.crit==='directa'),sen=ab.filter(x=>x.cer.length),res=gs.filter(x=>x.s&&!x.s.abiertos);
   h=card('todos',ab.length,'Grifos con falla abierta',fmt(res.length)+' ya resueltos')+card('directa',dir.length,'Operatividad directa',fmt(dir.filter(x=>x.s.est==='pendiente').length)+' pendientes',COL.directa)
    +card('sensible',sen.length,'Junto a un lugar sensible',fmt(sen.filter(x=>x.s.crit==='directa').length)+' con falla directa',GRUPOS.educ.col);
-  h+=card('abierta',ab.filter(x=>x.s.est==='en_proceso').length,'Ya en proceso','con anillo en el mapa',COL.indirecta);}
+  const venc=ab.filter(x=>x.s.plazo&&x.s.plazo.estado==='vencido'),vd=venc.filter(x=>x.s.crit==='directa').length;
+  h+=card('vencido',venc.length,'Fuera de plazo SISS',vd+' directa (> 48 h) · '+(venc.length-vd)+' > 3 meses',COL.senaletica);}
  else if(v==='parque'){const ab=gs.filter(abierto),res=gs.filter(x=>x.s&&!x.s.abiertos),sin=gs.filter(x=>!x.s),sen=gs.filter(x=>x.cer.length);
   h=card('todos',gs.length,'Grifos en el parque',(datos.parque>gs.length?fmt(datos.parque)+' en el catastro · '+(datos.parque-gs.length)+' sin coordenada':'catastro Sacyr'))
    +card('abierta',ab.length,'Con falla abierta',Math.round(100*ab.length/Math.max(1,gs.length))+'% del parque',COL.directa)+card('resuelto',res.length,'Hallazgos resueltos','sin pendientes',COL.resuelto)
@@ -471,8 +500,8 @@ function kpis(){
 function encuadrarFiltro(){
  const ids=S.vista==='lug'?S.geo.lug.filter(l=>pasaLugar(l)):S.geo.grifos.filter(x=>pasaGrifo(x));
  if(!ids.length)return;const b=new maplibregl.LngLatBounds();ids.forEach(o=>b.extend([o.ln,o.la]));map.fitBounds(b,{padding:padding(),duration:1400,maxZoom:15.5});}
-function pasaGrifo(x){const f=S.filtro,ab=x.s&&x.s.abiertos>0;if(S.vista==='hall'&&!x.s)return false;
- if(f==='todos')return true;if(f==='abierta')return S.vista==='hall'?(ab&&x.s.est==='en_proceso'):ab;if(f==='directa')return x.s&&x.s.crit==='directa';if(f==='sensible')return ab&&x.cer.length>0;
+function pasaGrifo(x){const f=S.filtro,ab=x.s&&x.s.abiertos>0;if(S.comuna!=='todos'&&x.co!==S.comuna)return false;if(S.vista==='hall'&&!x.s&&!MODO_TABLERO)return false;
+ if(f==='todos')return true;if(f==='vencido')return !!(x.s&&x.s.plazo&&x.s.plazo.estado==='vencido');if(f==='abierta')return S.vista==='hall'?(ab&&x.s.est==='en_proceso'):ab;if(f==='directa')return x.s&&x.s.crit==='directa';if(f==='sensible')return ab&&x.cer.length>0;
  if(f.startsWith('g:'))return ab&&x.grp.includes(f.slice(2));if(f==='resuelto')return x.s&&!ab;if(f==='sin')return !x.s;return true;}
 function pasaLugar(l){const f=S.filtro;if(f==='riesgo')return l.ndir>0;if(f==='sinlug')return !l.cer.length;if(f.startsWith('g:'))return CATS[l.c].g===f.slice(2);return true;}
 
@@ -499,7 +528,7 @@ function panelIzq(){
 function leyenda(){const el=document.getElementById('ley');if(!el)return;
  const pt=(c,h)=>'<i style="background:'+c+';color:'+c+'"'+(h?' class="h"':'')+'></i>';
  let h='<div class="tt">Cómo leer el mapa</div>';
- if(S.vista!=='lug')h+='<div>'+pt(COL.directa)+'Falla directa · pulso = pendiente</div><div>'+pt(COL.indirecta)+'Falla indirecta</div><div>'+pt(COL.senaletica)+'Señalética</div><div>'+pt(COL.directa,1)+'Anillo = ya en proceso</div><div>'+pt(COL.resuelto)+'Hallazgos resueltos</div>';
+ if(S.vista!=='lug')h+='<div>'+pt(COL.directa)+'Falla directa (SISS: 48 h) · pulso = pendiente</div><div>'+pt(COL.indirecta)+'Falla indirecta</div><div>'+pt(COL.senaletica)+'Señalética</div><div>'+pt(COL.directa,1)+'Anillo = ya en proceso</div><div>'+pt(COL.resuelto)+'Hallazgos resueltos</div>';
  if(S.vista==='parque')h+='<div>'+pt(COL.sin)+'Sin hallazgos</div>';
  if(S.vista==='lug')h+='<div style="color:#9FB3CC">Cada lugar muestra su radio de '+S.radio+' m; borde rojo = tiene un grifo con falla directa dentro.</div>';
  h+='<div><span class="ic" style="background:'+GRUPOS.educ.col+';width:14px;height:14px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center">'+svgIco('colegio',9)+'</span>Lugar sensible (color = grupo)</div>';
@@ -518,8 +547,9 @@ function panelDer(){
   const n=S.vista==='lug'?ls.filter(l=>CATS[l.c].g===k):ab.filter(x=>x.grp.includes(k));if(!n.length)return '';
   const sub=S.vista==='lug'?fmt(n.filter(l=>l.nab).length)+' con grifo con falla cerca':fmt(n.filter(x=>x.s.crit==='directa').length)+' con falla directa';
   return '<button class="pri grp'+(S.filtro==='g:'+k?' on':'')+'" data-f="g:'+k+'"><span class="ic" style="background:'+GRUPOS[k].col+'">'+svgIco(Object.keys(CATS).find(c=>CATS[c].g===k),11)+'</span><span class="k" style="min-width:34px">'+fmt(n.length)+'</span><span class="w"><b>'+GRUPOS[k].nom+'</b> · '+sub+'</span></button>';}).join('')+'</div>';
- const pri=gs.filter(x=>x.s&&x.s.crit==='directa'&&x.s.est==='pendiente').sort((a,b)=>(b.cer.length?1:0)-(a.cer.length?1:0)||b.s.abiertos-a.s.abiertos).slice(0,8);
- h+='<div class="sec"><div class="tt">Prioridad hoy <span class="mini">falla directa pendiente</span></div>'+(pri.length?pri.map(x=>'<button class="pri" data-k="'+esc(x.k)+'"><span class="p"></span><span class="k">'+esc(x.k)+'</span><span class="w">'+esc(x.cer.length?x.cer[0].o.n+' · '+Math.round(x.cer[0].d)+' m':titulo(x.loc||x.co))+'</span><span class="z">ver</span></button>').join(''):'<div style="color:#9FB3CC;font-size:11.5px">Sin fallas directas pendientes.</div>')+'</div>';
+ const venc=x=>x.s.plazo&&x.s.plazo.estado==='vencido'?1:0;
+ const pri=gs.filter(x=>x.s&&x.s.crit==='directa'&&x.s.est==='pendiente').sort((a,b)=>venc(b)-venc(a)||(b.cer.length?1:0)-(a.cer.length?1:0)||b.s.abiertos-a.s.abiertos).slice(0,8);
+ h+='<div class="sec"><div class="tt">Prioridad hoy <span class="mini">directa pendiente · plazo SISS 48 h</span></div>'+(pri.length?pri.map(x=>'<button class="pri" data-k="'+esc(x.k)+'"><span class="p"></span><span class="k">'+esc(x.k)+'</span><span class="w">'+(venc(x)?'<b style="color:#FFC3CB">vencido</b> · ':'')+esc(x.cer.length?x.cer[0].o.n+' · '+Math.round(x.cer[0].d)+' m':titulo(x.loc||x.co))+'</span><span class="z">ver</span></button>').join(''):'<div style="color:#9FB3CC;font-size:11.5px">Sin fallas directas pendientes.</div>')+'</div>';
  p.innerHTML=h;
  p.querySelectorAll('.com').forEach(b=>b.onclick=()=>{const c=com[b.dataset.c];map.fitBounds(c.b,{padding:padding(),pitch:50,bearing:-16,duration:2200,maxZoom:14.5});});
  p.querySelectorAll('.pri:not(.grp)').forEach(b=>b.onclick=()=>irAGrifo(b.dataset.k));
@@ -532,7 +562,9 @@ function fichaGrifo(k){
  const s=g.s,c=g.cat,col=!s?COL.sin:COL[s.crit],proc=s&&s.est==='en_proceso';
  let h='<div class="pc">'+esc(g.k)+'</div><div class="pm">'+[titulo(g.co),g.loc?'Sector '+titulo(g.loc):''].filter(Boolean).map(esc).join(' · ')+'</div>';
  h+='<div class="pb"><i style="background:'+col+';color:'+col+'"'+(proc?' class="h"':'')+'></i>'+(!s?'Sin hallazgos registrados':s.abiertos?NOMC[s.crit]+' · '+ESTN[s.est]:'Todo resuelto')+'</div>';
- if(s){h+='<div class="pt">'+s.n+' hallazgo'+(s.n===1?'':'s')+' · '+s.abiertos+' abierto'+(s.abiertos===1?'':'s')+(s.tipos.length?'<br>'+s.tipos.map(esc).join(' · '):'')+'</div>';}
+ if(s){h+='<div class="pt">'+s.n+' hallazgo'+(s.n===1?'':'s')+' · '+s.abiertos+' abierto'+(s.abiertos===1?'':'s')+(s.tipos.length?'<br>'+s.tipos.map(esc).join(' · '):'')+'</div>';
+  if(s.plazo){const z=s.plazo,d=h2=>h2>=48?Math.round(h2/24)+' d':Math.round(h2)+' h';
+   h+='<div class="pz '+z.estado+'">Plazo SISS '+z.txt+(z.estado==='vencido'?' · <b>vencido hace '+d(z.exceso)+'</b>':z.estado==='aviso'?' · abierto hace '+d(z.h)+', revisar magnitud':z.estado==='en_plazo'?' · en plazo ('+d(z.h)+' abierto)':' · sin fecha de registro')+'</div>';}}
  if(c&&(c.mod||c.dia||c.ano))h+='<div class="pt">'+[c.mod,c.dia?'Ø '+c.dia+' mm':'',c.ano?'Instalado '+c.ano:''].filter(Boolean).map(esc).join(' · ')+'</div>';
  if(g.cer.length){h+='<div class="pl">Lugares sensibles a ≤ '+S.radio+' m</div>'+g.cer.slice(0,4).map(x=>'<div class="pli"><span class="ic" style="background:'+colCat(x.o.c)+'">'+svgIco(x.o.c,10)+'</span>'+esc(x.o.n)+'<span>'+Math.round(x.d)+' m</span></div>').join('')+(g.cer.length>4?'<div class="pt">y '+(g.cer.length-4)+' más</div>':'');}
  else h+='<div class="sinl">Sin lugares sensibles a ≤ '+S.radio+' m.</div>';
@@ -591,14 +623,15 @@ function detenerTour(){S.tour=null;S.pausa=false;document.getElementById('btour'
 function pausarTour(){if(!S.tour)return;S.pausa=!S.pausa;document.body.classList.toggle('pausa',S.pausa);}
 
 /* ---------- carga ---------- */
-const CLAVE='ccCache.v1';
+const CLAVE='ccCache.v2';
 function procesar(h,c){
  const LEG={inmediato:'directa',corto:'indirecta',mediano:'senaletica'};const hall=[];
  h.forEach(d=>{const x=d.data();const det=Array.isArray(x.hallazgos_detalle)?x.hallazgos_detalle:[];
   if(!det.length&&!x.tipo_hallazgo)return;if(typeof x.lat!=='number'||typeof x.lng!=='number')return;
   let cr=LEG[x.prioridad]||x.prioridad||'senaletica';if(det.length&&det.every(d2=>/pintura/i.test(d2.tipo_hallazgo||'')))cr='senaletica';
   const t=det.length?det.map(d2=>d2&&d2.tipo_hallazgo).filter(Boolean).map(String):(x.tipo_hallazgo?[String(x.tipo_hallazgo)]:[]);
-  hall.push({id:d.id,c:(x.codigo_grifo||'').toUpperCase(),co:x.comuna||'',cr,e:x.estado||'pendiente',la:x.lat,ln:x.lng,t});});
+  const fc=x.fecha_creacion&&x.fecha_creacion.toDate?x.fecha_creacion.toDate().toISOString():(x.fecha_creacion||null);
+  hall.push({id:d.id,c:(x.codigo_grifo||'').toUpperCase(),co:x.comuna||'',cr,e:x.estado||'pendiente',la:x.lat,ln:x.lng,t,f:fc});});
  const grifos=[];c.forEach(d=>{const x=d.data();if(typeof x.lat==='number'&&typeof x.lng==='number')grifos.push({k:String(x.codigo||d.id).toUpperCase(),la:x.lat,ln:x.lng,co:x.comuna||'',loc:x.localidad||'',mod:x.modelo||'',dia:x.diametro_conexion||'',ano:x.ano_instalacion||''});});
  return{hall,parque:c.size,grifos};}
 function estado(t){document.getElementById('estado').textContent=t;}
@@ -608,8 +641,9 @@ function iniciar(desdeCache){
  estado(desdeCache?'Datos guardados · actualizando con el catastro…':'Catastro al día · '+new Date().toLocaleString('es-CL',{dateStyle:'medium',timeStyle:'short'}));
  document.getElementById('carga').classList.add('off');S.listo=true;
  /* entrada cinematográfica */
+ if(MODO_TABLERO&&S.comuna!=='todos'){const b=new maplibregl.LngLatBounds();S.geo.grifos.forEach(g=>{if(g.co===S.comuna)b.extend([g.ln,g.la]);});if(!b.isEmpty()){map.fitBounds(b,{padding:padding(),duration:2600,maxZoom:14.5});return;}}
  const cam=map.cameraForBounds(limitesParque(),{padding:padding()});
- map.flyTo(Object.assign({pitch:0,bearing:0,duration:3400,essential:true},cam));
+ map.flyTo(Object.assign({pitch:0,bearing:0,duration:MODO_TABLERO?2600:3400,essential:true},cam));
 }
 async function cargar(){
  const pCapas=fetch('capas-mapa.json').then(r=>r.ok?r.json():null).catch(()=>null);
@@ -629,7 +663,18 @@ async function cargar(){
   else estado('Catastro al día · '+new Date().toLocaleString('es-CL',{dateStyle:'medium',timeStyle:'short'}));
  }catch(e){if(dibujado)estado('Sin conexión al catastro · mostrando datos guardados');else{document.getElementById('cst').textContent='No se pudo leer el catastro: '+e.message;}}
 }
-function enlazar(){
+/* Modo tablero: la página vive dentro del tablero (iframe). Se ocultan la marca y el
+   panel derecho (el tablero ya los tiene) y se obedecen los mensajes del tablero:
+   sector/comuna, ir a un grifo, aplicar un filtro. */
+function modoTablero(){
+ if(!MODO_TABLERO)return;document.body.classList.add('tablero');
+ const c=PARAMS.get('sector');if(c&&c!=='todos')S.comuna=c.toUpperCase();
+ window.addEventListener('message',e=>{if(e.origin!==location.origin)return;const m=e.data||{};if(!S.listo)return;
+  if(m.accion==='sector'){S.comuna=(m.comuna&&m.comuna!=='todos')?String(m.comuna).toUpperCase():'todos';S.filtro='todos';aplicarVista();encuadrarComuna();}
+  if(m.accion==='grifo'&&m.codigo)irAGrifo(String(m.codigo).toUpperCase());
+  if(m.accion==='filtro'&&m.filtro){S.filtro=m.filtro;aplicarVista();encuadrarFiltro();}});}
+function encuadrarComuna(){if(S.comuna==='todos'){encuadrar(true);return;}const b=new maplibregl.LngLatBounds();let n=0;S.geo.grifos.forEach(g=>{if(g.co===S.comuna){b.extend([g.ln,g.la]);n++;}});if(n)map.fitBounds(b,{padding:padding(),duration:1600,maxZoom:14.5,pitch:S.tres?50:0});}
+function enlazar(){modoTablero();
  document.getElementById('b3d').onclick=toggle3D;document.getElementById('bsat').onclick=toggleSat;document.getElementById('btour').onclick=tour;document.getElementById('bfull').onclick=pantalla;
  document.getElementById('bmov').onclick=()=>document.getElementById('pizq').classList.toggle('on');
  const b=document.getElementById('busca');b.onkeydown=e=>{if(e.key==='Enter'){buscar(b.value);b.blur();}};

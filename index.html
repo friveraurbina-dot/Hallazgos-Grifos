@@ -412,6 +412,35 @@ nav.rail .rail-foot{color:#6E88B0;}
 .mapa-tool-btn:hover{border-color:var(--accent);}
 .mapa-tool-btn.on{background:var(--accent);border-color:var(--accent);color:#00214F;}
 .mapa-stage{position:relative;height:640px;border-top:1px solid var(--line);overflow:hidden;background:#dfeaf2;}
+.cc-host{height:max(640px,68vh);border-top:1px solid var(--line);background:#061331;position:relative;}
+.cc-host .cc-cargando{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9FB3CC;font-size:13px;}
+#ccCapa{position:fixed;overflow:hidden;pointer-events:none;z-index:3;display:none;}
+#ccCapa iframe{position:absolute;border:0;pointer-events:auto;background:#061331;}
+.cc-foot{display:flex;gap:10px 18px;align-items:center;justify-content:space-between;padding:9px 16px 11px;font-size:11.5px;color:var(--text-soft);flex-wrap:wrap;border-top:1px solid var(--line);}
+.cc-foot .ccl{display:inline-block;width:9px;height:9px;border-radius:50%;margin:0 3px 0 2px;vertical-align:-1px;}
+@media(max-width:720px){.cc-host{height:calc(100vh - 170px);}}
+.normativa .nv-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap;}
+.normativa .nv-head .sub{max-width:860px;}
+.nv-chip{font:700 10.5px 'Montserrat',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--ink);background:#E9F6FB;border:1px solid #BFE9F3;border-radius:999px;padding:6px 11px;white-space:nowrap;}
+.nv-tabla-wrap{overflow-x:auto;margin-top:12px;}
+.nv-tabla{width:100%;border-collapse:collapse;font-size:12.5px;}
+.nv-tabla th{font:700 10px 'Montserrat',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--text-soft);text-align:left;padding:8px 10px;border-bottom:2px solid var(--line);background:#F7FAFD;}
+.nv-tabla td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.45;}
+.nv-cat{display:flex;flex-direction:column;gap:2px;min-width:150px;}
+.nv-cat i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px;}
+.nv-cat small{color:var(--text-soft);font-size:11px;}
+.nv-campos{color:var(--text);min-width:230px;}
+.nv-plazo{min-width:130px;}
+.nv-hoy{min-width:130px;white-space:nowrap;}
+.nv-tab{color:var(--text-soft);min-width:220px;}
+.nv-venc{color:#C8334D;font-weight:700;}.nv-aviso{color:#B7791F;font-weight:600;}.nv-ok{color:var(--musgo);font-weight:600;}
+.nv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-top:14px;}
+.nv-box{background:#F7FAFD;border:1px solid var(--line);border-radius:12px;padding:12px 14px;}
+.nv-box h4{margin:0 0 6px;font:700 12px 'Montserrat',sans-serif;color:var(--ink);}
+.nv-box ul{margin:0;padding-left:18px;font-size:12.5px;line-height:1.5;color:var(--text);}
+.nv-box li+li{margin-top:5px;}
+.nv-ojo{background:#FFF8E6;border-color:#F5D77A;}
+.nv-ojo h4{color:#8A5A00;}
 .mapa-stage #dashMap{height:100%;width:100%;border:0;border-radius:0;}
 .mapa-legend{
   position:absolute;left:12px;bottom:12px;z-index:700;background:rgba(255,255,255,.95);border-radius:10px;
@@ -1914,6 +1943,7 @@ function render(){
   else if(currentPage==='lista') renderLista();
   else if(currentPage==='inspecciones') renderInspecciones();
   else if(currentPage==='galeria') renderGaleria();
+  ccProgramar();   // el centro de control sólo se ve en el tablero: se oculta o reposiciona al cambiar de página
 }
 
 /* ================= DASHBOARD ================= */
@@ -2218,8 +2248,8 @@ function renderDashboard(){
 
     <div class="panel mapa-card">
       <div class="mapa-head">
-        <h3>Mapa de grifos con hallazgos</h3>
-        <div class="mapa-count" id="mapaConteo"></div>
+        <h3>Centro de control · grifos con falla</h3>
+        <div class="mapa-count">Mapa vectorial 3D · relieve, satélite, lugares sensibles y sectores · <a href="centro-control.html" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700">abrir en una pestaña aparte ↗</a></div>
       </div>
       <div class="com-cards">
         <button type="button" class="ccard ${FILTRO_SECTOR_DASHBOARD==='todos'?'sel':''}" onclick="cambiarFiltroSectorDashboard('todos')" title="Ver todas las comunas">
@@ -2232,19 +2262,10 @@ function renderDashboard(){
           <span class="cc-s">${c.grifos?`${c.grifos} grifos · `:''}${c.total} hallazgo${c.total===1?'':'s'}${c.sen?` · <b class="cc-sen">${c.sen} señalética</b>`:''}</span>
         </button>`).join('')}
       </div>
-      ${mapaToolbarHtml()}
-      <div class="mapa-stage">
-        <div id="dashMap"></div>
-        <div class="mapa-vacio" id="mapaVacio"><div>Ningún hallazgo coincide con los filtros</div></div>
-        <div class="mapa-legend">
-          <span><i style="background:${PRIORIDAD_COLOR.directa}"></i>Directa</span>
-          <span><i style="background:${PRIORIDAD_COLOR.indirecta}"></i>Indirecta / mec.</span>
-          <span><i style="background:${PRIORIDAD_COLOR.senaletica}"></i>Señalética</span>
-          <span><i style="background:#fff;box-shadow:0 0 0 3px #7C3AED;border-radius:50%"></i>Zona prioritaria</span>
-          <span class="lg-parque"><i style="background:#2F9E78;border-radius:50%"></i>Grifo sin hallazgos abiertos</span>
-          <span style="color:var(--text-soft);font-weight:500">✓ resuelto · clic en un punto para ver la ficha</span>
-        </div>
-        <aside class="mapa-panel" id="mapaPanel" aria-label="Ficha del grifo"></aside>
+      <div class="cc-host" id="ccHost"><div class="cc-cargando">Cargando el centro de control…</div></div>
+      <div class="cc-foot">
+        <span>Sólo resaltan los grifos con falla abierta: <i class="ccl" style="background:#FF4D63"></i>directa (plazo SISS 48 h, con pulso si está pendiente) · <i class="ccl" style="background:#FF9A3C"></i>indirecta · <i class="ccl" style="background:#FFD83D"></i>señalética · el resto del parque queda tenue de fondo.</span>
+        <span>Clic en un grifo o un lugar sensible = ficha · <b>Recorrido</b> = presentación automática · <b>⛶</b> pantalla completa</span>
       </div>
     </div>
 
@@ -2278,7 +2299,7 @@ function renderDashboard(){
         <div class="xc-legs">${buckets.map(b=>`<span class="xc-leg st ${(b.min>90 && b.n)?'warn':''}" title="${b.l}: ${b.op} de operatividad · ${b.s} de señalética"><i style="background:${b.c}"></i><span>${b.l.replace(' días','')}</span><b>${b.n}</b></span>`).join('')}</div>
       </div>
 
-      <div class="xcard zp-card" style="cursor:pointer" onclick="if(!MAPA_UI.soloZP) mapaToggleZP(); document.querySelector('.mapa-card').scrollIntoView({behavior:'smooth'})" title="Ver en el mapa solo los grifos de zona prioritaria">
+      <div class="xcard zp-card" style="cursor:pointer" onclick="ccEnviar({accion:'filtro',filtro:'sensible'}); document.querySelector('.mapa-card').scrollIntoView({behavior:'smooth'})" title="Ver en el mapa solo los grifos con falla junto a un lugar sensible">
         <div class="xc-head"><h4>⚠ Zona prioritaria</h4><span class="xc-hint">${zpParque} grifos del parque a ≤150 m · clic para verlos</span></div>
         <div class="xc-main"><div class="xc-big">${zpGrifos.length}</div>
           <div style="font-size:11px;color:var(--text-soft);line-height:1.35">grifos con hallazgos abiertos${zpDirecta.size?`<br><b style="color:#C8334D">${zpDirecta.size} con operatividad directa</b>`:''}${zpSen?`<br><span class="xc-sen">${zpSen} con señalética pendiente</span>`:''}</div>
@@ -2286,6 +2307,56 @@ function renderDashboard(){
         <div class="xc-legs">${Object.keys(zpPorTipo).map(t=>`<span class="xc-leg st" title="${ZP_TIPO_LABEL[t]}"><span>${ZP_TIPO_ICONO[t]}</span><b>${zpPorTipo[t]}</b></span>`).join('')}</div>
       </div>
     </div>
+
+    ${(()=>{
+      const hrs = h => (Date.now() - new Date(h.fecha_creacion).getTime())/36e5;
+      const dir = directasAbiertas, ind = abiertos.filter(h=>criticidadDeRegistro(h)==='indirecta'), sen = senAbiertasArr;
+      const dirV = dir.filter(h=>hrs(h)>48).length, indV = ind.filter(h=>hrs(h)>24*90).length, senV = sen.filter(h=>hrs(h)>24*90).length;
+      const indA = ind.filter(h=>hrs(h)>24*7 && hrs(h)<=24*90).length, senA = sen.filter(h=>hrs(h)>24*7 && hrs(h)<=24*90).length;
+      const fila = (col, cat, campos, plazo, hoy, tablero, filtro) => `<tr>
+        <td><span class="nv-cat"><i style="background:${col}"></i>${cat}</span></td>
+        <td class="nv-campos">${campos}</td>
+        <td class="nv-plazo">${plazo}</td>
+        <td class="nv-hoy">${hoy}</td>
+        <td class="nv-tab">${tablero}</td></tr>`;
+      return `<div class="panel normativa">
+      <div class="nv-head">
+        <div><h3>Normativa SISS · por qué el tablero se ve así</h3>
+        <p class="sub">El protocolo PR036 no trae una tabla de "niveles de hallazgo". La clasificación sale de las tres categorías que usa la SISS para fijar los plazos de reparación; cada campo de la hoja de Inspección de Grifos cae en una de ellas, y el tablero usa esas mismas tres categorías, sus colores y sus plazos.</p></div>
+        <span class="nv-chip">Protocolo PR036 · hoja de Inspección de Grifos</span>
+      </div>
+      <div class="nv-tabla-wrap"><table class="nv-tabla">
+        <thead><tr><th>Categoría SISS</th><th>Campos de inspección que marcan hallazgo</th><th>Plazo de reparación</th><th>Hoy en ${FILTRO_SECTOR_DASHBOARD==='todos'?'el parque':escHtml(FILTRO_SECTOR_DASHBOARD)}</th><th>Cómo lo muestra el tablero</th></tr></thead>
+        <tbody>
+        ${fila(PRIORIDAD_COLOR.directa,'<b>1 · Operatividad directa</b><small>impide operar el grifo</small>','Opera Vástago = 2 · Vástago rodadura = 2 · Vástago torsión = 2 · Boca Hilo Estado = 2 · Tapa Boca = 2 / Tapa Boca Estado = 2','<b>Máx. 48 h</b> desde que se conoce la falla',
+          `<b>${dir.length}</b> abiertos${dirV?`<br><span class="nv-venc">${dirV} con más de 48 h</span>`:'<br><span class="nv-ok">todos dentro de 48 h</span>'}`,
+          'Rojo con halo; <b>pulso</b> mientras está pendiente. Primero en "Atención inmediata" y en "Prioridad hoy". La tarjeta <b>Fuera de plazo SISS</b> del mapa los cuenta.')}
+        ${fila(PRIORIDAD_COLOR.indirecta,'<b>2 · Operatividad indirecta</b><small>mecánica / cámara</small>','Fuga Agua = 1 · Válvula Pie Operativa = 2 · Válvula Pie Estado = 2 (cerrada) · Válvula Pie Cámara = 2 · Válvula Pie Tapa = 2','<b>1 semana a 3 meses</b>, según magnitud',
+          `<b>${ind.length}</b> abiertos${indV?`<br><span class="nv-venc">${indV} con más de 3 meses</span>`:''}${indA?`<br><span class="nv-aviso">${indA} entre 1 semana y 3 meses</span>`:''}`,
+          'Naranjo. Cuenta como falla de operatividad en todos los indicadores; aviso en la ficha desde la semana y vencido a los 3 meses.')}
+        ${fila(PRIORIDAD_COLOR.senaletica,'<b>3 · Señalética</b><small>visibilidad</small>','Color amarillo rey = 2 · Estado pintura = 2 · Línea negra = 2 · Número sobre línea = 2 · Anillo verde = 2','<b>1 semana a 3 meses</b>',
+          `<b>${sen.length}</b> pendientes${senV?`<br><span class="nv-venc">${senV} con más de 3 meses</span>`:''}${senA?`<br><span class="nv-aviso">${senA} entre 1 semana y 3 meses</span>`:''}`,
+          'Amarillo. Se cuenta aparte de la operatividad (como % ejecutado) para que no tape las fallas que dejan el grifo inoperativo. Es hallazgo igual: NCh 1646.Of1998.')}
+        ${fila('#7C8AA0','<b>Desempeño hidráulico</b><small>fuera de las tres categorías</small>','Cumple Presión = 2 (bajo 15 mca) · Cumple Caudal = 2 (bajo 5 mca con el grifo abierto, por modelación)','Sin plazo explícito en el protocolo',
+          '<span style="color:var(--text-soft)">No se registra en esta app</span>','No se visualiza: la app no recibe mediciones de presión ni caudal. Si se cargan, se puede agregar como cuarta capa.')}
+        </tbody></table></div>
+      <div class="nv-grid">
+        <div class="nv-box"><h4>Reglas asociadas</h4><ul>
+          <li>Hay que informar <b>todas</b> las anomalías encontradas, aunque se corrijan después. Por eso la lista "pendientes por riesgo" muestra todo lo abierto y no sólo un top.</li>
+          <li>Cada corrección se respalda con la <b>Orden de Intervención</b> y la <b>Fecha Última Intervención</b>; las OT deben quedar disponibles para la SISS durante <b>2 años</b>. En la app, el estado "Ejecutado" exige respaldo de la solución.</li>
+          <li>Frecuencia mínima de inspección: <b>anual</b>. Los grifos en <b>zona de riesgo 1 a 4</b> se inspeccionan como mínimo <b>semestralmente</b>: 1 = hospital / colegio / cárcel / centro comercial · 2 = alta densidad · 3 = alto riesgo social · 4 = otro.</li>
+        </ul></div>
+        <div class="nv-box"><h4>Zonas de riesgo en el tablero</h4><ul>
+          <li>La <b>zona prioritaria</b> del catastro (grifo a ≤150 m de colegio o jardín, centro de salud, municipalidad o cárcel) es la aproximación hoy disponible a la zona de riesgo 1 de la SISS.</li>
+          <li>El centro de control dibuja además los <b>lugares sensibles</b> del entorno (salud, educación, bomberos y policía, cárceles y centros comerciales) y calcula la cercanía con radio ajustable, para argumentar la inspección semestral grifo por grifo.</li>
+          <li>Las zonas 2, 3 y 4 (densidad, riesgo social, otro) no están en el catastro; si Sacyr las entrega por grifo, se incorporan como filtro.</li>
+        </ul></div>
+        <div class="nv-box nv-ojo"><h4>Dos puntos por validar con la sanitaria</h4><ul>
+          <li>La <b>tapa de boca</b> quedó en operatividad directa porque el protocolo incluye el "estado de bocas de admisión" en esa categoría. Es una interpretación: conviene confirmarla con el criterio de la sanitaria.</li>
+          <li>Hay una inconsistencia en <b>Válvula Pie Estado</b>: la tabla usa 1 = abierta y 2 = cerrada, pero el texto del punto 32 dice cerrada = 0. Para el XML del SINAR se usaría el código de la tabla (2).</li>
+        </ul></div>
+      </div>
+    </div>`;})()}
 
     <div class="dash-row dr-a">
       <div class="panel">
@@ -2348,8 +2419,8 @@ function renderDashboard(){
     </div>
   </div>`;
 
-  // Mapa interactivo (ver módulo "MAPA INTERACTIVO DEL TABLERO" más abajo).
-  construirMapaDashboard();
+  // Centro de control (mapa vectorial 3D) dentro del tablero: ver módulo "CENTRO DE CONTROL EN EL TABLERO".
+  construirCentroControl();
 
   // Gráficos
   if(dashChart1) dashChart1.destroy();
@@ -2399,7 +2470,45 @@ function animarContadores(root){
 function verEnMapaDesdeLista(id){
   const el = document.querySelector('.mapa-card');
   if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
-  setTimeout(()=>mapaSeleccionar(id), 300);
+  const h = HALLAZGOS.find(x=>x.id===id);
+  if(h && h.codigo_grifo) setTimeout(()=>ccEnviar({accion:'grifo', codigo:h.codigo_grifo}), 350);
+}
+
+/* ================= CENTRO DE CONTROL EN EL TABLERO =================
+   El mapa del tablero es ahora centro-control.html (MapLibre, 3D) embebido
+   en un iframe. El tablero se vuelve a dibujar entero con cada cambio en
+   tiempo real, y un iframe que se mueve de lugar en el DOM se recarga; por
+   eso el iframe vive una sola vez en el body, en una capa fija recortada al
+   área de <main>, y sólo se reposiciona sobre el hueco #ccHost. Con el
+   tablero se comunica por postMessage (sector, ir a un grifo, filtro). */
+let CC_FRAME = null, CC_CAPA = null, CC_RAF = 0;
+function construirCentroControl(){
+  const host = document.getElementById('ccHost');
+  if(!host){ ccPosicionar(); return; }
+  const sector = FILTRO_SECTOR_DASHBOARD || 'todos';
+  if(!CC_CAPA){
+    CC_CAPA = document.createElement('div'); CC_CAPA.id = 'ccCapa';
+    CC_FRAME = document.createElement('iframe'); CC_FRAME.id = 'ccFrame';
+    CC_FRAME.title = 'Centro de control del parque de grifos';
+    CC_FRAME.setAttribute('allowfullscreen',''); CC_FRAME.allow = 'fullscreen';
+    CC_FRAME.src = 'centro-control.html?modo=tablero&sector=' + encodeURIComponent(sector);
+    CC_CAPA.appendChild(CC_FRAME); document.body.appendChild(CC_CAPA);
+    document.addEventListener('scroll', ccProgramar, true);
+    window.addEventListener('resize', ccProgramar);
+    if(window.ResizeObserver){ new ResizeObserver(ccProgramar).observe(document.body); }
+  } else ccEnviar({accion:'sector', comuna:sector});
+  ccProgramar();
+}
+function ccEnviar(m){ try{ if(CC_FRAME && CC_FRAME.contentWindow) CC_FRAME.contentWindow.postMessage(m, location.origin); }catch(e){} }
+function ccProgramar(){ if(CC_RAF) return; CC_RAF = requestAnimationFrame(()=>{ CC_RAF = 0; ccPosicionar(); }); }
+function ccPosicionar(){
+  if(!CC_CAPA) return;
+  const host = document.getElementById('ccHost'), main = document.getElementById('main');
+  if(!host || !main || currentPage!=='dashboard' || !host.offsetParent){ CC_CAPA.style.display = 'none'; return; }
+  const r = host.getBoundingClientRect(), m = main.getBoundingClientRect();
+  CC_CAPA.style.display = 'block';
+  CC_CAPA.style.left = m.left+'px'; CC_CAPA.style.top = m.top+'px'; CC_CAPA.style.width = m.width+'px'; CC_CAPA.style.height = m.height+'px';
+  CC_FRAME.style.left = (r.left-m.left)+'px'; CC_FRAME.style.top = (r.top-m.top)+'px'; CC_FRAME.style.width = r.width+'px'; CC_FRAME.style.height = r.height+'px';
 }
 
 function cambiarFiltroSectorDashboard(valor){
