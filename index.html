@@ -412,6 +412,32 @@ nav.rail .rail-foot{color:#6E88B0;}
 .mapa-tool-btn:hover{border-color:var(--accent);}
 .mapa-tool-btn.on{background:var(--accent);border-color:var(--accent);color:#00214F;}
 .mapa-stage{position:relative;height:640px;border-top:1px solid var(--line);overflow:hidden;background:#dfeaf2;}
+/* Resumen y comunas en el menú lateral; en el encabezado y el mapa se ocultan (escritorio) */
+.hero-stats,.mapa-card .mapa-head,.mapa-card .com-cards{display:none !important;}
+.hero{margin-bottom:10px !important;}
+#railResumen{display:flex;flex-direction:column;gap:3px;margin-top:4px;}
+nav.rail{overflow-y:auto;scrollbar-width:thin;}
+nav.rail .rr-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:2px 2px 4px;}
+nav.rail .rr-st{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:8px 9px 7px;display:flex;flex-direction:column;gap:2px;min-width:0;}
+nav.rail .rr-st b{font:800 21px/1 'Montserrat',sans-serif;color:#fff;letter-spacing:-.03em;}
+nav.rail .rr-st span{font-size:9.5px;font-weight:600;line-height:1.25;color:#B9CBE6;}
+nav.rail .rr-st.alert{background:rgba(200,51,77,.30);border-color:rgba(255,140,160,.45);}
+nav.rail .rr-st.sen{cursor:pointer;}nav.rail .rr-st.sen:hover{background:rgba(255,255,255,.12);}
+nav.rail .rr-coms{display:flex;flex-direction:column;gap:5px;padding:2px 2px 6px;}
+nav.rail .rr-com{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;gap:1px;padding:8px 11px 7px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);color:#fff;transition:background .15s,border-color .15s;}
+nav.rail .rr-com:hover{background:rgba(1,179,215,.14);border-color:rgba(99,209,224,.5);}
+nav.rail .rr-com.sel{background:linear-gradient(90deg,rgba(1,179,215,.34),rgba(1,179,215,.08));border-color:rgba(99,209,224,.6);box-shadow:inset 3px 0 0 var(--accent-2);}
+nav.rail .rr-com .rr-top{font:700 10px 'Montserrat',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#C6D6EE;display:flex;align-items:center;gap:6px;}
+nav.rail .rr-com .rr-dot{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 5px;border-radius:999px;background:#C8334D;color:#fff;font:800 10px 'Inter',sans-serif;letter-spacing:0;}
+nav.rail .rr-com .rr-n{font:800 20px/1.1 'Montserrat',sans-serif;color:#fff;letter-spacing:-.03em;}
+nav.rail .rr-com .rr-s{font-size:9.5px;color:#9FB3D1;font-weight:500;line-height:1.3;}
+nav.rail .rr-com .rr-s em{font-style:normal;color:#FFD83D;font-weight:700;}
+@media(max-width:760px){
+  #railResumen{display:none !important;}
+  .hero-stats{display:grid !important;}
+  .mapa-card .mapa-head{display:flex !important;}
+  .mapa-card .com-cards{display:flex !important;}
+}
 .cc-host{height:max(640px,68vh);border-top:1px solid var(--line);background:#061331;position:relative;}
 .cc-host .cc-cargando{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9FB3CC;font-size:13px;}
 #ccCapa{position:fixed;overflow:hidden;pointer-events:none;z-index:3;display:none;}
@@ -1073,6 +1099,7 @@ function verificarAcceso(){
       <button class="navbtn" data-page="inspecciones" id="navInspecciones" onclick="goPage('inspecciones')"><span class="ni"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9z"/><path d="M9 14l2 2 4-4"/></svg></span><span class="nl">Inspecciones</span></button>
       <button class="navbtn" data-page="nuevo" id="navNuevo" onclick="goPage('nuevo')"><span class="ni"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg></span><span class="nl">Nuevo hallazgo</span></button>
       <button class="navbtn" data-page="galeria" id="navGaleria" onclick="goPage('galeria')"><span class="ni"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.7"/><path d="M21 16l-5-5-8 8"/></svg></span><span class="nl">Galería de fotos</span></button>
+      <div id="railResumen" aria-label="Resumen del parque"></div>
       <div class="rail-foot" id="railFoot"><div class="rf-top"><span class="dot"></span><span id="rfTxt">En línea</span></div><div class="rf-sub" id="rfSub">Datos en tiempo real entre Sacyr y Singemelec</div><div class="rf-meta" id="rfMeta"></div></div>
     </nav>
 
@@ -1947,6 +1974,7 @@ function render(){
   else if(currentPage==='inspecciones') renderInspecciones();
   else if(currentPage==='galeria') renderGaleria();
   ccProgramar();   // el centro de control sólo se ve en el tablero: se oculta o reposiciona al cambiar de página
+  const rr = document.getElementById('railResumen'); if(rr && currentPage!=='dashboard') rr.style.display = 'none';
 }
 
 /* ================= DASHBOARD ================= */
@@ -2268,7 +2296,7 @@ function renderDashboard(){
       <div class="cc-host" id="ccHost"><div class="cc-cargando">Cargando el centro de control…</div></div>
       <div class="cc-foot">
         <span>Sólo resaltan los grifos con falla abierta: <i class="ccl" style="background:#FF4D63"></i>directa (plazo SISS 48 h, con pulso si está pendiente) · <i class="ccl" style="background:#FF9A3C"></i>indirecta · <i class="ccl" style="background:#FFD83D"></i>señalética · el resto del parque queda tenue de fondo.</span>
-        <span>Clic en un grifo o un lugar sensible = ficha · <b>Recorrido</b> = presentación automática · <b>⛶</b> pantalla completa</span>
+        <span>Clic en un grifo o un lugar sensible = ficha · <b>Recorrido</b> = presentación automática · <b>⛶</b> pantalla completa · <a href="centro-control.html" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700">abrir en una pestaña aparte ↗</a></span>
       </div>
     </div>
 
@@ -2421,6 +2449,29 @@ function renderDashboard(){
       </div>
     </div>
   </div>`;
+
+  // Resumen y comunas en el menú lateral (31/10): las cifras y las tarjetas de comuna
+  // salen del encabezado y del mapa para que al abrir la página se vea el mapa de inmediato.
+  const rail = document.getElementById('railResumen');
+  if(rail){
+    const comBtn = (nom, sel, n, sub, dot) => `<button type="button" class="rr-com ${sel?'sel':''}" onclick="cambiarFiltroSectorDashboard(${sel && nom!=='todos' ? "'todos'" : JSON.stringify(nom).replace(/"/g,'&quot;')})" title="${nom==='todos'?'Ver todas las comunas':(sel?'Volver a todas las comunas':'Ver solo '+escHtml(nom))}">
+      <span class="rr-top">${nom==='todos'?'Todas las comunas':escHtml(nom)}${dot?`<i class="rr-dot" title="${dot} de operatividad directa abiertos">${dot}</i>`:''}</span>
+      <span class="rr-n">${n}</span><span class="rr-s">${sub}</span></button>`;
+    rail.innerHTML = `
+      <div class="nav-group">Parque</div>
+      <div class="rr-stats">
+        <div class="rr-st"><b ${parqueTotal?`data-count="${parqueTotal}"`:''}>${parqueTotal||'—'}</b><span>Grifos en el parque</span></div>
+        <div class="rr-st"><b data-count="${codigosAbiertos.size}">${codigosAbiertos.size}</b><span>Grifos con hallazgos abiertos${pctParque!==null?` · ${pctParque.toFixed(1).replace('.',',')}%`:''}</span></div>
+        <div class="rr-st alert"><b data-count="${directasAbiertas.length}">${directasAbiertas.length}</b><span>Operatividad directa abierta · prioridad máxima</span></div>
+        <div class="rr-st sen" onclick="irAListaConFiltro('prioridad','senaletica')" title="Señalética (pintura): categoría propia, no afecta la operatividad del grifo"><b data-count="${senPendientes}">${senPendientes}</b><span>Señalética pendiente${senaleticaSector.length?` · ${senPct}% ejecutada`:''}</span></div>
+      </div>
+      <div class="nav-group">Comunas</div>
+      <div class="rr-coms">
+        ${comBtn('todos', FILTRO_SECTOR_DASHBOARD==='todos', abiertosTotales, `hallazgos abiertos${senaleticaTodos.length?` · <em>${senaleticaTodos.filter(h=>h.estado!=='resuelto').length} señalética</em>`:''}`)}
+        ${comunaCards.map(([nom,c])=>comBtn(nom, FILTRO_SECTOR_DASHBOARD===nom, c.abiertos, `${c.grifos?`${c.grifos} grifos · `:''}${c.total} hallazgo${c.total===1?'':'s'}${c.sen?` · <em>${c.sen} señalética</em>`:''}`, c.directa)).join('')}
+      </div>`;
+    rail.style.display = '';
+  }
 
   // Centro de control (mapa vectorial 3D) dentro del tablero: ver módulo "CENTRO DE CONTROL EN EL TABLERO".
   construirCentroControl();
