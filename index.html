@@ -561,6 +561,10 @@ nav.rail .rail-foot{color:#6E88B0;}
 .hero-sector select option{color:#0E2142;background:#fff;}
 .btn-hero{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:8px 13px;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(1,179,215,.35);}
 .btn-hero:hover{background:#12c3e8;}
+.btn-cc{display:inline-flex;align-items:center;gap:7px;background:linear-gradient(120deg,#01B3D7,#0b6fa8);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:10px;padding:8px 14px;font-size:12px;font-weight:800;text-decoration:none;box-shadow:0 0 0 0 rgba(1,179,215,.55),0 6px 18px rgba(1,179,215,.45);animation:ccGlow 2.6s ease-in-out infinite;}
+.btn-cc:hover{filter:brightness(1.12);color:#fff;}
+@keyframes ccGlow{0%,100%{box-shadow:0 0 0 0 rgba(1,179,215,.55),0 6px 18px rgba(1,179,215,.45)}50%{box-shadow:0 0 0 6px rgba(1,179,215,0),0 6px 22px rgba(1,179,215,.6)}}
+nav.rail .navbtn.navcc{text-decoration:none;}
 .btn-hero-ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:10px;padding:8px 13px;font-size:12px;font-weight:600;cursor:pointer;}
 .btn-hero-ghost:hover{background:rgba(255,255,255,.1);}
 .hero-ring{position:relative;width:190px;height:190px;justify-self:center;}
@@ -706,6 +710,7 @@ nav.rail .nb{flex:none;min-width:24px;height:22px;padding:0 7px;border-radius:99
   font:800 11px 'Montserrat',sans-serif;background:rgba(255,255,255,.14);color:#fff;margin-right:8px;}
 nav.rail .nb.on{display:flex;}
 nav.rail .navbtn.active .nb{background:#fff;color:#002359;}
+nav.rail .navbtn .nbcc{background:linear-gradient(120deg,#01B3D7,#0077B6);color:#fff;font-weight:800;letter-spacing:.04em;}
 nav.rail .rail-foot{margin-top:auto;padding:13px 14px;border-radius:16px;background:linear-gradient(145deg,rgba(255,255,255,.10),rgba(255,255,255,.04));
   border:1px solid rgba(255,255,255,.12);font-family:'Inter',sans-serif;color:#C6D6EE;}
 .rf-top{display:flex;align-items:center;gap:8px;font:800 12.5px 'Montserrat',sans-serif;color:#fff;}
@@ -1031,6 +1036,7 @@ function verificarAcceso(){
       <div class="nav-group">Principal</div>
       <button class="navbtn active" data-page="dashboard" onclick="goPage('dashboard')"><span class="ni"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span><span class="nl">Tablero ejecutivo</span></button>
       <button class="navbtn" data-page="lista" onclick="goPage('lista')"><span class="ni"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/></svg></span><span class="nl">Hallazgos</span><span class="nb" id="nbHallazgos"></span></button>
+      <a class="navbtn navcc" href="centro-control.html" target="_blank" rel="noopener" title="Mapa 3D interactivo del parque, a pantalla completa"><span class="ni"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 21 7v10l-9 4.5L3 17V7z"/><path d="M12 12l9-5M12 12 3 7M12 12v9.5"/></svg></span><span class="nl">Centro de control</span><span class="nb nbcc">3D</span></a>
       <div class="nav-group" id="navGrupoTerreno">Operación en terreno</div>
       <button class="navbtn" data-page="inspecciones" id="navInspecciones" onclick="goPage('inspecciones')"><span class="ni"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9z"/><path d="M9 14l2 2 4-4"/></svg></span><span class="nl">Inspecciones</span></button>
       <button class="navbtn" data-page="nuevo" id="navNuevo" onclick="goPage('nuevo')"><span class="ni"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg></span><span class="nl">Nuevo hallazgo</span></button>
@@ -2094,6 +2100,7 @@ function renderDashboard(){
               <option value="todos" ${FILTRO_SECTOR_DASHBOARD==='todos'?'selected':''}>Todos los sectores (${conHallazgo.length})</option>
               ${sectores.map(s=>`<option value="${s}" ${FILTRO_SECTOR_DASHBOARD===s?'selected':''}>${s} (${conHallazgo.filter(h=>h.comuna===s).length})</option>`).join('')}
             </select></div>
+          <a class="btn btn-cc" href="centro-control.html" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 21 7v10l-9 4.5L3 17V7z"/><path d="M12 12l9-5M12 12 3 7M12 12v9.5"/></svg>Centro de control 3D</a>
           <button class="btn btn-hero" onclick="descargarReporteEjecutivo()">📄 Reporte ejecutivo (HTML)</button>
           <button class="btn btn-hero" onclick="imprimirReportePDF()">🖨️ Reporte ejecutivo (PDF)</button>
           ${ROLE==='singemelec' ? `<button class="btn btn-hero-ghost" onclick="document.getElementById('csvInput').click()" title="Cada fila del archivo se guarda como un HALLAZGO nuevo (no carga grifos al catastro)">⬆ Importar hallazgos (CSV)</button>` : ''}

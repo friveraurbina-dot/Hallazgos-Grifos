@@ -139,6 +139,11 @@ html,body{margin:0;height:100%;background:#020a1c;color:var(--txt);font:500 13px
 .cap .cb{font:800 20px Montserrat,sans-serif;color:#fff;margin:3px 0 2px}
 .cap .cs{font-size:12.5px;color:var(--soft)}
 .cap .cx{position:absolute;right:8px;top:6px;all:unset;cursor:pointer;color:var(--soft);font-size:16px;padding:2px 6px}
+.cap .ck{margin-top:6px;font:600 9.5px Inter,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+body.pausa .cap .ck::before{content:"En pausa · ";color:var(--sen)}
+/* modo presentación: durante el recorrido se ocultan los paneles y sólo quedan los indicadores */
+body.presentando .pan,body.presentando .busca,body.presentando .mov,body.presentando .maplibregl-ctrl-bottom-right{display:none}
+body.presentando .cap{bottom:40px}
 .carga{position:fixed;inset:0;z-index:50;background:radial-gradient(1200px 600px at 50% 40%,#0a2a5c,#020a1c 70%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;transition:opacity .6s}
 .carga.off{opacity:0;pointer-events:none}
 .carga .lg{font:800 10px Montserrat,sans-serif;letter-spacing:.3em;text-transform:uppercase;color:var(--cy2)}
@@ -557,12 +562,13 @@ function buscar(txt){const k=String(txt||'').trim().toUpperCase();if(!k)return;c
 function aviso(t){const a=document.getElementById('aviso');a.innerHTML=t;a.classList.add('on');clearTimeout(a._t);a._t=setTimeout(()=>a.classList.remove('on'),3500);}
 
 /* ---------- recorrido ---------- */
-const dormir=ms=>new Promise(r=>setTimeout(r,ms));
+/* dormir() respeta la pausa (barra espaciadora) */
+const dormir=async ms=>{const fin=performance.now()+ms;while(true){await new Promise(r=>setTimeout(r,120));if(S.pausa)continue;if(performance.now()>=fin)return;}};
 function volar(o){return new Promise(r=>{map.once('moveend',r);map.flyTo(Object.assign({essential:true},o));});}
-function caption(t,b,s){const c=document.getElementById('cap');if(!t){c.classList.remove('on');return;}c.innerHTML='<button class="cx" aria-label="Detener">✕</button><div class="ct">'+t+'</div><div class="cb">'+b+'</div><div class="cs">'+s+'</div>';c.classList.add('on');c.querySelector('.cx').onclick=detenerTour;}
+function caption(t,b,s){const c=document.getElementById('cap');if(!t){c.classList.remove('on');return;}c.innerHTML='<button class="cx" aria-label="Detener">✕</button><div class="ct">'+t+'</div><div class="cb">'+b+'</div><div class="cs">'+s+'</div><div class="ck">Espacio: pausa · Esc: salir</div>';c.classList.add('on');c.querySelector('.cx').onclick=detenerTour;}
 async function tour(){
  if(S.tour){detenerTour();return;}
- const id=S.tour={};document.getElementById('btour').classList.add('on');if(popup)popup.remove();
+ const id=S.tour={};S.pausa=false;document.getElementById('btour').classList.add('on');document.body.classList.add('presentando');if(popup)popup.remove();
  const g=S.geo,gs=g.grifos,abierto=x=>x.s&&x.s.abiertos>0;
  const vivo=()=>S.tour===id;
  try{
@@ -581,7 +587,8 @@ async function tour(){
   caption('Gestión Sacyr','Centro de control','Recorrido terminado · toca cualquier grifo o lugar para ver su ficha');
   await volar(Object.assign({pitch:S.tres?52:0,bearing:S.tres?-14:0,duration:3200},map.cameraForBounds(limitesParque(),{padding:padding()})));await dormir(2500);
  }finally{if(vivo())detenerTour();}}
-function detenerTour(){S.tour=null;document.getElementById('btour').classList.remove('on');caption(null);map.stop();}
+function detenerTour(){S.tour=null;S.pausa=false;document.getElementById('btour').classList.remove('on');document.body.classList.remove('presentando','pausa');caption(null);map.stop();}
+function pausarTour(){if(!S.tour)return;S.pausa=!S.pausa;document.body.classList.toggle('pausa',S.pausa);}
 
 /* ---------- carga ---------- */
 const CLAVE='ccCache.v1';
@@ -626,7 +633,8 @@ function enlazar(){
  document.getElementById('b3d').onclick=toggle3D;document.getElementById('bsat').onclick=toggleSat;document.getElementById('btour').onclick=tour;document.getElementById('bfull').onclick=pantalla;
  document.getElementById('bmov').onclick=()=>document.getElementById('pizq').classList.toggle('on');
  const b=document.getElementById('busca');b.onkeydown=e=>{if(e.key==='Enter'){buscar(b.value);b.blur();}};
- document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(S.tour)detenerTour();if(popup)popup.remove();}});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(S.tour)detenerTour();if(popup)popup.remove();}
+  if(e.key===' '&&S.tour&&document.activeElement.tagName!=='INPUT'){e.preventDefault();pausarTour();}});
  window.addEventListener('resize',()=>{if(map)map.resize();});}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{enlazar();cargar();});else{enlazar();cargar();}
 </script></body></html>
