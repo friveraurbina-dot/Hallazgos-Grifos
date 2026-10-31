@@ -39,7 +39,7 @@ header p{margin:0;font-size:12.5px;color:rgba(255,255,255,.75)}
    "Map data not yet available". */
 .det-gris{filter:grayscale(1) contrast(.82) brightness(1.07)}
 .det-osc{filter:grayscale(1) invert(1) brightness(.78) contrast(.92)}
-.kpis{display:none;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:10px;padding:12px 18px;border-bottom:1px solid var(--line);background:#F7FAFD}
+.kpis{display:none;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:10px;padding:12px 18px;border-bottom:1px solid var(--line);background:#F7FAFD}
 .kpis.on{display:grid}
 @media(max-width:600px){.kpis{grid-template-columns:1fr 1fr;padding:10px 12px;gap:8px}.kpi .n{font-size:20px}.kpi .l{font-size:11px}}
 .kpi{all:unset;box-sizing:border-box;cursor:pointer;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:9px 12px 10px;display:flex;flex-direction:column;gap:3px;transition:border-color .15s,box-shadow .15s}
@@ -66,6 +66,51 @@ header p{margin:0;font-size:12.5px;color:rgba(255,255,255,.75)}
 .pop .pli s{width:10px;height:10px;border:2.5px solid;border-radius:2px;flex:none;box-sizing:border-box}
 .pop .pli span{margin-left:auto;padding-left:8px;color:var(--soft);font-variant-numeric:tabular-nums;white-space:nowrap}
 .pop .sin{margin-top:10px;padding-top:8px;border-top:1px solid var(--line);color:var(--soft);font-size:11.5px}
+/* ---- Opción A: mapa + panel ---- */
+.mapwrap{position:relative}
+.mapwrap.con-panel{display:grid;grid-template-columns:minmax(0,1fr) 300px}
+.mapwrap.con-panel #mapa{height:min(76vh,800px)}
+#panel{display:none}
+.mapwrap.con-panel #panel{display:block;border-left:1px solid var(--line);background:#FBFDFF;overflow:auto;max-height:min(76vh,800px);font:500 12px Inter,sans-serif;color:var(--text)}
+@media(max-width:900px){.mapwrap.con-panel{grid-template-columns:1fr}.mapwrap.con-panel #mapa{height:62vh}.mapwrap.con-panel #panel{border-left:0;border-top:1px solid var(--line);max-height:none}}
+.psec{padding:12px 14px;border-bottom:1px solid var(--line)}
+.ptt{font:800 10px Montserrat,sans-serif;letter-spacing:.11em;text-transform:uppercase;color:var(--soft);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);background:#E8EFF6;border-radius:10px;padding:3px;gap:3px}
+.seg button{all:unset;cursor:pointer;text-align:center;padding:7px 4px;border-radius:8px;font:700 11px Inter,sans-serif;color:var(--soft);line-height:1.2}
+.seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 4px rgba(0,35,89,.15)}
+.seg button:focus-visible,.pall button:focus-visible,.pradio button:focus-visible{outline:2px solid var(--accent)}
+.pchk{display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;line-height:1.25}
+.pchk input{margin:0;accent-color:#002359;flex:none}
+.pchk small{color:var(--soft);font-size:10.5px;margin-left:auto;white-space:nowrap}
+.pchk em{margin-left:auto;font-style:normal;color:var(--soft);font-variant-numeric:tabular-nums}
+.pgr{font:700 10.5px Inter,sans-serif;color:var(--ink);margin:9px 0 2px}
+.pall{font:600 10px Inter,sans-serif;letter-spacing:0;text-transform:none;color:var(--soft)}
+.pall button{all:unset;cursor:pointer;color:#01799A;text-decoration:underline}
+.pradio{margin-top:11px;display:flex;justify-content:space-between;align-items:center;gap:6px;font-weight:600}
+.pradio span{display:flex;gap:3px}
+.pradio button{all:unset;cursor:pointer;padding:4px 7px;border:1px solid var(--line);border-radius:7px;font:700 10.5px Inter,sans-serif;color:var(--soft);background:#fff}
+.pradio button.on{border-color:var(--ink);color:var(--ink);background:#E9F6FB}
+.pley div{display:flex;align-items:center;gap:7px;padding:2px 0}
+.pley i{display:inline-block;width:11px;height:11px;border-radius:50%;border:1.5px solid;flex:none}
+.pfuente{padding:10px 14px 14px;font-size:10.5px;color:var(--soft);line-height:1.5}
+.sw{display:inline-block;width:16px;height:10px;border-radius:3px;flex:none}
+.sw-sect{border:1.6px dashed #01799A;background:rgba(1,179,215,.12)}
+.sw-pobl{border:1px solid #5A6F8C;background:rgba(90,111,140,.08)}
+.sw-com{border-top:2.2px dashed rgba(0,35,89,.55);height:0;border-radius:0}
+.mini{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:4px;flex:none;vertical-align:-3px}
+.lb{width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;border:1.5px solid #fff;box-shadow:0 1px 4px rgba(0,35,89,.35);transition:transform .15s}
+#mapa.z-lt14 .lb{transform:scale(.5)}
+#mapa.z-lt14 .lb svg{opacity:0}
+.pobl{white-space:nowrap;transform:translate(-50%,-50%);text-align:center;text-shadow:0 1px 2px #fff,0 0 5px #fff,0 0 5px #fff;pointer-events:none}
+.pobl-g{font:800 11.5px Montserrat,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#3B4C66}
+.pobl-c{font:italic 600 10.5px Inter,sans-serif;color:#51627E}
+#mapa.z-lt12 .pobl-g,#mapa.z-lt15 .pobl-c{display:none}
+.seclab{white-space:nowrap;transform:translate(-50%,-50%);text-align:center;font:800 11px Montserrat,sans-serif;color:#01607C;letter-spacing:.03em;text-shadow:0 1px 2px #fff,0 0 6px #fff,0 0 6px #fff;pointer-events:none}
+.seclab span{display:block;font:600 10px Inter,sans-serif;color:#2F6F86;letter-spacing:0}
+#mapa.cerca .seclab{display:none}
+.leaflet-pane.leaflet-etiquetas-pane{pointer-events:none}
+.pop .pdot{display:inline-block;width:9px;height:9px;border-radius:50%;flex:none}
+.pop .pli em{font-style:normal;color:var(--soft);font-size:11px}
 .ctrl{position:absolute;right:12px;top:12px;z-index:800;background:rgba(255,255,255,.96);border:1px solid var(--line);border-radius:10px;padding:8px 11px;font:600 11.5px Inter,sans-serif;box-shadow:0 4px 14px rgba(0,35,89,.18)}
 .ctrl label{display:flex;gap:7px;align-items:center;cursor:pointer;color:var(--text)}
 .lug{border-radius:3px;background:rgba(255,255,255,.30);opacity:.8;box-shadow:0 0 0 .8px rgba(255,255,255,.75)}
@@ -94,7 +139,10 @@ table.cmp td b{color:var(--ink)}
       <div class="pros"><div class="si"><b>A favor</b><span id="si"></span></div><div class="no"><b>En contra</b><span id="no"></span></div></div>
     </div>
     <div class="kpis" id="kpis"></div>
-    <div id="mapa"><div class="cargando" id="cargando">Cargando mapa…</div></div>
+    <div class="mapwrap" id="mapwrap">
+      <div id="mapa"><div class="cargando" id="cargando">Cargando mapa…</div></div>
+      <aside id="panel" aria-label="Capas y filtros del mapa"></aside>
+    </div>
   </div>
   <table class="cmp"><thead><tr><th>Opción</th><th>Qué responde de un vistazo</th><th>Para quién</th></tr></thead><tbody id="cmp"></tbody></table>
   <div class="rec"><b>Recomendación</b><span id="recomendacion"></span></div>
@@ -116,8 +164,8 @@ const TIPOS={educacion:{nom:'Colegio / jardín',col:'#3E6E9E',kpi:'Junto a coleg
 const NOMC={directa:'Operatividad directa',indirecta:'Operatividad indirecta',senaletica:'Señalética'};
 const ESTN={pendiente:'Pendiente',en_proceso:'En proceso',resuelto:'Todo resuelto'};
 const esc=t=>String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let filtroA='todos';
-let map,capas=[],datos=null,capaDatos=null,capaLugares=null,leyendaEl=null,ctrlEl=null;
+
+let map,capas=[],datos=null,capaDatos=null,capaLugares=null,capaCtx=null,leyendaEl=null,ctrlEl=null;
 
 function base(n){capas.forEach(c=>map.removeLayer(c));capas=[];
  const add=(u,o)=>{const l=L.tileLayer(u,Object.assign({attribution:'© Esri'},o));l.addTo(map);capas.push(l);};
@@ -128,7 +176,7 @@ function base(n){capas.forEach(c=>map.removeLayer(c));capas=[];
    if(r) add(r,{maxNativeZoom:16,maxZoom:16});
  }else{ add(b,{maxZoom:19}); if(r) add(r,{maxZoom:19}); }
 }
-function limpiar(){map.closePopup();[capaDatos,capaLugares].forEach(c=>{if(c)map.removeLayer(c);});capaDatos=null;capaLugares=null;
+function limpiar(){map.closePopup();salirA();[capaDatos,capaLugares].forEach(c=>{if(c)map.removeLayer(c);});capaDatos=null;capaLugares=null;
  const k=document.getElementById('kpis');k.classList.remove('on');k.innerHTML='';
  if(leyendaEl){leyendaEl.remove();leyendaEl=null;}if(ctrlEl){ctrlEl.remove();ctrlEl=null;}}
 
@@ -159,86 +207,283 @@ function peorDe(rs){const ab=rs.filter(x=>x.e!=='resuelto');const b=ab.length?ab
  return{crit:p,est:est,resuelto:ab.length===0,abiertos:ab.length,n:rs.length};}
 function encuadrar(){const pts=datos.hall.map(h=>[h.la,h.ln]);map.fitBounds(L.latLngBounds(pts),{padding:[28,28]});}
 
-/* ---------- Opción A: tarjetas, filtro y ficha ---------- */
-function infoGrifo(k){return (datos.cat||{})[k]||null;}
-function tiposCerca(k){const c=infoGrifo(k);return c?[...new Set(c.lug.map(l=>l.tipo))]:[];}
-function pasaA(k,s){
-  if(filtroA==='todos')return true;
-  if(s.resuelto)return false;
-  const ts=tiposCerca(k);
-  if(filtroA==='sensible')return ts.length>0;
-  if(filtroA.startsWith('t:'))return ts.includes(filtroA.slice(2));
-  return true;}
-function popGrifo(k,rs,s){
-  const c=infoGrifo(k),ab=rs.filter(x=>x.e!=='resuelto');
-  const tipos=[...new Set(ab.flatMap(x=>x.t||[]))].slice(0,4);
-  const col=s.resuelto?'#8FA3B8':C[s.crit],proc=s.est==='en_proceso';
-  let h='<div class="pop"><div class="pc">'+esc(k)+'</div>'
-   +'<div class="pm">'+esc((c&&c.co)||rs[0].co||'')+' · '+s.n+' hallazgo'+(s.n===1?'':'s')+' · '+s.abiertos+' abierto'+(s.abiertos===1?'':'s')+'</div>'
-   +'<div class="pb"><i style="background:'+(proc?'#fff':col)+';border-color:'+col+'"></i>'+(s.resuelto?'Todo resuelto':NOMC[s.crit]+' · '+ESTN[s.est])+'</div>';
-  if(tipos.length)h+='<div class="pt">'+tipos.map(esc).join(' · ')+'</div>';
-  if(c&&c.lug.length){
-    h+='<div class="pl">Lugares sensibles cercanos</div>'+c.lug.slice().sort((a,b)=>a.d-b.d).slice(0,3).map(l=>
-      '<div class="pli"><s style="border-color:'+((TIPOS[l.tipo]||{}).col||'#5A6F8C')+'"></s>'+esc(l.nombre)+'<span>'+Math.round(l.d)+' m</span></div>').join('');
-  }else if(c){h+='<div class="sin">Sin lugares sensibles registrados cerca.</div>';}
-  return h+'</div>';}
-function pintarA(fit){
-  map.closePopup();
-  if(capaDatos)map.removeLayer(capaDatos);if(capaLugares)map.removeLayer(capaLugares);
-  const g=L.layerGroup(),pg=porGrifo(),pts=[];
-  Object.keys(pg).forEach(k=>{const rs=pg[k],s=peorDe(rs),r=rs[0];
-   if(!pasaA(k,s))return;
-   const sen=s.crit==='senaletica',col=s.resuelto?'#8FA3B8':C[s.crit],proc=s.est==='en_proceso';
-   L.circleMarker([r.la,r.ln],{radius:sen?5:7.5,color:col,weight:proc?3:1.6,
-     fillColor:proc?'#FFFFFF':(s.resuelto?'#D7E0EA':col),fillOpacity:s.resuelto&&!proc?.75:1})
-    .bindTooltip('<b>'+esc(k)+'</b> · '+(s.resuelto?'Todo resuelto':NOMC[s.crit]),{direction:'top',offset:[0,-4]})
-    .bindPopup(popGrifo(k,rs,s),{maxWidth:300,className:'popA',autoPanPaddingTopLeft:[60,40],autoPanPaddingBottomRight:[60,30]}).addTo(g);
-   L.marker([r.la,r.ln],{interactive:false,icon:L.divIcon({className:'',iconSize:[1,1],iconAnchor:[-10,6],
-     html:'<div class="gcod">'+esc(k)+'</div>'})}).addTo(g);
-   pts.push([r.la,r.ln]);});
-  g.addTo(map);capaDatos=g;
-  if((datos.lug||[]).length){
-    const tipo=filtroA.startsWith('t:')?filtroA.slice(2):null;
-    capaLugares=lugares(tipo);
-    const chk=document.getElementById('chkLug');if(!chk||chk.checked)capaLugares.addTo(map);}
-  if(fit){pts.length?map.fitBounds(L.latLngBounds(pts),{padding:[50,50],maxZoom:15}):encuadrar();}
+/* ======================================================================
+   Opción A · mapa gris con vistas, capas y lugares sensibles
+   - Vistas: hallazgos / parque completo / lugares sensibles
+   - Capas: sectores del parque (localidad del catastro), poblaciones y
+     villas (OpenStreetMap), límites comunales
+   - Lugares sensibles por categoría (capas-mapa.json, OpenStreetMap)
+   - Cercanía grifo↔lugar calculada aquí con el radio elegido. No escribe
+     nada en Firestore: es sólo visualización.
+   ====================================================================== */
+const GRUPOS={
+ salud:{nom:'Salud',col:'#2F9E78',kpi:'Junto a salud'},
+ educ:{nom:'Educación',col:'#3E5FA8',kpi:'Junto a colegios y jardines'},
+ emer:{nom:'Emergencias',col:'#1F8A9E',kpi:'Junto a bomberos o policía'},
+ pen:{nom:'Recintos penitenciarios',col:'#4A4A52',kpi:'Junto a cárceles'},
+ publico:{nom:'Aglomeración de público',col:'#8A5A9E',kpi:'Junto a malls y supermercados'},
+ riesgo:{nom:'Riesgo de incendio',col:'#8C6A3F',kpi:'Junto a bencineras'},
+ serv:{nom:'Servicios públicos',col:'#5A6F8C',kpi:'Junto a municipios'}};
+const ICO={ /* pictogramas propios, 16×16, blancos */
+ cruz:'<path d="M6 2h4v4h4v4h-4v4H6v-4H2V6h4z" fill="#fff"/>',
+ cruzc:'<circle cx="8" cy="8" r="6.2" fill="none" stroke="#fff" stroke-width="1.6"/><path d="M7 4.5h2v2.5h2.5v2H9v2.5H7V9H4.5V7H7z" fill="#fff"/>',
+ libro:'<path d="M1.5 3.2h5c.8 0 1.5.6 1.5 1.4v8.6c0-.6-.6-1-1.3-1H1.5zM14.5 3.2h-5c-.8 0-1.5.6-1.5 1.4v8.6c0-.6.6-1 1.3-1h5.2z" fill="#fff"/>',
+ bloques:'<path d="M2.5 9h4.5v4.5H2.5zM9 9h4.5v4.5H9zM5.7 2.5h4.6V7H5.7z" fill="#fff"/>',
+ birrete:'<path d="M8 3 1 6.5 8 10l7-3.5zM4 8.2v2.6c0 1 1.8 2 4 2s4-1 4-2V8.2L8 10.2z" fill="#fff"/>',
+ corazon:'<path d="M8 14S2 10.2 2 6.2A3 3 0 0 1 8 5a3 3 0 0 1 6 1.2C14 10.2 8 14 8 14z" fill="#fff"/>',
+ rejas:'<path d="M2.5 2.5h11v11h-11zM6 2.5v11M10 2.5v11" fill="none" stroke="#fff" stroke-width="1.7"/>',
+ llama:'<path d="M8 1.2c.9 2.8 4.3 4 4.3 8.2a4.3 4.3 0 0 1-8.6 0c0-2.2 1.2-3.4 2.2-4.3 0 2 .9 3.1 2 3.1 0-2.8-1-4.6.1-7z" fill="#fff"/>',
+ escudo:'<path d="M8 1.3 14 3.5v4.6c0 3.6-2.6 6-6 7.2-3.4-1.2-6-3.6-6-7.2V3.5z" fill="#fff"/>',
+ bolsa:'<path d="M3 5.5h10l-.9 8.5H3.9z" fill="#fff"/><path d="M5.8 5.5V4.3a2.2 2.2 0 0 1 4.4 0v1.2" fill="none" stroke="#fff" stroke-width="1.5"/>',
+ carro:'<path d="M1 2.3h2.2l1.8 7.7h7.6l1.4-5.6H4" fill="none" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/><circle cx="6" cy="13" r="1.4" fill="#fff"/><circle cx="12" cy="13" r="1.4" fill="#fff"/>',
+ surtidor:'<path d="M2.5 2h6.5v12H2.5zM4 3.5v3h3.5v-3z" fill="#fff" fill-rule="evenodd"/><path d="M9 6h1.8l1.2 1.2v4.6a1 1 0 0 0 2 0V5l-1.8-1.8" fill="none" stroke="#fff" stroke-width="1.4"/>',
+ edificio:'<path d="M8 1 15 4.8H1zM2 5.8h12v1.1H2zM3 8h2v5H3zM7 8h2v5H7zM11 8h2v5h-2zM1 13.8h14V15H1z" fill="#fff"/>'};
+const CATS={
+ hospital:{nom:'Hospital',g:'salud',ic:'cruz'},
+ clinica:{nom:'Clínica / CESFAM / consultorio',g:'salud',ic:'cruzc'},
+ eleam:{nom:'Hogar de adultos mayores',g:'salud',ic:'corazon'},
+ colegio:{nom:'Colegio / liceo',g:'educ',ic:'libro'},
+ jardin:{nom:'Jardín infantil / sala cuna',g:'educ',ic:'bloques'},
+ superior:{nom:'Universidad / instituto',g:'educ',ic:'birrete'},
+ bomberos:{nom:'Bomberos',g:'emer',ic:'llama'},
+ policia:{nom:'Carabineros / PDI',g:'emer',ic:'escudo'},
+ carcel:{nom:'Cárcel',g:'pen',ic:'rejas'},
+ mall:{nom:'Mall / centro comercial',g:'publico',ic:'bolsa'},
+ super:{nom:'Supermercado',g:'publico',ic:'carro'},
+ bencinera:{nom:'Bencinera',g:'riesgo',ic:'surtidor'},
+ municipal:{nom:'Municipalidad',g:'serv',ic:'edificio'}};
+const colCat=c=>(GRUPOS[(CATS[c]||{}).g]||{col:'#5A6F8C'}).col;
+const svgCat=(c,px)=>'<svg viewBox="0 0 16 16" width="'+px+'" height="'+px+'" aria-hidden="true">'+(ICO[(CATS[c]||{}).ic]||ICO.cruz)+'</svg>';
+const VISTAS={hall:'Hallazgos',parque:'Parque completo',lug:'Lugares sensibles'};
+
+const A={vista:'hall',filtro:'todos',radio:150,cats:null,capas:{sect:true,pobl:true,com:true},
+ grupos:{},indice:null,cacheCerca:{},panel:null};
+
+/* ---------- distancias e índice espacial ---------- */
+const RAD=Math.PI/180;
+function metros(a,b,c,d){const x=(d-b)*RAD*Math.cos((a+c)/2*RAD),y=(c-a)*RAD;return Math.sqrt(x*x+y*y)*6371000;}
+function indexar(lista,la,ln){const P=.004,ix={};lista.forEach((o,i)=>{const k=Math.floor(la(o)/P)+'|'+Math.floor(ln(o)/P);(ix[k]=ix[k]||[]).push(i);});
+ return{P,ix,lista,la,ln,cerca(qla,qln,m){const out=[],r=Math.ceil(m/400)+1,a=Math.floor(qla/P),b=Math.floor(qln/P);
+  for(let i=-r;i<=r;i++)for(let j=-r;j<=r;j++){(ix[(a+i)+'|'+(b+j)]||[]).forEach(n=>{const o=lista[n],d=metros(qla,qln,la(o),ln(o));if(d<=m)out.push({o,d});});}
+  return out.sort((x,y)=>x.d-y.d);}};}
+function lugaresActivos(){return (datos.capas.lug||[]).filter(l=>A.cats.has(l.c));}
+function cercaDe(la,ln){const k=la.toFixed(5)+'|'+ln.toFixed(5)+'|'+A.radio+'|'+[...A.cats].sort().join(',');
+ if(!A.cacheCerca[k])A.cacheCerca[k]=A.idxLug.cerca(la,ln,A.radio).filter(x=>A.cats.has(x.o.c));return A.cacheCerca[k];}
+
+/* ---------- unidad de análisis: el grifo ---------- */
+function grifosA(){
+ /* Une el parque (catálogo) con sus hallazgos. Los grifos con hallazgo que no
+    están en el catálogo igual aparecen, en la posición del hallazgo. */
+ const pg=porGrifo(),out={};
+ (datos.grifos||[]).forEach(g=>{out[g.k]={k:g.k,la:g.la,ln:g.ln,co:g.co,loc:g.loc,cat:g,rs:[],s:null};});
+ Object.keys(pg).forEach(k=>{const rs=pg[k];const o=out[k]||(out[k]={k,la:rs[0].la,ln:rs[0].ln,co:rs[0].co,loc:'',cat:null,rs:[]});
+  o.rs=rs;o.s=peorDe(rs);if(A.vista==='hall'){o.la=rs[0].la;o.ln=rs[0].ln;}});
+ return Object.values(out);}
+const abierto=g=>g.s&&!g.s.resuelto;
+
+/* ---------- sectores del parque: envolvente de los grifos de cada localidad ---------- */
+const MIN=new Set(['de','del','la','las','los','el','y']);
+function titulo(t){return String(t||'').toLowerCase().split(/\s+/).map((w,i)=>i&&MIN.has(w)?w:w.charAt(0).toUpperCase()+w.slice(1)).join(' ');}
+function envolvente(pts){ /* casco convexo (monotone chain) sobre [x=lng,y=lat] */
+ const p=pts.slice().sort((a,b)=>a[1]-b[1]||a[0]-b[0]);if(p.length<3)return p;
+ const cr=(o,a,b)=>(a[1]-o[1])*(b[0]-o[0])-(a[0]-o[0])*(b[1]-o[1]);
+ const lo=[],up=[];for(const q of p){while(lo.length>1&&cr(lo[lo.length-2],lo[lo.length-1],q)<=0)lo.pop();lo.push(q);}
+ for(let i=p.length-1;i>=0;i--){const q=p[i];while(up.length>1&&cr(up[up.length-2],up[up.length-1],q)<=0)up.pop();up.push(q);}
+ return lo.slice(0,-1).concat(up.slice(0,-1));}
+function sectoresParque(){
+ if(A.sectores)return A.sectores;
+ const por={};(datos.grifos||[]).forEach(g=>{const n=String(g.loc||'').trim();if(!n||/por (definir|confirmar)/i.test(n))return;
+  const k=n.toUpperCase();(por[k]=por[k]||[]).push(g);});
+ const out=[];
+ Object.keys(por).forEach(k=>{const gs=por[k];
+  /* grupos separados por más de 900 m se dibujan como áreas distintas */
+  const sin=gs.slice(),grupos=[];
+  while(sin.length){const g=[sin.pop()];for(let i=0;i<g.length;i++){for(let j=sin.length-1;j>=0;j--){if(metros(g[i].la,g[i].ln,sin[j].la,sin[j].ln)<900)g.push(sin.splice(j,1)[0]);}}grupos.push(g);}
+  grupos.forEach(g=>{const ex=[];g.forEach(p=>{for(let a=0;a<12;a++){const t=a/12*2*Math.PI;ex.push([p.la+Math.sin(t)*110/111320,p.ln+Math.cos(t)*110/(111320*Math.cos(p.la*RAD))]);}});
+   const c=g.reduce((s,p)=>[s[0]+p.la/g.length,s[1]+p.ln/g.length],[0,0]);
+   out.push({n:titulo(k),total:gs.length,n_area:g.length,poly:envolvente(ex),c,etiqueta:g.length===Math.max(...grupos.map(x=>x.length))});});});
+ return (A.sectores=out);}
+
+/* ---------- capas de contexto ---------- */
+function capaContexto(){
+ const g=L.layerGroup(),cp=datos.capas||{};
+ if(A.capas.com)(cp.comunas||[]).forEach(c=>c.l.forEach(l=>L.polyline(l,{pane:'sectores',color:'#002359',weight:2.2,opacity:.45,dashArray:'10 6',interactive:false}).addTo(g)));
+ if(A.capas.pobl){
+  (cp.sect||[]).forEach(s=>{L.polygon(s.p,{pane:'sectores',color:'#5A6F8C',weight:1,opacity:.55,fillColor:'#5A6F8C',fillOpacity:.05})
+    .bindTooltip(esc(s.n),{sticky:true,className:'tipSec'}).addTo(g);});
+  (cp.places||[]).forEach(p=>{const grande=/^(town|village|suburb|quarter)$/.test(p.t);
+   L.marker([p.la,p.ln],{pane:'etiquetas',interactive:false,icon:L.divIcon({className:'',iconSize:[1,1],
+    html:'<div class="pobl '+(grande?'pobl-g':'pobl-c')+'">'+esc(p.n)+'</div>'})}).addTo(g);});}
+ if(A.capas.sect)sectoresParque().forEach(s=>{
+  L.polygon(s.poly,{pane:'sectores',color:'#01799A',weight:1.6,opacity:.75,dashArray:'5 4',fillColor:'#01B3D7',fillOpacity:.07})
+   .bindTooltip('<b>Sector '+esc(s.n)+'</b><br>'+s.total+' grifos en el catastro',{sticky:true}).addTo(g);
+  if(s.etiqueta)L.marker(s.c,{pane:'etiquetas',interactive:false,icon:L.divIcon({className:'',iconSize:[1,1],
+   html:'<div class="seclab">'+esc(s.n)+'<span>'+s.total+' grifos</span></div>'})}).addTo(g);});
+ return g;}
+
+/* ---------- marcadores ---------- */
+function estiloGrifo(gr){
+ const v=A.vista;
+ if(!gr.s){ /* sin hallazgos */
+  return v==='parque'?{radius:3.6,color:'#002359',weight:1,opacity:.7,fillColor:'#002359',fillOpacity:.35}
+                     :{radius:2.6,color:'#002359',weight:.8,opacity:.45,fillColor:'#002359',fillOpacity:.25};}
+ const s=gr.s,col=s.resuelto?'#8FA3B8':C[s.crit],proc=s.est==='en_proceso',sen=s.crit==='senaletica';
+ if(v==='lug')return{radius:s.resuelto?2.6:(sen?3:4),color:col,weight:1,fillColor:col,fillOpacity:s.resuelto?.5:.9};
+ return{radius:s.resuelto?4:(sen?5:7.5),color:col,weight:proc?3:1.6,fillColor:proc?'#FFFFFF':(s.resuelto?'#D7E0EA':col),fillOpacity:s.resuelto&&!proc?.75:1};}
+function popGrifoA(gr){
+ const c=gr.cat,s=gr.s,rs=gr.rs;
+ const sub=[gr.co||(c&&c.co)||'',gr.loc?'Sector '+titulo(gr.loc):''].filter(Boolean).map(esc).join(' · ');
+ let h='<div class="pop"><div class="pc">'+esc(gr.k)+'</div><div class="pm">'+sub+'</div>';
+ if(s){const col=s.resuelto?'#8FA3B8':C[s.crit],proc=s.est==='en_proceso';
+  h+='<div class="pb"><i style="background:'+(proc?'#fff':col)+';border-color:'+col+'"></i>'+(s.resuelto?'Todo resuelto':NOMC[s.crit]+' · '+ESTN[s.est])+'</div>'
+   +'<div class="pt">'+s.n+' hallazgo'+(s.n===1?'':'s')+' · '+s.abiertos+' abierto'+(s.abiertos===1?'':'s');
+  const tipos=[...new Set(rs.filter(x=>x.e!=='resuelto').flatMap(x=>x.t||[]))].slice(0,4);
+  if(tipos.length)h+='<br>'+tipos.map(esc).join(' · ');h+='</div>';}
+ else h+='<div class="pb"><i style="background:#002359;border-color:#002359;opacity:.5"></i>Sin hallazgos registrados</div>';
+ if(c&&(c.mod||c.dia||c.ano))h+='<div class="pt">'+[c.mod,c.dia?('Ø '+c.dia+' mm'):'',c.ano?('Instalado '+c.ano):''].filter(Boolean).map(esc).join(' · ')+'</div>';
+ const cer=cercaDe(gr.la,gr.ln);
+ if(cer.length){h+='<div class="pl">Lugares sensibles a ≤ '+A.radio+' m</div>'+cer.slice(0,4).map(x=>
+   '<div class="pli"><b class="mini" style="background:'+colCat(x.o.c)+'">'+svgCat(x.o.c,10)+'</b>'+esc(x.o.n)+'<span>'+Math.round(x.d)+' m</span></div>').join('');
+  if(cer.length>4)h+='<div class="pt">y '+(cer.length-4)+' más</div>';}
+ else h+='<div class="sin">Sin lugares sensibles a ≤ '+A.radio+' m.</div>';
+ return h+'</div>';}
+function popLugar(l,cerca){
+ const ab=cerca.filter(x=>abierto(x.o)),dir=ab.filter(x=>x.o.s.crit==='directa');
+ let h='<div class="pop"><div class="pc" style="font-size:14px">'+esc(l.n)+'</div><div class="pm"><b class="mini" style="background:'+colCat(l.c)+'">'+svgCat(l.c,10)+'</b> '+esc(CATS[l.c].nom)+(l.o==='cat'?' · catastro':'')+'</div>';
+ h+='<div class="pb">'+cerca.length+' grifo'+(cerca.length===1?'':'s')+' a ≤ '+A.radio+' m</div>';
+ h+='<div class="pt">'+(ab.length?ab.length+' con falla abierta'+(dir.length?' · <b style="color:#C8334D">'+dir.length+' directa</b>':''):'Ninguno con falla abierta')+'</div>';
+ if(cerca.length)h+='<div class="pl">Grifos más cercanos</div>'+cerca.slice(0,5).map(x=>{const g=x.o,col=!g.s?'#002359':(g.s.resuelto?'#8FA3B8':C[g.s.crit]);
+  return '<div class="pli"><i class="pdot" style="background:'+col+(g.s?'':';opacity:.45')+'"></i>'+esc(g.k)+' <em>'+(!g.s?'sin hallazgos':(g.s.resuelto?'resuelto':NOMC[g.s.crit]))+'</em><span>'+Math.round(x.d)+' m</span></div>';}).join('');
+ return h+'</div>';}
+
+/* ---------- filtro de las tarjetas ---------- */
+function pasaGrifo(gr){
+ const f=A.filtro,v=A.vista;if(f==='todos')return true;
+ if(v==='parque'){if(f==='abierta')return abierto(gr);if(f==='resuelto')return gr.s&&gr.s.resuelto;if(f==='sin')return !gr.s;
+  if(f==='sensible')return cercaDe(gr.la,gr.ln).length>0;}
+ if(v==='hall'){if(!abierto(gr))return false;const cer=cercaDe(gr.la,gr.ln);
+  if(f==='sensible')return cer.length>0;if(f.startsWith('g:'))return cer.some(x=>CATS[x.o.c].g===f.slice(2));}
+ return true;}
+
+/* ---------- dibujo ---------- */
+function pintarA2(fit){
+ map.closePopup();
+ [capaDatos,capaLugares,capaCtx].forEach(c=>{if(c)map.removeLayer(c);});capaDatos=capaLugares=null;
+ map.getPane('lugares').style.zIndex=A.vista==='lug'?450:390;
+ capaCtx=capaContexto().addTo(map);
+ const g=L.layerGroup(),pts=[],lista=grifosA();A.lista=lista;
+ A.idxGrifos=indexar(lista,o=>o.la,o=>o.ln);
+ const visibles=lista.filter(gr=>(A.vista==='hall'?!!gr.s:true)&&(A.vista==='lug'||pasaGrifo(gr)));
+ /* orden: lo sano abajo, lo grave arriba */
+ const peso=gr=>!gr.s?0:gr.s.resuelto?1:gr.s.crit==='senaletica'?2:gr.s.crit==='indirecta'?3:4;
+ visibles.sort((a,b)=>peso(a)-peso(b)).forEach(gr=>{
+  L.circleMarker([gr.la,gr.ln],estiloGrifo(gr)).bindTooltip('<b>'+esc(gr.k)+'</b> · '+(!gr.s?'sin hallazgos':(gr.s.resuelto?'todo resuelto':NOMC[gr.s.crit])),{direction:'top',offset:[0,-4]})
+   .bindPopup(()=>popGrifoA(gr),{maxWidth:320,className:'popA',autoPanPaddingTopLeft:[60,40],autoPanPaddingBottomRight:[60,30]}).addTo(g);
+  if(A.vista!=='lug')L.marker([gr.la,gr.ln],{interactive:false,icon:L.divIcon({className:'',iconSize:[1,1],iconAnchor:[-10,6],html:'<div class="gcod">'+esc(gr.k)+'</div>'})}).addTo(g);
+  pts.push([gr.la,gr.ln]);});
+ g.addTo(map);capaDatos=g;
+ /* lugares */
+ const lg=L.layerGroup(),lpts=[];
+ lugaresActivos().forEach(l=>{
+  if(A.vista==='lug'&&A.filtro.startsWith('g:')&&CATS[l.c].g!==A.filtro.slice(2))return;
+  const cerca=A.idxGrifos.cerca(l.la,l.ln,A.radio);
+  if(A.vista==='lug'&&A.filtro==='riesgo'&&!cerca.some(x=>abierto(x.o)&&x.o.s.crit==='directa'))return;
+  if(A.vista==='lug'&&A.filtro==='sin'&&cerca.length)return;
+  const col=colCat(l.c);
+  if(A.vista==='lug')L.circle([l.la,l.ln],{pane:'zonas',radius:A.radio,color:col,weight:1,opacity:.5,dashArray:'3 3',fillColor:col,fillOpacity:.05,interactive:false}).addTo(lg);
+  L.marker([l.la,l.ln],{pane:'lugares',icon:L.divIcon({className:'',iconSize:[22,22],iconAnchor:[11,11],
+    html:'<div class="lb" style="background:'+col+'">'+svgCat(l.c,13)+'</div>'})})
+   .bindTooltip('<b>'+esc(l.n)+'</b><br>'+esc(CATS[l.c].nom),{direction:'top',offset:[0,-8]})
+   .bindPopup(()=>popLugar(l,A.idxGrifos.cerca(l.la,l.ln,A.radio)),{maxWidth:320,className:'popA'}).addTo(lg);
+  lpts.push([l.la,l.ln]);});
+ lg.addTo(map);capaLugares=lg;
+ if(fit){const b=(A.vista==='lug'&&A.filtro!=='todos')?lpts:pts;b.length?map.fitBounds(L.latLngBounds(b),{padding:[50,50],maxZoom:15}):encuadrar();}
 }
-function kpisA(){
-  const el=document.getElementById('kpis'),pg=porGrifo();
-  let ab=0,res=0,sen=0,senDir=0;const pt={};Object.keys(TIPOS).forEach(t=>pt[t]={n:0,d:0});
-  Object.keys(pg).forEach(k=>{const s=peorDe(pg[k]);if(s.resuelto){res++;return;}ab++;
-    const ts=tiposCerca(k);if(ts.length){sen++;if(s.crit==='directa')senDir++;}
-    ts.forEach(t=>{if(pt[t]){pt[t].n++;if(s.crit==='directa')pt[t].d++;}});});
-  const dir=d=>d?'<i class="rd"></i>'+d+' con falla directa':'Sin falla directa';
-  const card=(id,n,l,sub,col)=>'<button class="kpi'+(filtroA===id?' on':'')+'" data-f="'+id+'" aria-pressed="'+(filtroA===id)+'">'
-    +'<span class="n">'+n+'</span><span class="l">'+(col?'<span class="dot" style="border-color:'+col+'"></span>':'')+l+'</span><span class="s">'+sub+'</span></button>';
-  const hayCat=Object.keys(datos.cat||{}).length>0;
-  el.innerHTML=card('todos',ab,'Grifos con falla abierta',res+' ya resueltos (en gris)')
-   +(hayCat?card('sensible',sen,'Junto a un lugar sensible',dir(senDir))
-     +Object.keys(TIPOS).filter(t=>pt[t].n).map(t=>card('t:'+t,pt[t].n,TIPOS[t].kpi,dir(pt[t].d),TIPOS[t].col)).join(''):'')
-   +'<div class="ayuda">Toca una tarjeta para ver sólo esos grifos; tócala de nuevo para volver a todos. Cada punto abre la ficha del grifo.</div>';
-  el.classList.add('on');
-  el.querySelectorAll('.kpi').forEach(b=>b.onclick=()=>{
-    const f=b.dataset.f;filtroA=(filtroA===f&&f!=='todos')?'todos':f;
-    el.querySelectorAll('.kpi').forEach(x=>{const on=x.dataset.f===filtroA;x.classList.toggle('on',on);x.setAttribute('aria-pressed',on);});
-    pintarA(true);});
+
+/* ---------- tarjetas ---------- */
+function kpisA2(){
+ const el=document.getElementById('kpis'),lista=A.lista||grifosA(),dir=d=>d?'<i class="rd"></i>'+d+' con falla directa':'Sin falla directa';
+ const card=(id,n,l,sub,col)=>'<button class="kpi'+(A.filtro===id?' on':'')+'" data-f="'+id+'" aria-pressed="'+(A.filtro===id)+'">'
+   +'<span class="n">'+n+'</span><span class="l">'+(col?'<span class="dot" style="border-color:'+col+';background:'+col+'"></span>':'')+l+'</span><span class="s">'+sub+'</span></button>';
+ let html='';
+ if(A.vista==='hall'){
+  const ab=lista.filter(abierto),res=lista.filter(g=>g.s&&g.s.resuelto).length;
+  const sen=ab.filter(g=>cercaDe(g.la,g.ln).length);
+  html+=card('todos',ab.length,'Grifos con falla abierta',res+' ya resueltos (en gris)')
+   +card('sensible',sen.length,'Junto a un lugar sensible',dir(sen.filter(g=>g.s.crit==='directa').length));
+  Object.keys(GRUPOS).forEach(k=>{const gs=ab.filter(g=>cercaDe(g.la,g.ln).some(x=>CATS[x.o.c].g===k));
+   if(gs.length)html+=card('g:'+k,gs.length,GRUPOS[k].kpi,dir(gs.filter(g=>g.s.crit==='directa').length),GRUPOS[k].col);});
+ }else if(A.vista==='parque'){
+  const enCat=lista.filter(g=>g.cat),ab=lista.filter(abierto),res=lista.filter(g=>g.s&&g.s.resuelto),sin=lista.filter(g=>!g.s),sen=lista.filter(g=>cercaDe(g.la,g.ln).length);
+  html+=card('todos',enCat.length,'Grifos en el parque','catastro Sacyr')
+   +card('abierta',ab.length,'Con falla abierta',Math.round(100*ab.length/Math.max(1,enCat.length))+'% del parque')
+   +card('resuelto',res.length,'Con hallazgos ya resueltos','en gris')
+   +card('sin',sin.length,'Sin hallazgos registrados','punto azul pequeño')
+   +card('sensible',sen.length,'Junto a un lugar sensible',sen.filter(abierto).length+' de ellos con falla abierta');
+ }else{
+  const ls=lugaresActivos(),cer=l=>A.idxGrifos.cerca(l.la,l.ln,A.radio);
+  const riesgo=ls.filter(l=>cer(l).some(x=>abierto(x.o)&&x.o.s.crit==='directa')).length,sin=ls.filter(l=>!cer(l).length).length;
+  html+=card('todos',ls.length,'Lugares sensibles','en la zona del parque')
+   +card('riesgo',riesgo,'Con grifo en falla directa cerca','a ≤ '+A.radio+' m')
+   +card('sin',sin,'Sin grifo del parque a ≤ '+A.radio+' m','pueden quedar fuera del parque');
+  Object.keys(GRUPOS).forEach(k=>{const n=ls.filter(l=>CATS[l.c].g===k);if(n.length)html+=card('g:'+k,n.length,GRUPOS[k].nom,
+   n.filter(l=>cer(l).some(x=>abierto(x.o))).length+' con grifo con falla cerca',GRUPOS[k].col);});
+ }
+ el.innerHTML=html+'<div class="ayuda">Toca una tarjeta para filtrar el mapa; tócala de nuevo para volver a todo. Cada punto y cada lugar abre su ficha. Radio de cercanía: '+A.radio+' m.</div>';
+ el.classList.add('on');
+ el.querySelectorAll('.kpi').forEach(b=>b.onclick=()=>{const f=b.dataset.f;A.filtro=(A.filtro===f&&f!=='todos')?'todos':f;
+  el.querySelectorAll('.kpi').forEach(x=>{const on=x.dataset.f===A.filtro;x.classList.toggle('on',on);x.setAttribute('aria-pressed',on);});pintarA2(true);});
 }
+
+/* ---------- panel lateral ---------- */
+function panelA(){
+ const p=document.getElementById('panel');document.getElementById('mapwrap').classList.add('con-panel');
+ const n={};(datos.capas.lug||[]).forEach(l=>n[l.c]=(n[l.c]||0)+1);
+ const chk=(id,on,txt,extra)=>'<label class="pchk"><input type="checkbox" data-k="'+id+'"'+(on?' checked':'')+'>'+txt+(extra||'')+'</label>';
+ let h='<div class="psec"><div class="ptt">Ver</div><div class="seg">'+Object.keys(VISTAS).map(v=>'<button data-v="'+v+'" class="'+(A.vista===v?'on':'')+'">'+VISTAS[v]+'</button>').join('')+'</div></div>';
+ h+='<div class="psec"><div class="ptt">Capas</div>'
+  +chk('cap:sect',A.capas.sect,'<span class="sw sw-sect"></span>Sectores del parque','<small>localidad del catastro</small>')
+  +chk('cap:pobl',A.capas.pobl,'<span class="sw sw-pobl"></span>Poblaciones y villas','<small>OpenStreetMap</small>')
+  +chk('cap:com',A.capas.com,'<span class="sw sw-com"></span>Límites comunales')+'</div>';
+ h+='<div class="psec"><div class="ptt">Lugares sensibles <span class="pall"><button data-all="1">todos</button> · <button data-all="0">ninguno</button></span></div>';
+ Object.keys(GRUPOS).forEach(gk=>{const cs=Object.keys(CATS).filter(c=>CATS[c].g===gk&&n[c]);if(!cs.length)return;
+  h+='<div class="pgr">'+GRUPOS[gk].nom+'</div>'+cs.map(c=>chk('cat:'+c,A.cats.has(c),'<b class="mini" style="background:'+colCat(c)+'">'+svgCat(c,10)+'</b>'+CATS[c].nom,'<em>'+n[c]+'</em>')).join('');});
+ h+='<div class="pradio">Radio de cercanía <span>'+[100,150,300].map(r=>'<button data-r="'+r+'" class="'+(A.radio===r?'on':'')+'">'+r+' m</button>').join('')+'</span></div></div>';
+ h+='<div class="psec pley" id="pley"></div>';
+ h+='<div class="pfuente">Grifos y hallazgos: catastro Sacyr en vivo. Lugares, poblaciones y límites: © colaboradores de OpenStreetMap ('+esc(datos.capas.gen||'')+'). Revisar antes de presentar: OpenStreetMap puede tener lugares faltantes o mal clasificados.</div>';
+ p.innerHTML=h;leyendaA();
+ p.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{A.vista=b.dataset.v;A.filtro='todos';p.querySelectorAll('.seg button').forEach(x=>x.classList.toggle('on',x===b));redibujarA(true);});
+ p.querySelectorAll('input[data-k]').forEach(i=>i.onchange=()=>{const [t,k]=i.dataset.k.split(':');
+  if(t==='cap')A.capas[k]=i.checked;else{i.checked?A.cats.add(k):A.cats.delete(k);}redibujarA(false);});
+ p.querySelectorAll('[data-all]').forEach(b=>b.onclick=()=>{const on=b.dataset.all==='1';A.cats=new Set(on?Object.keys(CATS):[]);
+  p.querySelectorAll('input[data-k^="cat:"]').forEach(i=>i.checked=on);redibujarA(false);});
+ p.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{A.radio=+b.dataset.r;p.querySelectorAll('[data-r]').forEach(x=>x.classList.toggle('on',x===b));redibujarA(false);});
+}
+function leyendaA(){
+ const el=document.getElementById('pley');if(!el)return;
+ const pt=(c,h,r)=>'<i style="background:'+(h?'#fff':c)+';border-color:'+c+';border-width:'+(h?2:1.5)+'px'+(r?';width:'+r+'px;height:'+r+'px':'')+'"></i>';
+ let h='<div class="ptt">Cómo leer el mapa</div>';
+ if(A.vista!=='lug')h+='<div>'+pt(C.directa)+'Falla directa</div><div>'+pt(C.indirecta)+'Falla indirecta</div><div>'+pt(C.senaletica,0,8)+'Señalética</div><div>'+pt(C.directa,1)+'Relleno blanco = ya en proceso</div><div>'+pt('#8FA3B8')+'Hallazgos resueltos</div>';
+ if(A.vista==='parque')h+='<div>'+pt('#5C6E8C',0,7)+'Sin hallazgos</div>';
+ if(A.vista==='lug')h+='<div>Cada lugar muestra su radio de '+A.radio+' m. Los grifos van pequeños: rojo = falla directa.</div>';
+ h+='<div><b class="mini" style="background:#3E5FA8">'+svgCat('colegio',10)+'</b>Lugar sensible (color = grupo)</div>';
+ el.innerHTML=h;}
+function redibujarA(fit){A.cacheCerca={};pintarA2(fit);kpisA2();leyendaA();}
+function iniciarA(){
+ if(!A.cats)A.cats=new Set(Object.keys(CATS));
+ A.idxLug=indexar(datos.capas.lug||[],o=>o.la,o=>o.ln);
+ panelA();setTimeout(()=>map.invalidateSize(),0);redibujarA(false);}
+function salirA(){const w=document.getElementById('mapwrap');if(w.classList.contains('con-panel')){w.classList.remove('con-panel');document.getElementById('panel').innerHTML='';setTimeout(()=>map.invalidateSize(),0);}
+ if(capaCtx){map.removeLayer(capaCtx);capaCtx=null;}}
+
 
 const OPCIONES=[
 {id:'A',nom:'Mapa gris con lugares sensibles',
- resp:'Base gris y silenciosa. El color del punto es la criticidad del hallazgo abierto más grave y el relleno separa lo pendiente de lo que ya está en proceso. Los marcos son los colegios, centros de salud, edificios municipales y cárceles registrados en el catastro. Las tarjetas de arriba filtran el mapa; cada grifo abre su ficha.',
- si:'Responde la pregunta que hace la plana ejecutiva: cuántos grifos con falla están junto a un colegio, un centro de salud o una cárcel, y cuáles son. Base neutra, se imprime y se proyecta bien.',
- no:'Al zoom de resumen los puntos de Chicureo y Lampa se superponen; se resuelve con las tarjetas o acercando el mapa.',
- ve:'Qué grifos fallan y junto a qué lugar sensible',para:'Plana ejecutiva y jefatura operativa',
- dibuja(){base('gris');
-  if((datos.lug||[]).length)toggleLugares();
-  kpisA();pintarA(false);
-  const pt=(c,h)=>'<i style="background:'+(h?'#fff':c)+';border-color:'+c+';border-width:'+(h?2:1.5)+'px"></i>';
-  leyenda('<span class="tt">A · Grifos y lugares sensibles</span>'
-   +pt(C.directa)+'Directa &nbsp;'+pt(C.indirecta)+'Indirecta &nbsp;'+pt(C.senaletica)+'Señalética<br>'
-   +pt(C.directa,1)+'Relleno blanco = ya en proceso &nbsp;'+pt('#8FA3B8')+'Todo resuelto'
-   +'<div style="margin-top:5px;border-top:1px solid #D6E2EC;padding-top:5px">'
-   +Object.keys(TIPOS).map(t=>'<s style="border:2.5px solid '+TIPOS[t].col+'"></s>'+TIPOS[t].nom).join(' &nbsp;')+'</div>');}},
+ resp:'Tres lecturas del mismo mapa: los hallazgos, el parque completo de grifos y los lugares sensibles. Sobre una base gris se pueden encender los sectores del parque, las poblaciones y villas y los límites comunales, y elegir qué lugares sensibles mostrar (salud, educación, emergencias, cárceles, comercio, bencineras, municipios). Las tarjetas filtran; cada punto y cada lugar abre su ficha.',
+ si:'Responde lo que pregunta la plana ejecutiva: cuántos grifos con falla hay junto a colegios, centros de salud o bomberos, en qué sector están y qué lugares tienen un grifo en falla directa cerca. Base neutra: se imprime y se proyecta bien.',
+ no:'Los lugares sensibles vienen de OpenStreetMap: conviene revisar la lista de la comuna antes de presentarla. Al zoom de resumen los puntos de Chicureo se superponen; se resuelve con las tarjetas o acercando.',
+ ve:'Qué grifos fallan, en qué sector y junto a qué lugar sensible',para:'Plana ejecutiva y jefatura operativa',
+ dibuja(){base('gris');iniciarA();}},
 
 {id:'B',nom:'Mapa oscuro corporativo',
  resp:'La misma lectura por punto, pero sobre base oscura en la línea del tablero. Los colores encendidos resaltan y la ciudad queda en segundo plano.',
@@ -315,14 +560,18 @@ function arrancar(){
   document.getElementById('cargando').remove();
   const ab=datos.hall.filter(h=>h.e!=='resuelto').length;
   const sen=datos.hall.filter(h=>h.cr==='senaletica').length;
-  document.getElementById('sub').textContent=datos.hall.length+' hallazgos con coordenada · '+ab+' abiertos · '+sen+' de señalética · '+datos.parque+' grifos en el parque · '+(datos.lug||[]).length+' lugares sensibles · datos reales del catastro';
+  document.getElementById('sub').textContent=datos.hall.length+' hallazgos con coordenada · '+ab+' abiertos · '+sen+' de señalética · '+datos.parque+' grifos en el parque · '+((datos.capas&&datos.capas.lug)||datos.lug||[]).length+' lugares sensibles · datos reales del catastro';
   document.getElementById('tabs').innerHTML=OPCIONES.map(o=>'<button class="tab" data-id="'+o.id+'" onclick="pintar(\''+o.id+'\')"><b>'+o.id+'</b> '+o.nom+'</button>').join('');
   document.getElementById('cmp').innerHTML=OPCIONES.map(o=>'<tr><td><b>'+o.id+' · '+o.nom+'</b></td><td>'+o.ve+'</td><td>'+o.para+'</td></tr>').join('');
   document.getElementById('recomendacion').textContent='A (mapa gris con lugares sensibles) es la vista de trabajo del tablero: dice qué grifo falla, en qué estado está y junto a qué colegio, centro de salud o cárcel. C (burbujas por comuna) sirve como lámina de apertura cuando sólo hay que mostrar dónde se concentra el problema. El satélite conviene dejarlo como opción, no como vista por defecto: en reunión compite con el dato.';
   map=L.map('mapa',{zoomControl:true,maxZoom:19});
+  map.createPane('sectores').style.zIndex=350;
+  map.createPane('zonas').style.zIndex=360;
+  map.createPane('etiquetas').style.zIndex=380;
   map.createPane('lugares');map.getPane('lugares').style.zIndex=390;
   const elMapa=document.getElementById('mapa');
-  const nombres=()=>{const z=map.getZoom();elMapa.classList.toggle('lejos',z<13);elMapa.classList.toggle('cerca',z>=16);};
+  const nombres=()=>{const z=map.getZoom();elMapa.classList.toggle('lejos',z<13);elMapa.classList.toggle('cerca',z>=16);
+    elMapa.classList.toggle('z-lt12',z<12);elMapa.classList.toggle('z-lt14',z<14);elMapa.classList.toggle('z-lt15',z<15);};
   map.on('zoomend',nombres);
   encuadrar();
   map.setMinZoom(Math.max(8,map.getZoom()-1));
@@ -331,8 +580,18 @@ function arrancar(){
   pintar(OPCIONES.some(o=>o.id===ini)?ini:'A');
   nombres();
 }
+/* Capas de contexto (lugares sensibles, poblaciones, límites) en un archivo
+   estático del repo. Si no se puede leer, se usan los lugares del catastro. */
+function cargarCapas(){
+  const desdeCatastro=()=>({gen:'',comunas:[],sect:[],places:[],lug:(datos.lug||[]).map(p=>({n:p.nombre,la:p.lat,ln:p.lng,o:'cat',
+    c:p.tipo==='educacion'?(/jard|sala cuna|infantil|parvul/i.test(p.nombre)?'jardin':'colegio'):p.tipo==='salud'?(/hospital/i.test(p.nombre)?'hospital':'clinica'):p.tipo}))
+    .filter(l=>CATS[l.c])});
+  return fetch('capas-mapa.json',{cache:'no-cache'}).then(r=>r.ok?r.json():Promise.reject(r.status))
+    .then(j=>{datos.capas=j;j.lug=(j.lug||[]).filter(l=>CATS[l.c]);})
+    .catch(()=>{datos.capas=desdeCatastro();});
+}
 (function cargar(){
-  try{ const s=sessionStorage.getItem('propMapaDatos'); if(s){ datos=JSON.parse(s); return arrancar(); } }catch(e){}
+  try{ const s=sessionStorage.getItem('propMapaDatos'); if(s){ datos=JSON.parse(s); return cargarCapas().then(arrancar); } }catch(e){}
   try{
     firebase.initializeApp({apiKey:"AIzaSyApa-zy4sV8iM1-MNgtIvRcev9j8CAve10",authDomain:"hallazgos-grifos-app.firebaseapp.com",
       projectId:"hallazgos-grifos-app",storageBucket:"hallazgos-grifos-app.firebasestorage.app",
@@ -349,18 +608,20 @@ function arrancar(){
         if(det.length && det.every(d2=>/pintura/i.test(d2.tipo_hallazgo||''))) cr='senaletica';
         const t=det.length?det.map(d2=>d2&&d2.tipo_hallazgo).filter(Boolean).map(String):(x.tipo_hallazgo?[String(x.tipo_hallazgo)]:[]);
         hall.push({id:d.id,c:(x.codigo_grifo||'').toUpperCase(),co:x.comuna||'',cr:cr,e:x.estado||'pendiente',la:x.lat,ln:x.lng,t:t});});
-      const vistos={},lug=[],cat={};
+      const vistos={},lug=[],cat={},grifos=[];
       c.forEach(d=>{const x=d.data(),L2=x.zona_prioritaria_lugares;
         const ficha={co:x.comuna||'',lug:(Array.isArray(L2)?L2:[]).filter(p=>p&&p.nombre)
           .map(p=>({nombre:p.nombre,tipo:p.tipo||'otro',d:Number(p.d)||0}))};
         cat[String(d.id).toUpperCase()]=ficha;
         if(x.codigo)cat[String(x.codigo).toUpperCase()]=ficha;
+        if(typeof x.lat==='number'&&typeof x.lng==='number')grifos.push({k:String(x.codigo||d.id).toUpperCase(),la:x.lat,ln:x.lng,
+          co:x.comuna||'',loc:x.localidad||'',mod:x.modelo||'',dia:x.diametro_conexion||'',ano:x.ano_instalacion||''});
         if(!Array.isArray(L2))return;
         L2.forEach(p=>{if(typeof p.lat!=='number'||typeof p.lng!=='number')return;
           const k=(p.nombre||'')+'|'+p.lat.toFixed(5)+'|'+p.lng.toFixed(5);
           if(vistos[k])return;vistos[k]=1;
           lug.push({nombre:p.nombre||'Sin nombre',tipo:p.tipo||'otro',lat:p.lat,lng:p.lng});});});
-      datos={hall,parque:c.size,lug,cat};arrancar();
+      datos={hall,parque:c.size,lug,cat,grifos};cargarCapas().then(arrancar);
     }).catch(e=>{document.getElementById('cargando').textContent='No se pudo leer el catastro: '+e.message;});
   }catch(e){document.getElementById('cargando').textContent='No se pudo iniciar Firebase: '+e.message;}
 })();
