@@ -440,9 +440,10 @@ function aplicarVista(){
  if(S.comuna!=='todos')f.push(['==',['get','co'],S.comuna]);
  if(v==='hall'&&!MODO_TABLERO)f.push(['!=',['get','crit'],'sin']);
  if(S.filtro==='vencido')f.push(['==',['get','venc'],1]);
+ if(S.filtro==='oper')f.push(['match',['get','crit'],['directa','indirecta'],true,false]);
  if(S.filtro==='abierta')f.push(v==='hall'?['==',['get','est'],'en_proceso']:['>',['get','ab'],0]);
  if(S.filtro==='directa')f.push(['==',['get','crit'],'directa']);
- if(S.filtro==='sensible')f.push(['all',['>',['get','ab'],0],['==',['get','sens'],1]]);
+ if(S.filtro==='sensible')f.push(['all',['>',['get','ab'],0],['!=',['get','crit'],'senaletica'],['==',['get','sens'],1]]);
  if(S.filtro.startsWith('g:'))f.push(['all',['>',['get','ab'],0],['in',S.filtro.slice(2),['get','grp']]]);
  if(S.filtro==='resuelto')f.push(['==',['get','crit'],'resuelto']);
  if(S.filtro==='sin')f.push(['==',['get','crit'],'sin']);
@@ -483,8 +484,9 @@ function kpis(){
  const abierto=x=>x.s&&x.s.abiertos>0;
  const card=(id,n,l,s,c)=>'<button class="kpi'+(S.filtro===id?' on':'')+'" data-f="'+id+'" style="--c:'+(c||'#01B3D7')+'" aria-pressed="'+(S.filtro===id)+'"><span class="n">'+fmt(n)+'</span><span class="l">'+l+'</span><span class="s">'+s+'</span></button>';
  let h='';
- if(v==='hall'){const ab=gs.filter(abierto),dir=ab.filter(x=>x.s.crit==='directa'),sen=ab.filter(x=>x.cer.length),res=gs.filter(x=>x.s&&!x.s.abiertos);
-  h=card('todos',ab.length,'Grifos con falla abierta',fmt(res.length)+' ya resueltos')+card('directa',dir.length,'Operatividad directa',fmt(dir.filter(x=>x.s.est==='pendiente').length)+' pendientes',COL.directa)
+ if(v==='hall'){const ab=gs.filter(abierto),oper=ab.filter(x=>x.s.crit!=='senaletica'),dir=ab.filter(x=>x.s.crit==='directa'),sen=oper.filter(x=>x.cer.length);
+  /* mismas unidades que el tablero: la "falla" es de operatividad (directa + indirecta); la señalética se informa aparte */
+  h=card('oper',oper.length,'Grifos con falla de operatividad',fmt(ab.length-oper.length)+' más sólo con señalética')+card('directa',dir.length,'Operatividad directa',fmt(dir.filter(x=>x.s.est==='pendiente').length)+' pendientes',COL.directa)
    +card('sensible',sen.length,'Junto a un lugar sensible',fmt(sen.filter(x=>x.s.crit==='directa').length)+' con falla directa',GRUPOS.educ.col);
   const venc=ab.filter(x=>x.s.plazo&&x.s.plazo.estado==='vencido'),vd=venc.filter(x=>x.s.crit==='directa').length;
   h+=card('vencido',venc.length,'Fuera de plazo SISS',vd+' directa (> 48 h) · '+(venc.length-vd)+' > 3 meses',COL.senaletica);}
@@ -501,7 +503,7 @@ function encuadrarFiltro(){
  const ids=S.vista==='lug'?S.geo.lug.filter(l=>pasaLugar(l)):S.geo.grifos.filter(x=>pasaGrifo(x));
  if(!ids.length)return;const b=new maplibregl.LngLatBounds();ids.forEach(o=>b.extend([o.ln,o.la]));map.fitBounds(b,{padding:padding(),duration:1400,maxZoom:15.5});}
 function pasaGrifo(x){const f=S.filtro,ab=x.s&&x.s.abiertos>0;if(S.comuna!=='todos'&&x.co!==S.comuna)return false;if(S.vista==='hall'&&!x.s&&!MODO_TABLERO)return false;
- if(f==='todos')return true;if(f==='vencido')return !!(x.s&&x.s.plazo&&x.s.plazo.estado==='vencido');if(f==='abierta')return S.vista==='hall'?(ab&&x.s.est==='en_proceso'):ab;if(f==='directa')return x.s&&x.s.crit==='directa';if(f==='sensible')return ab&&x.cer.length>0;
+ if(f==='todos')return true;if(f==='vencido')return !!(x.s&&x.s.plazo&&x.s.plazo.estado==='vencido');if(f==='oper')return ab&&x.s.crit!=='senaletica';if(f==='abierta')return S.vista==='hall'?(ab&&x.s.est==='en_proceso'):ab;if(f==='directa')return x.s&&x.s.crit==='directa';if(f==='sensible')return ab&&x.s.crit!=='senaletica'&&x.cer.length>0;
  if(f.startsWith('g:'))return ab&&x.grp.includes(f.slice(2));if(f==='resuelto')return x.s&&!ab;if(f==='sin')return !x.s;return true;}
 function pasaLugar(l){const f=S.filtro;if(f==='riesgo')return l.ndir>0;if(f==='sinlug')return !l.cer.length;if(f.startsWith('g:'))return CATS[l.c].g===f.slice(2);return true;}
 
