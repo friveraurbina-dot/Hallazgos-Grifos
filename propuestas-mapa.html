@@ -415,7 +415,8 @@ function kpisA2(){
    if(gs.length)html+=card('g:'+k,gs.length,GRUPOS[k].kpi,dir(gs.filter(g=>g.s.crit==='directa').length),GRUPOS[k].col);});
  }else if(A.vista==='parque'){
   const enCat=lista.filter(g=>g.cat),ab=lista.filter(abierto),res=lista.filter(g=>g.s&&g.s.resuelto),sin=lista.filter(g=>!g.s),sen=lista.filter(g=>cercaDe(g.la,g.ln).length);
-  html+=card('todos',enCat.length,'Grifos en el parque','catastro Sacyr')
+  const sinCoord=Math.max(0,(datos.parque||enCat.length)-enCat.length);
+  html+=card('todos',enCat.length,'Grifos en el mapa',sinCoord?('de '+datos.parque+' en el catastro · '+sinCoord+' sin coordenada'):'catastro Sacyr')
    +card('abierta',ab.length,'Con falla abierta',Math.round(100*ab.length/Math.max(1,enCat.length))+'% del parque')
    +card('resuelto',res.length,'Con hallazgos ya resueltos','en gris')
    +card('sin',sin.length,'Sin hallazgos registrados','punto azul pequeño')
