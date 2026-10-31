@@ -416,6 +416,20 @@ nav.rail .rail-foot{color:#6E88B0;}
 .hero-stats,.mapa-card .mapa-head,.mapa-card .com-cards{display:none !important;}
 .hero{margin-bottom:10px !important;}
 #railResumen{display:flex;flex-direction:column;gap:3px;margin-top:4px;}
+nav.rail .rail-toggle{all:unset;cursor:pointer;position:absolute;right:-13px;top:14px;width:26px;height:26px;border-radius:50%;background:#01B3D7;color:#001640;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,.35);z-index:6;transition:transform .2s;}
+nav.rail .rail-toggle:hover{transform:scale(1.1);}
+body.rail-min nav.rail .rail-toggle svg{transform:rotate(180deg);}
+nav.rail .rr-tt{all:unset;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font:700 10px 'Montserrat',sans-serif;letter-spacing:.2em;text-transform:uppercase;color:#6E8FBF;padding:12px 12px 6px;}
+nav.rail .rr-tt:hover{color:#9FC4E6;}
+nav.rail .rr-tt i{width:7px;height:7px;border-right:1.6px solid currentColor;border-bottom:1.6px solid currentColor;transform:rotate(-45deg);transition:transform .15s;margin-right:4px;}
+nav.rail .rr-tt.abierto i{transform:rotate(45deg);}
+/* menú contraído: sólo íconos */
+body.rail-min nav.rail{width:70px;padding-left:10px;padding-right:10px;overflow:visible;}
+body.rail-min nav.rail .nav-group,body.rail-min nav.rail .navbtn .nl,body.rail-min nav.rail .navbtn .nb,body.rail-min #railResumen,body.rail-min nav.rail .rail-foot{display:none !important;}
+body.rail-min nav.rail .navbtn{padding:6px;justify-content:center;}
+body.rail-min nav.rail .navbtn.active::after{display:none;}
+body.rail-min nav.rail .navbtn .ni{width:40px;height:40px;}
+@media(max-width:760px){ nav.rail .rail-toggle{display:none;} body.rail-min nav.rail{width:100%;} body.rail-min nav.rail .navbtn .nl{display:inline !important;} }
 nav.rail{overflow-y:auto;scrollbar-width:thin;}
 nav.rail .rr-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:2px 2px 4px;}
 nav.rail .rr-st{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:8px 9px 7px;display:flex;flex-direction:column;gap:2px;min-width:0;}
@@ -1091,6 +1105,7 @@ function verificarAcceso(){
 
   <div class="body-grid">
     <nav class="rail">
+      <button type="button" class="rail-toggle" id="railToggle" onclick="railContraer()" title="Contraer el menú para ver más mapa" aria-label="Contraer o expandir el menú"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3 5 8l5 5"/></svg></button>
       <div class="nav-group">Principal</div>
       <button class="navbtn active" data-page="dashboard" onclick="goPage('dashboard')"><span class="ni"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span><span class="nl">Tablero ejecutivo</span></button>
       <button class="navbtn" data-page="lista" onclick="goPage('lista')"><span class="ni"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/></svg></span><span class="nl">Hallazgos</span><span class="nb" id="nbHallazgos"></span></button>
@@ -2458,15 +2473,15 @@ function renderDashboard(){
       <span class="rr-top">${nom==='todos'?'Todas las comunas':escHtml(nom)}${dot?`<i class="rr-dot" title="${dot} de operatividad directa abiertos">${dot}</i>`:''}</span>
       <span class="rr-n">${n}</span><span class="rr-s">${sub}</span></button>`;
     rail.innerHTML = `
-      <div class="nav-group">Parque</div>
-      <div class="rr-stats">
+      <button type="button" class="nav-group rr-tt ${railSec('parque')?'':'abierto'}" onclick="railPlegar('parque',this)" aria-expanded="${!railSec('parque')}">Parque<i></i></button>
+      <div class="rr-stats" ${railSec('parque')?'hidden':''}>
         <div class="rr-st"><b ${parqueTotal?`data-count="${parqueTotal}"`:''}>${parqueTotal||'—'}</b><span>Grifos en el parque</span></div>
         <div class="rr-st"><b data-count="${codigosAbiertos.size}">${codigosAbiertos.size}</b><span>Grifos con hallazgos abiertos${pctParque!==null?` · ${pctParque.toFixed(1).replace('.',',')}%`:''}</span></div>
         <div class="rr-st alert"><b data-count="${directasAbiertas.length}">${directasAbiertas.length}</b><span>Operatividad directa abierta · prioridad máxima</span></div>
         <div class="rr-st sen" onclick="irAListaConFiltro('prioridad','senaletica')" title="Señalética (pintura): categoría propia, no afecta la operatividad del grifo"><b data-count="${senPendientes}">${senPendientes}</b><span>Señalética pendiente${senaleticaSector.length?` · ${senPct}% ejecutada`:''}</span></div>
       </div>
-      <div class="nav-group">Comunas</div>
-      <div class="rr-coms">
+      <button type="button" class="nav-group rr-tt ${railSec('comunas')?'':'abierto'}" onclick="railPlegar('comunas',this)" aria-expanded="${!railSec('comunas')}">Comunas<i></i></button>
+      <div class="rr-coms" ${railSec('comunas')?'hidden':''}>
         ${comBtn('todos', FILTRO_SECTOR_DASHBOARD==='todos', abiertosTotales, `hallazgos abiertos${senaleticaTodos.length?` · <em>${senaleticaTodos.filter(h=>h.estado!=='resuelto').length} señalética</em>`:''}`)}
         ${comunaCards.map(([nom,c])=>comBtn(nom, FILTRO_SECTOR_DASHBOARD===nom, c.abiertos, `${c.grifos?`${c.grifos} grifos · `:''}${c.total} hallazgo${c.total===1?'':'s'}${c.sen?` · <em>${c.sen} señalética</em>`:''}`, c.directa)).join('')}
       </div>`;
@@ -2528,6 +2543,25 @@ function verEnMapaDesdeLista(id){
   if(h && h.codigo_grifo) setTimeout(()=>ccEnviar({accion:'grifo', codigo:h.codigo_grifo}), 350);
 }
 
+/* ===== Menú lateral plegable (31/10): contraer a íconos y plegar Parque / Comunas ===== */
+function railSec(k){ try{ return localStorage.getItem('railSec.'+k)==='1'; }catch(e){ return false; } }
+function railPlegar(k, btn){
+  const on = !railSec(k);
+  try{ localStorage.setItem('railSec.'+k, on?'1':'0'); }catch(e){}
+  const bloque = btn.nextElementSibling; if(bloque) bloque.hidden = on;
+  btn.classList.toggle('abierto', !on); btn.setAttribute('aria-expanded', !on);
+  ccProgramar();
+}
+function railContraer(forzar){
+  const on = typeof forzar==='boolean' ? forzar : !document.body.classList.contains('rail-min');
+  document.body.classList.toggle('rail-min', on);
+  try{ localStorage.setItem('railMin', on?'1':'0'); }catch(e){}
+  const b = document.getElementById('railToggle'); if(b) b.title = on ? 'Expandir el menú' : 'Contraer el menú para ver más mapa';
+  document.querySelectorAll('nav.rail .navbtn').forEach(x=>{ const t = x.querySelector('.nl'); if(t) x.title = t.textContent.trim(); });
+  ccProgramar();
+}
+try{ if(localStorage.getItem('railMin')==='1') document.addEventListener('DOMContentLoaded', ()=>railContraer(true)); }catch(e){}
+
 /* ================= CENTRO DE CONTROL EN EL TABLERO =================
    El mapa del tablero es ahora centro-control.html (MapLibre, 3D) embebido
    en un iframe. El tablero se vuelve a dibujar entero con cada cambio en
@@ -2549,7 +2583,7 @@ function construirCentroControl(){
     CC_CAPA.appendChild(CC_FRAME); document.body.appendChild(CC_CAPA);
     document.addEventListener('scroll', ccProgramar, true);
     window.addEventListener('resize', ccProgramar);
-    if(window.ResizeObserver){ new ResizeObserver(ccProgramar).observe(document.body); }
+    if(window.ResizeObserver){ const ro = new ResizeObserver(ccProgramar); ro.observe(document.body); const mn = document.getElementById('main'); if(mn) ro.observe(mn); }
   } else ccEnviar({accion:'sector', comuna:sector});
   ccProgramar();
 }

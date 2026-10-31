@@ -160,6 +160,13 @@ body.presentando .cap{bottom:40px}
 .aviso.on{display:block}
 .mov{display:none}
 
+/* ---- panel plegable: el mapa manda ---- */
+body.sinpanel .pan.izq{display:none}
+.sec .tt.pleg{cursor:pointer;user-select:none;margin-bottom:9px}
+.sec .tt.pleg::after{content:"";width:7px;height:7px;border-right:1.6px solid var(--cy2);border-bottom:1.6px solid var(--cy2);transform:rotate(45deg);margin-left:8px;transition:transform .15s;flex:none}
+.sec.plegado .tt.pleg::after{transform:rotate(-45deg)}
+.sec.plegado .tt.pleg{margin-bottom:0}
+.sec.plegado>*:not(.tt){display:none}
 /* ---- modo tablero (dentro del tablero ejecutivo) ---- */
 body.tablero .marca,body.tablero .pan.der{display:none}
 body.tablero .top{padding:10px 12px}
@@ -200,6 +207,7 @@ body.tablero .cap{bottom:18px}
   <div class="kpis" id="kpis" role="group" aria-label="Indicadores"></div>
   <div class="acciones">
     <label class="busca" title="Buscar grifo por código"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg><input id="busca" placeholder="Buscar grifo…" aria-label="Buscar grifo por código" autocomplete="off"></label>
+    <button class="btn" id="bpan" title="Mostrar u ocultar el panel de vistas, capas y lugares sensibles" aria-pressed="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M2 4h12M2 8h12M2 12h12"/></svg><span class="tx">Capas</span></button>
     <button class="btn" id="b3d" title="Relieve y edificios en 3D"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M8 1.5 14 5v6l-6 3.5L2 11V5z"/><path d="M8 8l6-3M8 8 2 5M8 8v6.5"/></svg><span class="tx">3D</span></button>
     <button class="btn" id="bsat" title="Imagen satelital"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6"/><path d="M2 8h12M8 2c2.5 2.5 2.5 9.5 0 12M8 2c-2.5 2.5-2.5 9.5 0 12"/></svg><span class="tx">Satélite</span></button>
     <button class="btn" id="btour" title="Recorrido automático por el parque"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2.5v11l9-5.5z"/></svg><span class="tx">Recorrido</span></button>
@@ -475,7 +483,7 @@ function aplicarVista(){
  kpis();panelDer();leyenda();}
 function recalcular(fit){S.geo=construirGeo();['grifos','lug','radios','sect','sectl','calor','hex'].forEach(k=>{const src=map.getSource(k);if(!src)return;src.setData({grifos:S.geo.fG,lug:S.geo.fL,radios:S.geo.fR,sect:S.geo.fS,sectl:S.geo.fSl,calor:S.geo.fC,hex:S.geo.fH}[k]);});aplicarVista();if(fit)encuadrar();}
 function limitesParque(pad){const b=new maplibregl.LngLatBounds();datos.grifos.forEach(g=>b.extend([g.ln,g.la]));datos.hall.forEach(h=>b.extend([h.ln,h.la]));return b;}
-function padding(){const w=innerWidth,der=MODO_TABLERO?30:340;return w>1000?{top:100,bottom:40,left:310,right:der}:w>720?{top:100,bottom:40,left:300,right:30}:{top:120,bottom:60,left:20,right:20};}
+function padding(){const w=innerWidth,der=MODO_TABLERO?30:340,izq=document.body.classList.contains('sinpanel')?30:310;return w>1000?{top:100,bottom:40,left:izq,right:der}:w>720?{top:100,bottom:40,left:izq-10,right:30}:{top:120,bottom:60,left:20,right:20};}
 function encuadrar(anim){map.fitBounds(limitesParque(),{padding:padding(),pitch:S.tres?52:0,bearing:S.tres?-14:0,duration:anim?1800:0,maxZoom:14});}
 
 /* ---------- tarjetas, paneles y leyenda ---------- */
@@ -522,6 +530,12 @@ function panelIzq(){
  h+='<div class="sec ley" id="ley"></div>';
  h+='<div class="fuente">Grifos y hallazgos en vivo desde el catastro Sacyr. Lugares, poblaciones y límites: © colaboradores de OpenStreetMap. Revisar la lista de lugares antes de presentar.</div>';
  p.innerHTML=h;
+ /* cada sección se pliega desde su título y recuerda el estado en este navegador */
+ p.querySelectorAll('.sec').forEach((sec,i)=>{const tt=sec.querySelector('.tt');if(!tt||sec.classList.contains('ley'))return;
+  const k='ccSec.'+i;tt.classList.add('pleg');
+  let pl=false;try{pl=localStorage.getItem(k)==='1';}catch(e){}
+  if(pl)sec.classList.add('plegado');
+  tt.addEventListener('click',e=>{if(e.target.closest('button'))return;const on=sec.classList.toggle('plegado');try{localStorage.setItem(k,on?'1':'0');}catch(e){}});});
  p.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{S.vista=b.dataset.v;S.filtro='todos';p.querySelectorAll('.seg button').forEach(x=>x.classList.toggle('on',x===b));aplicarVista();});
  p.querySelectorAll('input[data-k]').forEach(i=>i.onchange=()=>{const [t,k]=i.dataset.k.split(':');
   if(t==='cap'){S.capas[k]=i.checked;if(k==='relieve')relieve(i.checked);aplicarVista();}else{i.checked?S.cats.add(k):S.cats.delete(k);recalcular();}});
@@ -676,9 +690,14 @@ function modoTablero(){
   if(m.accion==='grifo'&&m.codigo)irAGrifo(String(m.codigo).toUpperCase());
   if(m.accion==='filtro'&&m.filtro){S.filtro=m.filtro;aplicarVista();encuadrarFiltro();}});}
 function encuadrarComuna(){if(S.comuna==='todos'){encuadrar(true);return;}const b=new maplibregl.LngLatBounds();let n=0;S.geo.grifos.forEach(g=>{if(g.co===S.comuna){b.extend([g.ln,g.la]);n++;}});if(n)map.fitBounds(b,{padding:padding(),duration:1600,maxZoom:14.5,pitch:S.tres?50:0});}
+function panelVisible(on){document.body.classList.toggle('sinpanel',!on);const b=document.getElementById('bpan');b.classList.toggle('on',on);b.setAttribute('aria-pressed',on);
+ try{localStorage.setItem('ccPanel',on?'1':'0');}catch(e){}}
 function enlazar(){modoTablero();
+ let abierto=!MODO_TABLERO;try{const v=localStorage.getItem('ccPanel');if(v!==null)abierto=v==='1';}catch(e){}
+ panelVisible(abierto);
+ document.getElementById('bpan').onclick=()=>{panelVisible(document.body.classList.contains('sinpanel'));if(S.listo)encuadrar(true);};
  document.getElementById('b3d').onclick=toggle3D;document.getElementById('bsat').onclick=toggleSat;document.getElementById('btour').onclick=tour;document.getElementById('bfull').onclick=pantalla;
- document.getElementById('bmov').onclick=()=>document.getElementById('pizq').classList.toggle('on');
+ document.getElementById('bmov').onclick=()=>{document.getElementById('pizq').classList.toggle('on');panelVisible(true);};
  const b=document.getElementById('busca');b.onkeydown=e=>{if(e.key==='Enter'){buscar(b.value);b.blur();}};
  document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(S.tour)detenerTour();if(popup)popup.remove();}
   if(e.key===' '&&S.tour&&document.activeElement.tagName!=='INPUT'){e.preventDefault();pausarTour();}});
