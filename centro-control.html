@@ -1,0 +1,621 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Centro de control — Parque Grifos Sacyr</title>
+<meta name="theme-color" content="#001640">
+<link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
+<link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+<link rel="preload" href="capas-mapa.json" as="fetch" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.css">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore-compat.js"></script>
+<style>
+:root{--ink:#001640;--navy:#002359;--cy:#01B3D7;--cy2:#63D1E0;--txt:#E8F0FA;--soft:#9FB3CC;--mute:#6B82A1;
+ --dir:#FF4D63;--ind:#FF9A3C;--sen:#FFD83D;--res:#6E85A3;--sin:#2FB8D8;--ok:#36D399;
+ --glass:rgba(3,14,36,.78);--glass2:rgba(6,22,52,.72);--borde:rgba(99,209,224,.22);--sombra:0 10px 40px rgba(0,0,0,.45)}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#020a1c;color:var(--txt);font:500 13px/1.45 Inter,system-ui,sans-serif;overflow:hidden}
+#mapa{position:fixed;inset:0}
+#mapa canvas{outline:none}
+.maplibregl-ctrl-bottom-right{bottom:14px;right:14px}
+.maplibregl-ctrl-group{background:var(--glass);border:1px solid var(--borde);box-shadow:var(--sombra);backdrop-filter:blur(12px)}
+.maplibregl-ctrl-group button{width:34px;height:34px;filter:invert(1) hue-rotate(180deg) brightness(1.15)}
+.maplibregl-ctrl-group button+button{border-top:1px solid rgba(255,255,255,.08)}
+.maplibregl-ctrl-attrib{background:rgba(3,14,36,.6);color:var(--mute);font-size:10px}
+.maplibregl-ctrl-attrib a{color:var(--soft)}
+
+/* ---- barra superior ---- */
+.top{position:fixed;left:0;right:0;top:0;z-index:20;display:flex;align-items:stretch;gap:14px;padding:12px 16px;pointer-events:none}
+.top>*{pointer-events:auto}
+.marca{display:flex;flex-direction:column;justify-content:center;background:linear-gradient(120deg,#001640,#002359 55%,#004a78);border:1px solid var(--borde);border-radius:14px;padding:10px 16px;box-shadow:var(--sombra);min-width:250px}
+.marca .eye{font:700 9.5px Montserrat,sans-serif;letter-spacing:.22em;text-transform:uppercase;color:var(--cy2)}
+.marca h1{margin:2px 0 0;font:800 18px Montserrat,sans-serif;letter-spacing:-.01em;line-height:1.1}
+.marca .sub{font-size:11px;color:var(--soft);margin-top:3px;display:flex;align-items:center;gap:6px}
+.marca .sub .live{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 rgba(54,211,153,.7);animation:live 2s infinite}
+@keyframes live{0%{box-shadow:0 0 0 0 rgba(54,211,153,.6)}70%{box-shadow:0 0 0 7px rgba(54,211,153,0)}100%{box-shadow:0 0 0 0 rgba(54,211,153,0)}}
+.kpis{flex:1;display:flex;gap:10px;align-items:stretch;min-width:0;overflow-x:auto;scrollbar-width:none}
+.kpis::-webkit-scrollbar{display:none}
+.kpi{all:unset;cursor:pointer;flex:1;min-width:148px;background:var(--glass);backdrop-filter:blur(14px);border:1px solid var(--borde);border-radius:14px;padding:9px 14px;display:flex;flex-direction:column;justify-content:center;gap:2px;box-shadow:var(--sombra);transition:border-color .15s,transform .15s,background .15s;position:relative;overflow:hidden}
+.kpi::after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c,var(--cy));opacity:.9}
+.kpi:hover{border-color:var(--cy2);transform:translateY(-1px)}
+.kpi.on{background:rgba(1,179,215,.14);border-color:var(--cy2);box-shadow:0 0 0 1px rgba(99,209,224,.35),var(--sombra)}
+.kpi .n{font:800 26px/1 Montserrat,sans-serif;color:#fff;text-shadow:0 0 18px color-mix(in srgb,var(--c,var(--cy)) 55%,transparent);font-variant-numeric:tabular-nums}
+.kpi .l{font:600 10.5px Inter,sans-serif;color:var(--txt);white-space:nowrap}
+.kpi .s{font:500 10px Inter,sans-serif;color:var(--soft);white-space:nowrap}
+.acciones{display:flex;gap:8px;align-items:center}
+.btn{all:unset;cursor:pointer;background:var(--glass);backdrop-filter:blur(14px);border:1px solid var(--borde);border-radius:12px;padding:0 13px;height:46px;display:flex;align-items:center;gap:8px;font:700 11.5px Inter,sans-serif;color:var(--txt);box-shadow:var(--sombra);white-space:nowrap;transition:border-color .15s,background .15s}
+.btn:hover{border-color:var(--cy2)}
+.btn.on{background:linear-gradient(120deg,#01B3D7,#0e7fa8);border-color:transparent;color:#001640}
+.btn svg{width:16px;height:16px;flex:none}
+.btn.on svg *{stroke:#001640}
+.busca{display:flex;align-items:center;gap:8px;background:var(--glass);backdrop-filter:blur(14px);border:1px solid var(--borde);border-radius:12px;height:46px;padding:0 12px;box-shadow:var(--sombra)}
+.busca input{all:unset;width:110px;font:600 12px 'IBM Plex Mono',monospace;color:#fff;text-transform:uppercase}
+.busca input::placeholder{color:var(--mute);text-transform:none;font-family:Inter}
+.busca svg{width:15px;height:15px;color:var(--cy2)}
+
+/* ---- paneles ---- */
+.pan{position:fixed;z-index:15;background:var(--glass);backdrop-filter:blur(16px);border:1px solid var(--borde);border-radius:16px;box-shadow:var(--sombra);overflow:auto;scrollbar-width:thin;scrollbar-color:rgba(99,209,224,.35) transparent}
+.pan.izq{left:16px;top:86px;bottom:16px;width:272px}
+.pan.der{right:16px;top:86px;width:300px;max-height:calc(100vh - 102px)}
+.sec{padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.07)}
+.sec:last-child{border-bottom:0}
+.tt{font:800 9.5px Montserrat,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:var(--cy2);margin-bottom:9px;display:flex;justify-content:space-between;align-items:center}
+.tt .mini{font:600 10px Inter,sans-serif;letter-spacing:0;text-transform:none;color:var(--soft)}
+.tt .mini button{all:unset;cursor:pointer;color:var(--cy2);text-decoration:underline}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:rgba(255,255,255,.06);border-radius:11px;padding:4px}
+.seg button{all:unset;cursor:pointer;text-align:center;padding:8px 4px;border-radius:8px;font:700 11px Inter,sans-serif;color:var(--soft);line-height:1.15;transition:background .15s,color .15s}
+.seg button.on{background:linear-gradient(120deg,#01B3D7,#1088b5);color:#001640}
+.sw{display:flex;align-items:center;gap:9px;padding:6px 0;cursor:pointer;color:var(--txt)}
+.sw input{appearance:none;width:30px;height:17px;border-radius:9px;background:rgba(255,255,255,.14);position:relative;flex:none;cursor:pointer;transition:background .15s;margin:0}
+.sw input::after{content:"";position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;background:#fff;transition:left .15s}
+.sw input:checked{background:var(--cy)}
+.sw input:checked::after{left:15px}
+.sw .t{flex:1;font-weight:600;font-size:12px}
+.sw small{color:var(--mute);font-size:10px}
+.sw em{font-style:normal;color:var(--soft);font-variant-numeric:tabular-nums;font-size:11px}
+.sw .ic{width:18px;height:18px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.sw .ic svg{width:12px;height:12px}
+.gr{font:700 10px Inter,sans-serif;color:var(--soft);margin:8px 0 1px;letter-spacing:.04em;text-transform:uppercase}
+.radio{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:10px;font-weight:600;font-size:12px}
+.radio span{display:flex;gap:4px}
+.radio button{all:unset;cursor:pointer;padding:5px 8px;border:1px solid var(--borde);border-radius:8px;font:700 10.5px Inter,sans-serif;color:var(--soft)}
+.radio button.on{background:rgba(1,179,215,.18);border-color:var(--cy2);color:#fff}
+.ley div{display:flex;align-items:center;gap:8px;padding:2px 0;font-size:11.5px;color:var(--soft)}
+.ley i{display:inline-block;width:11px;height:11px;border-radius:50%;flex:none;box-shadow:0 0 8px currentColor}
+.ley i.h{background:#0b1b33 !important;border:2.5px solid currentColor;box-shadow:none}
+.fuente{padding:10px 14px 12px;font-size:10px;color:var(--mute);line-height:1.5}
+
+/* comunas y prioridades */
+.com{all:unset;cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:10px 12px;border:1px solid rgba(255,255,255,.08);border-radius:12px;margin-bottom:8px;background:rgba(255,255,255,.03);transition:border-color .15s,background .15s;width:100%}
+.com:hover{border-color:var(--cy2);background:rgba(1,179,215,.08)}
+.com b{font:800 13px Montserrat,sans-serif;color:#fff;letter-spacing:.02em}
+.com .n{font:800 20px/1 Montserrat,sans-serif;color:#fff;grid-row:1/3;align-self:center;text-shadow:0 0 14px rgba(255,77,99,.5)}
+.com .d{font-size:10.5px;color:var(--soft);display:flex;gap:8px;flex-wrap:wrap}
+.com .d i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:3px;vertical-align:0}
+.barra{grid-column:1/3;height:5px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden;display:flex;margin-top:4px}
+.barra span{height:100%}
+.pri{all:unset;cursor:pointer;display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:10px;width:100%;transition:background .15s}
+.pri:hover{background:rgba(1,179,215,.1)}
+.pri .k{font:600 12px 'IBM Plex Mono',monospace;color:#fff;min-width:66px}
+.pri .w{flex:1;min-width:0;font-size:11px;color:var(--soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pri .p{width:9px;height:9px;border-radius:50%;background:var(--dir);box-shadow:0 0 10px var(--dir);flex:none;animation:pul 1.6s infinite}
+@keyframes pul{0%,100%{transform:scale(1)}50%{transform:scale(1.35)}}
+.pri .z{font:600 10px Inter,sans-serif;color:var(--cy2);flex:none}
+.pri.grp .w b{color:#fff;font-weight:700}
+.pri.grp.on{background:rgba(1,179,215,.18);box-shadow:inset 0 0 0 1px var(--cy2)}
+.pri .ic{width:20px;height:20px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.pri .ic svg{width:11px;height:11px}
+
+/* ---- ficha (popup) ---- */
+.maplibregl-popup.pop .maplibregl-popup-content{background:var(--glass2);backdrop-filter:blur(16px);color:var(--txt);border:1px solid var(--borde);border-radius:14px;box-shadow:var(--sombra);padding:13px 15px;font:500 12px Inter,sans-serif;min-width:230px}
+.maplibregl-popup.pop .maplibregl-popup-tip{border-top-color:rgba(6,22,52,.9);border-bottom-color:rgba(6,22,52,.9)}
+.maplibregl-popup.pop .maplibregl-popup-close-button{color:var(--soft);font-size:18px;right:6px;top:4px}
+.maplibregl-popup.tip .maplibregl-popup-content{background:rgba(3,14,36,.9);color:#fff;border:1px solid var(--borde);border-radius:9px;padding:6px 10px;font:600 11.5px Inter,sans-serif;box-shadow:var(--sombra)}
+.maplibregl-popup.tip .maplibregl-popup-tip{display:none}
+.pc{font:800 17px Montserrat,sans-serif;color:#fff;letter-spacing:.01em}
+.pm{color:var(--soft);font-size:11px;margin:1px 0 9px}
+.pb{font-weight:700;display:flex;align-items:center;gap:7px;color:#fff}
+.pb i{width:11px;height:11px;border-radius:50%;flex:none;box-shadow:0 0 10px currentColor}
+.pb i.h{background:#0b1b33 !important;border:2.5px solid currentColor;box-shadow:none}
+.pt{margin-top:5px;color:var(--soft);font-size:11px;line-height:1.45}
+.pl{margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.1);font:800 9px Montserrat,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--cy2)}
+.pli{margin-top:5px;display:flex;gap:7px;align-items:center}
+.pli .ic{width:16px;height:16px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.pli .ic svg{width:10px;height:10px}
+.pli .pd{width:9px;height:9px;border-radius:50%;flex:none;box-shadow:0 0 8px currentColor}
+.pli em{font-style:normal;color:var(--mute);font-size:10.5px}
+.pli span{margin-left:auto;padding-left:8px;color:var(--soft);font-variant-numeric:tabular-nums;white-space:nowrap}
+.sinl{margin-top:9px;padding-top:7px;border-top:1px solid rgba(255,255,255,.1);color:var(--mute);font-size:11px}
+.pacc{display:flex;gap:6px;margin-top:10px}
+.pacc button{all:unset;cursor:pointer;flex:1;text-align:center;padding:6px 8px;border-radius:8px;background:rgba(1,179,215,.16);border:1px solid var(--borde);font:700 10.5px Inter,sans-serif;color:#fff}
+.pacc button:hover{background:rgba(1,179,215,.3)}
+
+/* ---- recorrido, carga, aviso ---- */
+.cap{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:25;background:var(--glass);backdrop-filter:blur(16px);border:1px solid var(--borde);border-radius:16px;padding:14px 22px;box-shadow:var(--sombra);max-width:min(760px,92vw);text-align:center;display:none}
+.cap.on{display:block;animation:sube .4s ease-out}
+@keyframes sube{from{opacity:0;transform:translate(-50%,12px)}to{opacity:1;transform:translate(-50%,0)}}
+.cap .ct{font:800 9.5px Montserrat,sans-serif;letter-spacing:.2em;text-transform:uppercase;color:var(--cy2)}
+.cap .cb{font:800 20px Montserrat,sans-serif;color:#fff;margin:3px 0 2px}
+.cap .cs{font-size:12.5px;color:var(--soft)}
+.cap .cx{position:absolute;right:8px;top:6px;all:unset;cursor:pointer;color:var(--soft);font-size:16px;padding:2px 6px}
+.carga{position:fixed;inset:0;z-index:50;background:radial-gradient(1200px 600px at 50% 40%,#0a2a5c,#020a1c 70%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;transition:opacity .6s}
+.carga.off{opacity:0;pointer-events:none}
+.carga .lg{font:800 10px Montserrat,sans-serif;letter-spacing:.3em;text-transform:uppercase;color:var(--cy2)}
+.carga h2{margin:0;font:900 30px Montserrat,sans-serif;letter-spacing:-.01em;color:#fff}
+.carga .st{color:var(--soft);font-size:12.5px}
+.carga .bar{width:220px;height:3px;border-radius:2px;background:rgba(255,255,255,.1);overflow:hidden}
+.carga .bar i{display:block;height:100%;width:40%;background:linear-gradient(90deg,transparent,var(--cy2),transparent);animation:bar 1.2s infinite}
+@keyframes bar{from{transform:translateX(-100%)}to{transform:translateX(350%)}}
+.aviso{position:fixed;left:50%;top:84px;transform:translateX(-50%);z-index:30;background:rgba(255,77,99,.15);border:1px solid rgba(255,77,99,.5);color:#fff;border-radius:10px;padding:8px 14px;font-size:12px;display:none}
+.aviso.on{display:block}
+.mov{display:none}
+
+/* ---- móvil ---- */
+@media(max-width:1000px){
+ .pan.der{display:none}
+ .marca{min-width:0}
+ .kpi{min-width:112px}
+ .busca{display:none}
+}
+@media(max-width:720px){
+ .top{flex-wrap:wrap;gap:8px;padding:8px}
+ .marca{width:100%;flex-direction:row;align-items:center;justify-content:space-between;padding:8px 12px}
+ .marca h1{font-size:15px}
+ .marca .sub{display:none}
+ .acciones{width:100%;justify-content:space-between}
+ .btn{height:38px;padding:0 10px;font-size:11px}
+ .btn .tx{display:none}
+ .pan.izq{left:8px;right:8px;top:auto;bottom:8px;width:auto;max-height:46vh;transform:translateY(calc(100% + 8px));transition:transform .25s}
+ .pan.izq.on{transform:none}
+ .mov{display:flex;position:fixed;right:14px;bottom:14px;z-index:16}
+ .maplibregl-ctrl-bottom-right{bottom:70px}
+ .cap{bottom:70px}
+}
+</style></head><body>
+<div id="mapa" role="application" aria-label="Mapa del parque de grifos"></div>
+
+<header class="top">
+  <div class="marca">
+    <div class="eye">Gestión Sacyr · Parque Grifos Sacyr</div>
+    <h1>Centro de control</h1>
+    <div class="sub"><span class="live" aria-hidden="true"></span><span id="estado">Conectando con el catastro…</span></div>
+  </div>
+  <div class="kpis" id="kpis" role="group" aria-label="Indicadores"></div>
+  <div class="acciones">
+    <label class="busca" title="Buscar grifo por código"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg><input id="busca" placeholder="Buscar grifo…" aria-label="Buscar grifo por código" autocomplete="off"></label>
+    <button class="btn" id="b3d" title="Relieve y edificios en 3D"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M8 1.5 14 5v6l-6 3.5L2 11V5z"/><path d="M8 8l6-3M8 8 2 5M8 8v6.5"/></svg><span class="tx">3D</span></button>
+    <button class="btn" id="bsat" title="Imagen satelital"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6"/><path d="M2 8h12M8 2c2.5 2.5 2.5 9.5 0 12M8 2c-2.5 2.5-2.5 9.5 0 12"/></svg><span class="tx">Satélite</span></button>
+    <button class="btn" id="btour" title="Recorrido automático por el parque"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2.5v11l9-5.5z"/></svg><span class="tx">Recorrido</span></button>
+    <button class="btn" id="bfull" title="Pantalla completa"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"/></svg></button>
+  </div>
+</header>
+
+<aside class="pan izq" id="pizq" aria-label="Vistas y capas"></aside>
+<aside class="pan der" id="pder" aria-label="Comunas y prioridades"></aside>
+<button class="btn mov" id="bmov" aria-label="Mostrar capas">Capas</button>
+<div class="cap" id="cap" role="status"></div>
+<div class="aviso" id="aviso"></div>
+<div class="carga" id="carga"><div class="lg">Gestión Sacyr</div><h2>Centro de control</h2><div class="st" id="cst">Leyendo el catastro de grifos…</div><div class="bar"><i></i></div></div>
+
+<script>
+/* =====================================================================
+   Centro de control · Parque Grifos Sacyr
+   Mapa vectorial (MapLibre GL) sobre OpenFreeMap, relieve 3D, edificios,
+   lugares sensibles, sectores, mapa de calor, concentración 3D y recorrido.
+   Sólo lee: nada se escribe en Firestore.
+   ===================================================================== */
+const ESTILO='https://tiles.openfreemap.org/styles/dark';
+const DEM='https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
+const SAT='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+const COL={directa:'#FF4D63',indirecta:'#FF9A3C',senaletica:'#FFD83D',resuelto:'#6E85A3',sin:'#2FB8D8'};
+const NOMC={directa:'Operatividad directa',indirecta:'Operatividad indirecta',senaletica:'Señalética',resuelto:'Todo resuelto',sin:'Sin hallazgos'};
+const ESTN={pendiente:'Pendiente',en_proceso:'En proceso',resuelto:'Resuelto',sin:''};
+const ORD=['directa','indirecta','senaletica'];
+const GRUPOS={salud:{nom:'Salud',col:'#36D399',kpi:'salud'},educ:{nom:'Educación',col:'#5B8DEF',kpi:'colegios y jardines'},
+ emer:{nom:'Emergencias',col:'#24C3D9',kpi:'bomberos o policía'},pen:{nom:'Recintos penitenciarios',col:'#B9C4D6',kpi:'cárceles'}};
+/* pictogramas propios: trazos SVG (viewBox 16) */
+const ICO={
+ cruz:[{d:'M6 2h4v4h4v4h-4v4H6v-4H2V6h4z'}],
+ cruzc:[{d:'M14.2 8A6.2 6.2 0 1 1 1.8 8A6.2 6.2 0 1 1 14.2 8',s:1.6},{d:'M7 4.5h2v2.5h2.5v2H9v2.5H7V9H4.5V7H7z'}],
+ corazon:[{d:'M8 14S2 10.2 2 6.2A3 3 0 0 1 8 5a3 3 0 0 1 6 1.2C14 10.2 8 14 8 14z'}],
+ libro:[{d:'M1.5 3.2h5c.8 0 1.5.6 1.5 1.4v8.6c0-.6-.6-1-1.3-1H1.5zM14.5 3.2h-5c-.8 0-1.5.6-1.5 1.4v8.6c0-.6.6-1 1.3-1h5.2z'}],
+ bloques:[{d:'M2.5 9h4.5v4.5H2.5zM9 9h4.5v4.5H9zM5.7 2.5h4.6V7H5.7z'}],
+ birrete:[{d:'M8 3 1 6.5 8 10l7-3.5zM4 8.2v2.6c0 1 1.8 2 4 2s4-1 4-2V8.2L8 10.2z'}],
+ llama:[{d:'M8 1.2c.9 2.8 4.3 4 4.3 8.2a4.3 4.3 0 0 1-8.6 0c0-2.2 1.2-3.4 2.2-4.3 0 2 .9 3.1 2 3.1 0-2.8-1-4.6.1-7z'}],
+ escudo:[{d:'M8 1.3 14 3.5v4.6c0 3.6-2.6 6-6 7.2-3.4-1.2-6-3.6-6-7.2V3.5z'}],
+ rejas:[{d:'M2.5 2.5h11v11h-11zM6 2.5v11M10 2.5v11',s:1.7}]};
+const CATS={
+ hospital:{nom:'Hospital',g:'salud',ic:'cruz',pri:1},
+ clinica:{nom:'Clínica / CESFAM / consultorio',g:'salud',ic:'cruzc',pri:3},
+ eleam:{nom:'Hogar de adultos mayores',g:'salud',ic:'corazon',pri:3},
+ colegio:{nom:'Colegio / liceo',g:'educ',ic:'libro',pri:4},
+ jardin:{nom:'Jardín infantil / sala cuna',g:'educ',ic:'bloques',pri:5},
+ superior:{nom:'Universidad / instituto',g:'educ',ic:'birrete',pri:4},
+ bomberos:{nom:'Bomberos',g:'emer',ic:'llama',pri:1},
+ policia:{nom:'Carabineros / PDI',g:'emer',ic:'escudo',pri:2},
+ carcel:{nom:'Cárcel',g:'pen',ic:'rejas',pri:1}};
+const colCat=c=>(GRUPOS[(CATS[c]||{}).g]||{col:'#9FB3CC'}).col;
+const esc=t=>String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const svgIco=(c,px)=>'<svg viewBox="0 0 16 16" width="'+px+'" height="'+px+'" aria-hidden="true">'+(ICO[(CATS[c]||{}).ic]||ICO.cruz).map(p=>'<path d="'+p.d+'" '+(p.s?'fill="none" stroke="#fff" stroke-width="'+p.s+'"':'fill="#fff"')+'/>').join('')+'</svg>';
+const MIN=new Set(['de','del','la','las','los','el','y']);
+const titulo=t=>String(t||'').toLowerCase().split(/\s+/).map((w,i)=>i&&MIN.has(w)?w:w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
+const fmt=n=>Number(n||0).toLocaleString('es-CL');
+
+/* ---------- estado ---------- */
+const S={vista:'hall',filtro:'todos',radio:150,cats:new Set(Object.keys(CATS)),
+ capas:{sect:true,pobl:true,com:true,relieve:false,edif:false,calor:false,hex:false},
+ tres:false,sat:false,tour:null,listo:false,geo:null};
+let datos=null,map=null,popup=null,tip=null;
+
+/* ---------- geometría ---------- */
+const RAD=Math.PI/180;
+const metros=(a,b,c,d)=>{const x=(d-b)*RAD*Math.cos((a+c)/2*RAD),y=(c-a)*RAD;return Math.sqrt(x*x+y*y)*6371000;};
+function indexar(lista,la,ln){const P=.004,ix={};lista.forEach((o,i)=>{const k=Math.floor(la(o)/P)+'|'+Math.floor(ln(o)/P);(ix[k]=ix[k]||[]).push(i);});
+ return{cerca(qla,qln,m){const out=[],r=Math.ceil(m/400)+1,a=Math.floor(qla/P),b=Math.floor(qln/P);
+  for(let i=-r;i<=r;i++)for(let j=-r;j<=r;j++)(ix[(a+i)+'|'+(b+j)]||[]).forEach(n=>{const o=lista[n],d=metros(qla,qln,la(o),ln(o));if(d<=m)out.push({o,d});});
+  return out.sort((x,y)=>x.d-y.d);}};}
+function envolvente(pts){const p=pts.slice().sort((a,b)=>a[0]-b[0]||a[1]-b[1]);if(p.length<3)return p;
+ const cr=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]);const lo=[],up=[];
+ for(const q of p){while(lo.length>1&&cr(lo[lo.length-2],lo[lo.length-1],q)<=0)lo.pop();lo.push(q);}
+ for(let i=p.length-1;i>=0;i--){const q=p[i];while(up.length>1&&cr(up[up.length-2],up[up.length-1],q)<=0)up.pop();up.push(q);}
+ return lo.slice(0,-1).concat(up.slice(0,-1));}
+function circulo(la,ln,m,n){const out=[];for(let i=0;i<=n;i++){const t=i/n*2*Math.PI;out.push([ln+Math.cos(t)*m/(111320*Math.cos(la*RAD)),la+Math.sin(t)*m/111320]);}return out;}
+
+/* ---------- datos ---------- */
+function peorDe(rs){const ab=rs.filter(x=>x.e!=='resuelto');const b=ab.length?ab:rs;let p='senaletica';b.forEach(x=>{if(ORD.indexOf(x.cr)<ORD.indexOf(p))p=x.cr;});
+ const est=ab.length?(ab.some(x=>x.e!=='en_proceso')?'pendiente':'en_proceso'):'resuelto';
+ return{crit:ab.length?p:'resuelto',est,abiertos:ab.length,n:rs.length,tipos:[...new Set(ab.flatMap(x=>x.t||[]))].slice(0,4)};}
+function lugaresActivos(){return (datos.capas.lug||[]).filter(l=>S.cats.has(l.c));}
+function construirGeo(){
+ const pg={};datos.hall.forEach(h=>{(pg[h.c||h.id]=pg[h.c||h.id]||[]).push(h);});
+ const G={};datos.grifos.forEach(g=>{G[g.k]={k:g.k,la:g.la,ln:g.ln,co:g.co,loc:g.loc,cat:g,rs:[],s:null};});
+ Object.keys(pg).forEach(k=>{const rs=pg[k];const o=G[k]||(G[k]={k,la:rs[0].la,ln:rs[0].ln,co:rs[0].co,loc:'',cat:null,rs:[]});o.rs=rs;o.s=peorDe(rs);});
+ const grifos=Object.values(G);
+ const lug=lugaresActivos();
+ const idxL=indexar(lug,o=>o.la,o=>o.ln),idxG=indexar(grifos,o=>o.la,o=>o.ln);
+ grifos.forEach(g=>{const c=idxL.cerca(g.la,g.ln,S.radio);g.cer=c;g.grp=[...new Set(c.map(x=>CATS[x.o.c].g))];});
+ lug.forEach(l=>{const c=idxG.cerca(l.la,l.ln,S.radio);l.cer=c;l.nab=c.filter(x=>x.o.s&&x.o.s.abiertos).length;l.ndir=c.filter(x=>x.o.s&&x.o.s.abiertos&&x.o.s.crit==='directa').length;});
+ const fG={type:'FeatureCollection',features:grifos.map(g=>({type:'Feature',geometry:{type:'Point',coordinates:[g.ln,g.la]},
+   properties:{k:g.k,crit:g.s?g.s.crit:'sin',est:g.s?g.s.est:'sin',ab:g.s?g.s.abiertos:0,n:g.s?g.s.n:0,co:g.co,loc:g.loc,sens:g.cer.length?1:0,grp:g.grp.join(','),
+     pulso:(g.s&&g.s.crit==='directa'&&g.s.est==='pendiente')?1:0}}))};
+ const fL={type:'FeatureCollection',features:lug.map((l,i)=>({type:'Feature',geometry:{type:'Point',coordinates:[l.ln,l.la]},
+   properties:{i,n:l.n,c:l.c,g:CATS[l.c].g,nom:CATS[l.c].nom,pri:CATS[l.c].pri,ncer:l.cer.length,nab:l.nab,ndir:l.ndir,riesgo:l.ndir?1:0}}))};
+ const fR={type:'FeatureCollection',features:lug.map(l=>({type:'Feature',geometry:{type:'Polygon',coordinates:[circulo(l.la,l.ln,S.radio,40)]},properties:{g:CATS[l.c].g,riesgo:l.ndir?1:0}}))};
+ /* sectores del parque: envolvente de los grifos por localidad */
+ const por={};datos.grifos.forEach(g=>{const n=String(g.loc||'').trim();if(!n||/por (definir|confirmar)/i.test(n))return;(por[n.toUpperCase()]=por[n.toUpperCase()]||[]).push(g);});
+ const fS={type:'FeatureCollection',features:[]},fSl={type:'FeatureCollection',features:[]};
+ Object.keys(por).forEach(k=>{const gs=por[k],sin=gs.slice(),grupos=[];
+  while(sin.length){const g=[sin.pop()];for(let i=0;i<g.length;i++)for(let j=sin.length-1;j>=0;j--)if(metros(g[i].la,g[i].ln,sin[j].la,sin[j].ln)<900)g.push(sin.splice(j,1)[0]);grupos.push(g);}
+  const mayor=Math.max(...grupos.map(x=>x.length));
+  grupos.forEach(g=>{const ex=[];g.forEach(p=>{for(let a=0;a<10;a++){const t=a/10*2*Math.PI;ex.push([p.ln+Math.cos(t)*120/(111320*Math.cos(p.la*RAD)),p.la+Math.sin(t)*120/111320]);}});
+   const h=envolvente(ex);h.push(h[0]);
+   fS.features.push({type:'Feature',geometry:{type:'Polygon',coordinates:[h]},properties:{n:titulo(k),total:gs.length}});
+   if(g.length===mayor){const la=Math.max(...g.map(p=>p.la))+.0022,ln=g.reduce((s,p)=>s+p.ln/g.length,0);
+    fSl.features.push({type:'Feature',geometry:{type:'Point',coordinates:[ln,la]},properties:{n:titulo(k).toUpperCase(),t:gs.length+' grifos'}});}});});
+ /* mapa de calor y hexágonos 3D con los hallazgos abiertos */
+ const ab=datos.hall.filter(h=>h.e!=='resuelto');
+ const fC={type:'FeatureCollection',features:ab.map(h=>({type:'Feature',geometry:{type:'Point',coordinates:[h.ln,h.la]},properties:{w:h.cr==='directa'?3:h.cr==='indirecta'?2:1}}))};
+ const fH=hexagonos(ab,230);
+ return{grifos,lug,fG,fL,fR,fS,fSl,fC,fH,idxG,idxL};}
+function hexagonos(pts,R){
+ if(!pts.length)return{type:'FeatureCollection',features:[]};
+ const la0=pts.reduce((s,p)=>s+p.la,0)/pts.length,ln0=pts.reduce((s,p)=>s+p.ln,0)/pts.length,kx=111320*Math.cos(la0*RAD),ky=111320;
+ const cel={};
+ pts.forEach(p=>{const x=(p.ln-ln0)*kx,y=(p.la-la0)*ky;let q=(Math.sqrt(3)/3*x-y/3)/R,r=(2/3*y)/R;let s=-q-r;
+  let rq=Math.round(q),rr=Math.round(r),rs=Math.round(s);const dq=Math.abs(rq-q),dr=Math.abs(rr-r),ds=Math.abs(rs-s);
+  if(dq>dr&&dq>ds)rq=-rr-rs;else if(dr>ds)rr=-rq-rs;
+  const k=rq+'|'+rr;(cel[k]=cel[k]||{q:rq,r:rr,n:0,d:0});cel[k].n++;if(p.cr==='directa')cel[k].d++;});
+ const mx=Math.max(...Object.values(cel).map(c=>c.n));
+ return{type:'FeatureCollection',features:Object.values(cel).map(c=>{const cx=R*Math.sqrt(3)*(c.q+c.r/2),cy=R*1.5*c.r;const ring=[];
+  for(let i=0;i<=6;i++){const t=(30+60*i)*RAD;ring.push([ln0+(cx+R*Math.cos(t))/kx,la0+(cy+R*Math.sin(t))/ky]);}
+  return{type:'Feature',geometry:{type:'Polygon',coordinates:[ring]},properties:{n:c.n,d:c.d,h:Math.round(60+c.n*45),t:c.n/mx}};})};}
+
+/* ---------- imágenes del mapa ---------- */
+function imagenCat(c){const px=48,cv=document.createElement('canvas');cv.width=cv.height=px;const x=cv.getContext('2d');
+ x.fillStyle=colCat(c);const r=11;x.beginPath();x.roundRect(2,2,px-4,px-4,r);x.fill();
+ x.strokeStyle='rgba(255,255,255,.95)';x.lineWidth=2.4;x.stroke();
+ x.save();x.translate(8,8);x.scale(2,2);(ICO[CATS[c].ic]||ICO.cruz).forEach(p=>{const path=new Path2D(p.d);if(p.s){x.strokeStyle='#fff';x.lineWidth=p.s;x.stroke(path);}else{x.fillStyle='#fff';x.fill(path);}});x.restore();
+ return x.getImageData(0,0,px,px);}
+function pulso(color){const size=120;return{width:size,height:size,data:new Uint8Array(size*size*4),
+ onAdd(){const c=document.createElement('canvas');c.width=c.height=size;this.ctx=c.getContext('2d');},
+ render(){const t=(performance.now()%1500)/1500,x=this.ctx,r=size/2*.22,R=size/2*.22+size/2*.6*t;
+  x.clearRect(0,0,size,size);x.beginPath();x.arc(size/2,size/2,R,0,Math.PI*2);x.fillStyle=color.replace(')',','+(.45*(1-t))+')').replace('rgb(','rgba(');x.fill();
+  this.data=x.getImageData(0,0,size,size).data;map.triggerRepaint();return true;}};}
+
+/* ---------- mapa ---------- */
+function crearMapa(){
+ map=new maplibregl.Map({container:'mapa',style:ESTILO,center:[-70.9,-33.7],zoom:7.2,pitch:0,bearing:0,maxPitch:72,antialias:true,attributionControl:false,hash:false});
+ map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'bottom-right');
+ map.addControl(new maplibregl.AttributionControl({compact:true,customAttribution:'Grifos y hallazgos: catastro Sacyr · Mapa © <a href="https://openfreemap.org">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · Relieve: AWS Terrain Tiles · Satélite © Esri'}));
+ return new Promise(r=>map.once('load',r));}
+function primerSimbolo(){const ls=map.getStyle().layers;const s=ls.find(l=>l.type==='symbol');return s?s.id:undefined;}
+/* primera etiqueta de la base que no sea agua ni flechas: lo que va antes queda bajo los nombres pero sobre las calles */
+function antesEtiquetas(){const ls=map.getStyle().layers;const s=ls.find(l=>l.type==='symbol'&&!/water_name|oneway/.test(l.id));return s?s.id:undefined;}
+function capasBase(){
+ const antes=primerSimbolo(),etq=antesEtiquetas();
+ map.addSource('dem',{type:'raster-dem',tiles:[DEM],encoding:'terrarium',tileSize:256,maxzoom:14,attribution:''});
+ map.addSource('sat',{type:'raster',tiles:[SAT],tileSize:256,maxzoom:19});
+ const base=map.getStyle().layers.find(l=>l.id==='landuse_residential'||l.type==='line');
+ map.addLayer({id:'sat',type:'raster',source:'sat',layout:{visibility:'none'},paint:{'raster-opacity':.92,'raster-saturation':-.15,'raster-contrast':.05}},base?base.id:antes);
+ map.addLayer({id:'hill',type:'hillshade',source:'dem',layout:{visibility:'none'},paint:{'hillshade-exaggeration':.42,'hillshade-shadow-color':'#000a1c','hillshade-highlight-color':'#2a5f94','hillshade-accent-color':'#071f44'}},base?base.id:antes);
+ map.addLayer({id:'edif',type:'fill-extrusion',source:'openmaptiles','source-layer':'building',minzoom:14,layout:{visibility:'none'},filter:['!',['has','hide_3d']],
+  paint:{'fill-extrusion-color':['interpolate',['linear'],['coalesce',['get','render_height'],6],0,'#1a3b6b',12,'#2a5f9e',40,'#4a90d9'],'fill-extrusion-height':['coalesce',['get','render_height'],6],'fill-extrusion-base':['coalesce',['get','render_min_height'],0],'fill-extrusion-opacity':.82}},etq);
+ /* fuentes de datos */
+ const g=S.geo;
+ map.addSource('comunas',{type:'geojson',data:{type:'FeatureCollection',features:(datos.capas.comunas||[]).map(c=>({type:'Feature',geometry:{type:'MultiLineString',coordinates:c.l.map(l=>l.map(p=>[p[1],p[0]]))},properties:{n:c.n}}))}});
+ map.addSource('pobl',{type:'geojson',data:{type:'FeatureCollection',features:(datos.capas.sect||[]).map(s=>({type:'Feature',geometry:{type:'Polygon',coordinates:[s.p.map(p=>[p[1],p[0]]).concat([[s.p[0][1],s.p[0][0]]])]},properties:{n:s.n}}))}});
+ map.addSource('places',{type:'geojson',data:{type:'FeatureCollection',features:(datos.capas.places||[]).map(p=>({type:'Feature',geometry:{type:'Point',coordinates:[p.ln,p.la]},properties:{n:p.n,g:/^(town|village|suburb|quarter)$/.test(p.t)?1:0}}))}});
+ map.addSource('sect',{type:'geojson',data:g.fS});map.addSource('sectl',{type:'geojson',data:g.fSl});
+ map.addSource('calor',{type:'geojson',data:g.fC});map.addSource('hex',{type:'geojson',data:g.fH});
+ map.addSource('radios',{type:'geojson',data:g.fR});map.addSource('lug',{type:'geojson',data:g.fL});map.addSource('grifos',{type:'geojson',data:g.fG});
+ /* áreas (bajo las etiquetas de la base) */
+ map.addLayer({id:'pobl-f',type:'fill',source:'pobl',paint:{'fill-color':'#63D1E0','fill-opacity':.05}},antes);
+ map.addLayer({id:'pobl-l',type:'line',source:'pobl',paint:{'line-color':'#63D1E0','line-opacity':.35,'line-width':.8}},antes);
+ map.addLayer({id:'sect-f',type:'fill',source:'sect',paint:{'fill-color':'#01B3D7','fill-opacity':.09}},antes);
+ map.addLayer({id:'sect-l',type:'line',source:'sect',paint:{'line-color':'#2FD4F5','line-opacity':.85,'line-width':1.6,'line-dasharray':[3,2]}},antes);
+ map.addLayer({id:'com-l',type:'line',source:'comunas',paint:{'line-color':'#8FD6E8','line-opacity':.55,'line-width':['interpolate',['linear'],['zoom'],8,1.2,14,2.4],'line-dasharray':[6,4]}},antes);
+ map.addLayer({id:'calor',type:'heatmap',source:'calor',maxzoom:17,layout:{visibility:'none'},paint:{
+  'heatmap-weight':['interpolate',['linear'],['get','w'],1,.4,3,1],'heatmap-intensity':['interpolate',['linear'],['zoom'],9,.6,15,2.2],
+  'heatmap-radius':['interpolate',['linear'],['zoom'],9,14,13,30,16,60],'heatmap-opacity':.8,
+  'heatmap-color':['interpolate',['linear'],['heatmap-density'],0,'rgba(1,179,215,0)',.2,'rgba(1,179,215,.55)',.45,'#FFD83D',.7,'#FF9A3C',1,'#FF4D63']}},etq);
+ map.addLayer({id:'hex',type:'fill-extrusion',source:'hex',layout:{visibility:'none'},paint:{
+  'fill-extrusion-color':['interpolate',['linear'],['get','t'],0,'#1aa5c9',.35,'#FFD83D',.65,'#FF9A3C',1,'#FF4D63'],
+  'fill-extrusion-height':['get','h'],'fill-extrusion-base':0,'fill-extrusion-opacity':.78,'fill-extrusion-vertical-gradient':true}},etq);
+ map.addLayer({id:'radios-f',type:'fill',source:'radios',layout:{visibility:'none'},paint:{'fill-color':['match',['get','g'],'salud',GRUPOS.salud.col,'educ',GRUPOS.educ.col,'emer',GRUPOS.emer.col,GRUPOS.pen.col],'fill-opacity':['case',['==',['get','riesgo'],1],.22,.09]}},etq);
+ map.addLayer({id:'radios-l',type:'line',source:'radios',layout:{visibility:'none'},paint:{'line-color':['case',['==',['get','riesgo'],1],'#FF4D63',['match',['get','g'],'salud',GRUPOS.salud.col,'educ',GRUPOS.educ.col,'emer',GRUPOS.emer.col,GRUPOS.pen.col]],'line-width':['case',['==',['get','riesgo'],1],1.8,.9],'line-opacity':.8,'line-dasharray':[2,2]}},etq);
+ /* puntos y etiquetas (sobre todo) */
+ Object.keys(CATS).forEach(c=>map.addImage('ico-'+c,imagenCat(c),{pixelRatio:2}));
+ map.addImage('pulso',pulso('rgb(255,77,99)'),{pixelRatio:2});
+ const colCrit=['match',['get','crit'],'directa',COL.directa,'indirecta',COL.indirecta,'senaletica',COL.senaletica,'resuelto',COL.resuelto,COL.sin];
+ const rBase=['match',['get','crit'],'directa',1,'indirecta',.88,'senaletica',.7,'resuelto',.55,.5];
+ const radio=(k)=>['interpolate',['linear'],['zoom'],9,['*',rBase,3.2*k],12,['*',rBase,5*k],15,['*',rBase,8.5*k],18,['*',rBase,13*k]];
+ map.addLayer({id:'grifo-glow',type:'circle',source:'grifos',paint:{'circle-color':colCrit,'circle-radius':radio(2.3),'circle-blur':1,'circle-opacity':['match',['get','crit'],'sin',.18,'resuelto',.2,.5],'circle-pitch-alignment':'viewport'}});
+ map.addLayer({id:'grifo-pulso',type:'symbol',source:'grifos',filter:['==',['get','pulso'],1],layout:{'icon-image':'pulso','icon-allow-overlap':true,'icon-ignore-placement':true,'icon-size':['interpolate',['linear'],['zoom'],9,.45,13,.8,17,1.2]}});
+ map.addLayer({id:'grifo-core',type:'circle',source:'grifos',paint:{'circle-color':['case',['==',['get','est'],'en_proceso'],'#0b1b33',colCrit],'circle-radius':radio(1),
+  'circle-stroke-color':['case',['==',['get','est'],'en_proceso'],colCrit,'rgba(255,255,255,.9)'],'circle-stroke-width':['case',['==',['get','est'],'en_proceso'],2.2,['match',['get','crit'],'sin',.6,1]],'circle-pitch-alignment':'viewport'}});
+ map.addLayer({id:'lug-ico',type:'symbol',source:'lug',layout:{'icon-image':['concat','ico-',['get','c']],'icon-size':['interpolate',['linear'],['zoom'],9,.45,13,.8,16,1],'icon-allow-overlap':false,'symbol-sort-key':['get','pri'],
+  'text-field':['step',['zoom'],'',13.5,['get','n']],'text-font':['Noto Sans Bold'],'text-size':11,'text-offset':[0,1.3],'text-anchor':'top','text-optional':true,'text-max-width':12},
+  paint:{'text-color':'#EAF4FF','text-halo-color':'rgba(2,10,28,.95)','text-halo-width':1.4,'icon-opacity':.95}});
+ map.addLayer({id:'grifo-txt',type:'symbol',source:'grifos',minzoom:15.5,layout:{'text-field':['get','k'],'text-font':['Noto Sans Bold'],'text-size':10.5,'text-offset':[0.9,0],'text-anchor':'left','text-optional':true},paint:{'text-color':'#fff','text-halo-color':'rgba(2,10,28,.95)','text-halo-width':1.3}});
+ map.addLayer({id:'sect-t',type:'symbol',source:'sectl',minzoom:11,maxzoom:15.5,layout:{'text-field':['format',['get','n'],{'font-scale':1},'\n',{},['get','t'],{'font-scale':.8,'text-color':'#9FE3F2'}],'text-font':['Noto Sans Bold'],'text-size':12,'text-letter-spacing':.08,'text-anchor':'bottom'},paint:{'text-color':'#C8F3FF','text-halo-color':'rgba(2,10,28,.9)','text-halo-width':1.5}});
+ map.addLayer({id:'pobl-t',type:'symbol',source:'places',minzoom:11.5,filter:['==',['get','g'],1],layout:{'text-field':['get','n'],'text-font':['Noto Sans Bold'],'text-size':12,'text-letter-spacing':.12,'text-transform':'uppercase'},
+  paint:{'text-color':'#D9E6F5','text-halo-color':'rgba(2,10,28,.9)','text-halo-width':1.2}});
+ map.addLayer({id:'pobl-t2',type:'symbol',source:'places',minzoom:14.5,filter:['==',['get','g'],0],layout:{'text-field':['get','n'],'text-font':['Noto Sans Italic'],'text-size':10.5},
+  paint:{'text-color':'#A9BCD6','text-halo-color':'rgba(2,10,28,.9)','text-halo-width':1.2}});
+ /* interacción */
+ ['grifo-core','lug-ico'].forEach(id=>{map.on('mouseenter',id,()=>map.getCanvas().style.cursor='pointer');map.on('mouseleave',id,()=>{map.getCanvas().style.cursor='';if(tip)tip.remove();});});
+ map.on('mousemove','grifo-core',e=>{const p=e.features[0].properties;mostrarTip(e.lngLat,'<b>'+esc(p.k)+'</b> · '+NOMC[p.crit]+(p.est&&p.est!=='sin'&&p.crit!=='sin'&&p.crit!=='resuelto'?' · '+ESTN[p.est]:''));});
+ map.on('mousemove','lug-ico',e=>{const p=e.features[0].properties;mostrarTip(e.lngLat,'<b>'+esc(p.n)+'</b> · '+esc(p.nom));});
+ map.on('click','grifo-core',e=>{e.preventDefault();fichaGrifo(e.features[0].properties.k);});
+ map.on('click','lug-ico',e=>{if(e.defaultPrevented)return;fichaLugar(+e.features[0].properties.i);});
+ map.on('click','sect-f',e=>{if(e.defaultPrevented||map.queryRenderedFeatures(e.point,{layers:['grifo-core','lug-ico']}).length)return;const p=e.features[0].properties;mostrarTip(e.lngLat,'<b>Sector '+esc(p.n)+'</b> · '+p.total+' grifos',true);});
+}
+function mostrarTip(ll,html,fijo){if(tip)tip.remove();tip=new maplibregl.Popup({closeButton:false,closeOnClick:true,className:'tip',offset:12,maxWidth:'300px'}).setLngLat(ll).setHTML(html).addTo(map);if(!fijo)return;}
+
+/* ---------- vistas, capas y filtros ---------- */
+function aplicarVista(){
+ const v=S.vista,g=S.geo;
+ const f=[];
+ if(v==='hall')f.push(['!=',['get','crit'],'sin']);
+ if(S.filtro==='abierta')f.push(v==='hall'?['==',['get','est'],'en_proceso']:['>',['get','ab'],0]);
+ if(S.filtro==='directa')f.push(['==',['get','crit'],'directa']);
+ if(S.filtro==='sensible')f.push(['all',['>',['get','ab'],0],['==',['get','sens'],1]]);
+ if(S.filtro.startsWith('g:'))f.push(['all',['>',['get','ab'],0],['in',S.filtro.slice(2),['get','grp']]]);
+ if(S.filtro==='resuelto')f.push(['==',['get','crit'],'resuelto']);
+ if(S.filtro==='sin')f.push(['==',['get','crit'],'sin']);
+ const filtro=f.length?['all',...f]:null;
+ ['grifo-glow','grifo-core','grifo-txt'].forEach(id=>map.setFilter(id,filtro));
+ map.setFilter('grifo-pulso',filtro?['all',['==',['get','pulso'],1],filtro]:['==',['get','pulso'],1]);
+ const fl=[];
+ if(S.filtro==='riesgo')fl.push(['==',['get','riesgo'],1]);
+ if(S.filtro==='sinlug')fl.push(['==',['get','ncer'],0]);
+ if(S.filtro.startsWith('g:'))fl.push(['==',['get','g'],S.filtro.slice(2)]);
+ map.setFilter('lug-ico',fl.length?['all',...fl]:null);
+ map.setFilter('radios-f',fl.length?['all',...fl.filter(x=>x[1][1]!=='ncer')]:null);map.setFilter('radios-l',map.getFilter('radios-f'));
+ map.setPaintProperty('grifo-core','circle-opacity',v==='lug'?.75:1);
+ map.setLayoutProperty('lug-ico','icon-size',['interpolate',['linear'],['zoom'],9,v==='lug'?.6:.42,13,v==='lug'?1:.75,16,v==='lug'?1.15:.95]);
+ map.setLayoutProperty('lug-ico','text-field',['step',['zoom'],'',v==='lug'?12.5:13.5,['get','n']]);
+ map.setPaintProperty('lug-ico','icon-opacity',v==='hall'?.78:.97);
+ ['radios-f','radios-l'].forEach(id=>map.setLayoutProperty(id,'visibility',v==='lug'?'visible':'none'));
+ map.setPaintProperty('grifo-glow','circle-opacity',['match',['get','crit'],'sin',v==='parque'?.25:.1,'resuelto',.18,v==='lug'?.3:.5]);
+ ['sect-f','sect-l','sect-t'].forEach(id=>map.setLayoutProperty(id,'visibility',S.capas.sect?'visible':'none'));
+ ['pobl-f','pobl-l','pobl-t','pobl-t2'].forEach(id=>map.setLayoutProperty(id,'visibility',S.capas.pobl?'visible':'none'));
+ map.setLayoutProperty('com-l','visibility',S.capas.com?'visible':'none');
+ map.setLayoutProperty('calor','visibility',S.capas.calor?'visible':'none');
+ map.setLayoutProperty('hex','visibility',S.capas.hex?'visible':'none');
+ map.setLayoutProperty('hill','visibility',S.capas.relieve?'visible':'none');
+ map.setLayoutProperty('edif','visibility',S.capas.edif?'visible':'none');
+ map.setLayoutProperty('sat','visibility',S.sat?'visible':'none');
+ kpis();panelDer();leyenda();}
+function recalcular(fit){S.geo=construirGeo();['grifos','lug','radios','sect','sectl','calor','hex'].forEach(k=>{const src=map.getSource(k);if(!src)return;src.setData({grifos:S.geo.fG,lug:S.geo.fL,radios:S.geo.fR,sect:S.geo.fS,sectl:S.geo.fSl,calor:S.geo.fC,hex:S.geo.fH}[k]);});aplicarVista();if(fit)encuadrar();}
+function limitesParque(pad){const b=new maplibregl.LngLatBounds();datos.grifos.forEach(g=>b.extend([g.ln,g.la]));datos.hall.forEach(h=>b.extend([h.ln,h.la]));return b;}
+function padding(){const w=innerWidth;return w>1000?{top:100,bottom:40,left:310,right:340}:w>720?{top:100,bottom:40,left:300,right:30}:{top:120,bottom:60,left:20,right:20};}
+function encuadrar(anim){map.fitBounds(limitesParque(),{padding:padding(),pitch:S.tres?52:0,bearing:S.tres?-14:0,duration:anim?1800:0,maxZoom:14});}
+
+/* ---------- tarjetas, paneles y leyenda ---------- */
+function kpis(){
+ const g=S.geo,gs=g.grifos,v=S.vista,el=document.getElementById('kpis');
+ const abierto=x=>x.s&&x.s.abiertos>0;
+ const card=(id,n,l,s,c)=>'<button class="kpi'+(S.filtro===id?' on':'')+'" data-f="'+id+'" style="--c:'+(c||'#01B3D7')+'" aria-pressed="'+(S.filtro===id)+'"><span class="n">'+fmt(n)+'</span><span class="l">'+l+'</span><span class="s">'+s+'</span></button>';
+ let h='';
+ if(v==='hall'){const ab=gs.filter(abierto),dir=ab.filter(x=>x.s.crit==='directa'),sen=ab.filter(x=>x.cer.length),res=gs.filter(x=>x.s&&!x.s.abiertos);
+  h=card('todos',ab.length,'Grifos con falla abierta',fmt(res.length)+' ya resueltos')+card('directa',dir.length,'Operatividad directa',fmt(dir.filter(x=>x.s.est==='pendiente').length)+' pendientes',COL.directa)
+   +card('sensible',sen.length,'Junto a un lugar sensible',fmt(sen.filter(x=>x.s.crit==='directa').length)+' con falla directa',GRUPOS.educ.col);
+  h+=card('abierta',ab.filter(x=>x.s.est==='en_proceso').length,'Ya en proceso','con anillo en el mapa',COL.indirecta);}
+ else if(v==='parque'){const ab=gs.filter(abierto),res=gs.filter(x=>x.s&&!x.s.abiertos),sin=gs.filter(x=>!x.s),sen=gs.filter(x=>x.cer.length);
+  h=card('todos',gs.length,'Grifos en el parque',(datos.parque>gs.length?fmt(datos.parque)+' en el catastro · '+(datos.parque-gs.length)+' sin coordenada':'catastro Sacyr'))
+   +card('abierta',ab.length,'Con falla abierta',Math.round(100*ab.length/Math.max(1,gs.length))+'% del parque',COL.directa)+card('resuelto',res.length,'Hallazgos resueltos','sin pendientes',COL.resuelto)
+   +card('sensible',sen.length,'Junto a un lugar sensible',fmt(sen.filter(abierto).length)+' con falla abierta',GRUPOS.educ.col);}
+ else{const ls=g.lug,ri=ls.filter(l=>l.ndir),sl=ls.filter(l=>!l.cer.length);
+  h=card('todos',ls.length,'Lugares sensibles','en la zona del parque')+card('riesgo',ri.length,'Con grifo en falla directa','a ≤ '+S.radio+' m',COL.directa)+card('sinlug',sl.length,'Sin grifo a ≤ '+S.radio+' m','pueden estar fuera del parque',COL.resuelto);
+  h+=card('g:salud',ls.filter(l=>CATS[l.c].g==='salud').length,'Salud',fmt(ls.filter(l=>CATS[l.c].g==='salud'&&l.nab).length)+' con grifo con falla cerca',GRUPOS.salud.col);}
+ el.innerHTML=h;
+ el.querySelectorAll('.kpi').forEach(b=>b.onclick=()=>{const f=b.dataset.f;S.filtro=(S.filtro===f&&f!=='todos')?'todos':f;aplicarVista();if(S.filtro!=='todos')encuadrarFiltro();});}
+function encuadrarFiltro(){
+ const ids=S.vista==='lug'?S.geo.lug.filter(l=>pasaLugar(l)):S.geo.grifos.filter(x=>pasaGrifo(x));
+ if(!ids.length)return;const b=new maplibregl.LngLatBounds();ids.forEach(o=>b.extend([o.ln,o.la]));map.fitBounds(b,{padding:padding(),duration:1400,maxZoom:15.5});}
+function pasaGrifo(x){const f=S.filtro,ab=x.s&&x.s.abiertos>0;if(S.vista==='hall'&&!x.s)return false;
+ if(f==='todos')return true;if(f==='abierta')return S.vista==='hall'?(ab&&x.s.est==='en_proceso'):ab;if(f==='directa')return x.s&&x.s.crit==='directa';if(f==='sensible')return ab&&x.cer.length>0;
+ if(f.startsWith('g:'))return ab&&x.grp.includes(f.slice(2));if(f==='resuelto')return x.s&&!ab;if(f==='sin')return !x.s;return true;}
+function pasaLugar(l){const f=S.filtro;if(f==='riesgo')return l.ndir>0;if(f==='sinlug')return !l.cer.length;if(f.startsWith('g:'))return CATS[l.c].g===f.slice(2);return true;}
+
+function panelIzq(){
+ const p=document.getElementById('pizq'),n={};(datos.capas.lug||[]).forEach(l=>n[l.c]=(n[l.c]||0)+1);
+ const sw=(k,on,txt,extra,ic)=>'<label class="sw"><input type="checkbox" data-k="'+k+'"'+(on?' checked':'')+'>'+(ic||'')+'<span class="t">'+txt+'</span>'+(extra||'')+'</label>';
+ let h='<div class="sec"><div class="tt">Ver</div><div class="seg">'+[['hall','Hallazgos'],['parque','Parque completo'],['lug','Lugares sensibles']].map(([v,t])=>'<button data-v="'+v+'" class="'+(S.vista===v?'on':'')+'">'+t+'</button>').join('')+'</div></div>';
+ h+='<div class="sec"><div class="tt">Capas</div>'
+  +sw('cap:sect',S.capas.sect,'Sectores del parque','<small>catastro</small>')+sw('cap:pobl',S.capas.pobl,'Poblaciones y villas','<small>OpenStreetMap</small>')+sw('cap:com',S.capas.com,'Límites comunales')
+  +sw('cap:calor',S.capas.calor,'Mapa de calor','<small>hallazgos abiertos</small>')+sw('cap:hex',S.capas.hex,'Concentración 3D','<small>columnas por zona</small>')
+  +sw('cap:relieve',S.capas.relieve,'Relieve','<small>cordillera</small>')+sw('cap:edif',S.capas.edif,'Edificios 3D','<small>desde zoom 14</small>')+'</div>';
+ h+='<div class="sec"><div class="tt">Lugares sensibles <span class="mini"><button data-all="1">todos</button> · <button data-all="0">ninguno</button></span></div>';
+ Object.keys(GRUPOS).forEach(gk=>{const cs=Object.keys(CATS).filter(c=>CATS[c].g===gk&&n[c]);if(!cs.length)return;
+  h+='<div class="gr">'+GRUPOS[gk].nom+'</div>'+cs.map(c=>sw('cat:'+c,S.cats.has(c),CATS[c].nom,'<em>'+n[c]+'</em>','<span class="ic" style="background:'+colCat(c)+'">'+svgIco(c,12)+'</span>')).join('');});
+ h+='<div class="radio">Radio de cercanía<span>'+[100,150,300].map(r=>'<button data-r="'+r+'" class="'+(S.radio===r?'on':'')+'">'+r+' m</button>').join('')+'</span></div></div>';
+ h+='<div class="sec ley" id="ley"></div>';
+ h+='<div class="fuente">Grifos y hallazgos en vivo desde el catastro Sacyr. Lugares, poblaciones y límites: © colaboradores de OpenStreetMap. Revisar la lista de lugares antes de presentar.</div>';
+ p.innerHTML=h;
+ p.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{S.vista=b.dataset.v;S.filtro='todos';p.querySelectorAll('.seg button').forEach(x=>x.classList.toggle('on',x===b));aplicarVista();});
+ p.querySelectorAll('input[data-k]').forEach(i=>i.onchange=()=>{const [t,k]=i.dataset.k.split(':');
+  if(t==='cap'){S.capas[k]=i.checked;if(k==='relieve')relieve(i.checked);aplicarVista();}else{i.checked?S.cats.add(k):S.cats.delete(k);recalcular();}});
+ p.querySelectorAll('[data-all]').forEach(b=>b.onclick=()=>{const on=b.dataset.all==='1';S.cats=new Set(on?Object.keys(CATS):[]);p.querySelectorAll('input[data-k^="cat:"]').forEach(i=>i.checked=on);recalcular();});
+ p.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{S.radio=+b.dataset.r;p.querySelectorAll('[data-r]').forEach(x=>x.classList.toggle('on',x===b));recalcular();});}
+function leyenda(){const el=document.getElementById('ley');if(!el)return;
+ const pt=(c,h)=>'<i style="background:'+c+';color:'+c+'"'+(h?' class="h"':'')+'></i>';
+ let h='<div class="tt">Cómo leer el mapa</div>';
+ if(S.vista!=='lug')h+='<div>'+pt(COL.directa)+'Falla directa · pulso = pendiente</div><div>'+pt(COL.indirecta)+'Falla indirecta</div><div>'+pt(COL.senaletica)+'Señalética</div><div>'+pt(COL.directa,1)+'Anillo = ya en proceso</div><div>'+pt(COL.resuelto)+'Hallazgos resueltos</div>';
+ if(S.vista==='parque')h+='<div>'+pt(COL.sin)+'Sin hallazgos</div>';
+ if(S.vista==='lug')h+='<div style="color:#9FB3CC">Cada lugar muestra su radio de '+S.radio+' m; borde rojo = tiene un grifo con falla directa dentro.</div>';
+ h+='<div><span class="ic" style="background:'+GRUPOS.educ.col+';width:14px;height:14px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center">'+svgIco('colegio',9)+'</span>Lugar sensible (color = grupo)</div>';
+ el.innerHTML=h;}
+function panelDer(){
+ const p=document.getElementById('pder'),gs=S.geo.grifos,abierto=x=>x.s&&x.s.abiertos>0;
+ const com={};gs.forEach(g=>{const k=(g.co||'Sin comuna').toUpperCase();const c=com[k]=com[k]||{n:0,ab:0,dir:0,ind:0,sen:0,sens:0,b:new maplibregl.LngLatBounds()};c.n++;c.b.extend([g.ln,g.la]);
+  if(abierto(g)){c.ab++;if(g.s.crit==='directa')c.dir++;else if(g.s.crit==='indirecta')c.ind++;else c.sen++;if(g.cer.length)c.sens++;}});
+ let h='<div class="sec"><div class="tt">Comunas <span class="mini">toca para acercar</span></div>';
+ Object.keys(com).sort((a,b)=>com[b].ab-com[a].ab).forEach(k=>{const c=com[k];
+  h+='<button class="com" data-c="'+esc(k)+'"><b>'+esc(titulo(k))+'</b><span class="n">'+c.ab+'</span><span class="d">'+c.n+' grifos · <i style="background:'+COL.directa+'"></i>'+c.dir+' directa · '+c.sens+' junto a lugar sensible</span>'
+   +'<span class="barra"><span style="width:'+(100*c.dir/Math.max(1,c.ab))+'%;background:'+COL.directa+'"></span><span style="width:'+(100*c.ind/Math.max(1,c.ab))+'%;background:'+COL.indirecta+'"></span><span style="width:'+(100*c.sen/Math.max(1,c.ab))+'%;background:'+COL.senaletica+'"></span></span></button>';});
+ h+='</div>';
+ const ab=gs.filter(abierto),ls=S.geo.lug;
+ h+='<div class="sec"><div class="tt">Junto a lugares sensibles <span class="mini">a ≤ '+S.radio+' m · toca para filtrar</span></div>'+Object.keys(GRUPOS).map(k=>{
+  const n=S.vista==='lug'?ls.filter(l=>CATS[l.c].g===k):ab.filter(x=>x.grp.includes(k));if(!n.length)return '';
+  const sub=S.vista==='lug'?fmt(n.filter(l=>l.nab).length)+' con grifo con falla cerca':fmt(n.filter(x=>x.s.crit==='directa').length)+' con falla directa';
+  return '<button class="pri grp'+(S.filtro==='g:'+k?' on':'')+'" data-f="g:'+k+'"><span class="ic" style="background:'+GRUPOS[k].col+'">'+svgIco(Object.keys(CATS).find(c=>CATS[c].g===k),11)+'</span><span class="k" style="min-width:34px">'+fmt(n.length)+'</span><span class="w"><b>'+GRUPOS[k].nom+'</b> · '+sub+'</span></button>';}).join('')+'</div>';
+ const pri=gs.filter(x=>x.s&&x.s.crit==='directa'&&x.s.est==='pendiente').sort((a,b)=>(b.cer.length?1:0)-(a.cer.length?1:0)||b.s.abiertos-a.s.abiertos).slice(0,8);
+ h+='<div class="sec"><div class="tt">Prioridad hoy <span class="mini">falla directa pendiente</span></div>'+(pri.length?pri.map(x=>'<button class="pri" data-k="'+esc(x.k)+'"><span class="p"></span><span class="k">'+esc(x.k)+'</span><span class="w">'+esc(x.cer.length?x.cer[0].o.n+' · '+Math.round(x.cer[0].d)+' m':titulo(x.loc||x.co))+'</span><span class="z">ver</span></button>').join(''):'<div style="color:#9FB3CC;font-size:11.5px">Sin fallas directas pendientes.</div>')+'</div>';
+ p.innerHTML=h;
+ p.querySelectorAll('.com').forEach(b=>b.onclick=()=>{const c=com[b.dataset.c];map.fitBounds(c.b,{padding:padding(),pitch:50,bearing:-16,duration:2200,maxZoom:14.5});});
+ p.querySelectorAll('.pri:not(.grp)').forEach(b=>b.onclick=()=>irAGrifo(b.dataset.k));
+ p.querySelectorAll('.pri.grp').forEach(b=>b.onclick=()=>{const f=b.dataset.f;S.filtro=S.filtro===f?'todos':f;aplicarVista();if(S.filtro!=='todos')encuadrarFiltro();});}
+function irAGrifo(k){const g=S.geo.grifos.find(x=>x.k===k);if(!g)return;map.flyTo({center:[g.ln,g.la],zoom:17,pitch:58,bearing:-20,duration:2400,essential:true});map.once('moveend',()=>fichaGrifo(k));}
+
+/* ---------- fichas ---------- */
+function fichaGrifo(k){
+ const g=S.geo.grifos.find(x=>x.k===k);if(!g)return;if(popup)popup.remove();if(tip)tip.remove();
+ const s=g.s,c=g.cat,col=!s?COL.sin:COL[s.crit],proc=s&&s.est==='en_proceso';
+ let h='<div class="pc">'+esc(g.k)+'</div><div class="pm">'+[titulo(g.co),g.loc?'Sector '+titulo(g.loc):''].filter(Boolean).map(esc).join(' · ')+'</div>';
+ h+='<div class="pb"><i style="background:'+col+';color:'+col+'"'+(proc?' class="h"':'')+'></i>'+(!s?'Sin hallazgos registrados':s.abiertos?NOMC[s.crit]+' · '+ESTN[s.est]:'Todo resuelto')+'</div>';
+ if(s){h+='<div class="pt">'+s.n+' hallazgo'+(s.n===1?'':'s')+' · '+s.abiertos+' abierto'+(s.abiertos===1?'':'s')+(s.tipos.length?'<br>'+s.tipos.map(esc).join(' · '):'')+'</div>';}
+ if(c&&(c.mod||c.dia||c.ano))h+='<div class="pt">'+[c.mod,c.dia?'Ø '+c.dia+' mm':'',c.ano?'Instalado '+c.ano:''].filter(Boolean).map(esc).join(' · ')+'</div>';
+ if(g.cer.length){h+='<div class="pl">Lugares sensibles a ≤ '+S.radio+' m</div>'+g.cer.slice(0,4).map(x=>'<div class="pli"><span class="ic" style="background:'+colCat(x.o.c)+'">'+svgIco(x.o.c,10)+'</span>'+esc(x.o.n)+'<span>'+Math.round(x.d)+' m</span></div>').join('')+(g.cer.length>4?'<div class="pt">y '+(g.cer.length-4)+' más</div>':'');}
+ else h+='<div class="sinl">Sin lugares sensibles a ≤ '+S.radio+' m.</div>';
+ h+='<div class="pacc"><button data-a="zoom">Acercar</button><button data-a="sat">Ver satélite</button></div>';
+ popup=new maplibregl.Popup({className:'pop',maxWidth:'330px',offset:14}).setLngLat([g.ln,g.la]).setHTML(h).addTo(map);
+ popup.getElement().querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{if(b.dataset.a==='zoom')map.flyTo({center:[g.ln,g.la],zoom:18,pitch:60,duration:1800});else{if(!S.sat)toggleSat();map.flyTo({center:[g.ln,g.la],zoom:18.5,pitch:0,duration:1800});}});}
+function fichaLugar(i){
+ const l=S.geo.lug[i];if(!l)return;if(popup)popup.remove();if(tip)tip.remove();
+ const cer=l.cer;
+ let h='<div class="pc" style="font-size:14px">'+esc(l.n)+'</div><div class="pm"><span class="ic" style="background:'+colCat(l.c)+';display:inline-flex;width:14px;height:14px;border-radius:4px;align-items:center;justify-content:center;vertical-align:-3px;margin-right:4px">'+svgIco(l.c,9)+'</span>'+esc(CATS[l.c].nom)+'</div>';
+ h+='<div class="pb"><i style="background:'+(l.ndir?COL.directa:l.nab?COL.indirecta:cer.length?COL.sin:COL.resuelto)+';color:'+(l.ndir?COL.directa:COL.sin)+'"></i>'+cer.length+' grifo'+(cer.length===1?'':'s')+' a ≤ '+S.radio+' m</div>';
+ h+='<div class="pt">'+(l.nab?l.nab+' con falla abierta'+(l.ndir?' · <b style="color:'+COL.directa+'">'+l.ndir+' directa</b>':''):cer.length?'Ninguno con falla abierta':'Puede estar fuera de la zona del parque')+'</div>';
+ if(cer.length)h+='<div class="pl">Grifos más cercanos</div>'+cer.slice(0,5).map(x=>{const g=x.o,col=!g.s?COL.sin:COL[g.s.crit];return '<div class="pli"><i class="pd" style="background:'+col+';color:'+col+'"></i>'+esc(g.k)+' <em>'+(!g.s?'sin hallazgos':g.s.abiertos?NOMC[g.s.crit]:'resuelto')+'</em><span>'+Math.round(x.d)+' m</span></div>';}).join('');
+ popup=new maplibregl.Popup({className:'pop',maxWidth:'330px',offset:16}).setLngLat([l.ln,l.la]).setHTML(h).addTo(map);}
+
+/* ---------- 3D, satélite, pantalla completa, búsqueda ---------- */
+function relieve(on){map.setTerrain(on?{source:'dem',exaggeration:1.35}:null);}
+function toggle3D(){S.tres=!S.tres;document.getElementById('b3d').classList.toggle('on',S.tres);
+ S.capas.relieve=S.tres;S.capas.edif=S.tres;document.querySelectorAll('input[data-k="cap:relieve"],input[data-k="cap:edif"]').forEach(i=>i.checked=S.tres);
+ relieve(S.tres);aplicarVista();map.easeTo({pitch:S.tres?55:0,bearing:S.tres?-14:0,duration:1400});}
+function toggleSat(){S.sat=!S.sat;document.getElementById('bsat').classList.toggle('on',S.sat);
+ map.getStyle().layers.forEach(l=>{if(l.type==='fill'&&!/^(sect|pobl|radios)/.test(l.id))map.setLayoutProperty(l.id,'visibility',S.sat?'none':'visible');});
+ map.setLayoutProperty('sat','visibility',S.sat?'visible':'none');}
+function pantalla(){const d=document;if(!d.fullscreenElement)d.documentElement.requestFullscreen&&d.documentElement.requestFullscreen();else d.exitFullscreen();}
+function buscar(txt){const k=String(txt||'').trim().toUpperCase();if(!k)return;const g=S.geo.grifos.find(x=>x.k===k)||S.geo.grifos.find(x=>x.k.startsWith(k));
+ if(g)irAGrifo(g.k);else aviso('No encontré el grifo "'+esc(k)+'".');}
+function aviso(t){const a=document.getElementById('aviso');a.innerHTML=t;a.classList.add('on');clearTimeout(a._t);a._t=setTimeout(()=>a.classList.remove('on'),3500);}
+
+/* ---------- recorrido ---------- */
+const dormir=ms=>new Promise(r=>setTimeout(r,ms));
+function volar(o){return new Promise(r=>{map.once('moveend',r);map.flyTo(Object.assign({essential:true},o));});}
+function caption(t,b,s){const c=document.getElementById('cap');if(!t){c.classList.remove('on');return;}c.innerHTML='<button class="cx" aria-label="Detener">✕</button><div class="ct">'+t+'</div><div class="cb">'+b+'</div><div class="cs">'+s+'</div>';c.classList.add('on');c.querySelector('.cx').onclick=detenerTour;}
+async function tour(){
+ if(S.tour){detenerTour();return;}
+ const id=S.tour={};document.getElementById('btour').classList.add('on');if(popup)popup.remove();
+ const g=S.geo,gs=g.grifos,abierto=x=>x.s&&x.s.abiertos>0;
+ const vivo=()=>S.tour===id;
+ try{
+  const ab=gs.filter(abierto),dir=ab.filter(x=>x.s.crit==='directa'),sen=ab.filter(x=>x.cer.length);
+  caption('Parque Grifos Sacyr','Colina · Lampa · Lo Barnechea',fmt(datos.parque)+' grifos · '+fmt(ab.length)+' con falla abierta · '+fmt(dir.length)+' de operatividad directa');
+  await volar(Object.assign({pitch:50,bearing:-14,duration:3200},map.cameraForBounds(limitesParque(),{padding:padding()})));if(!vivo())return;await dormir(2600);if(!vivo())return;
+  const com={};ab.forEach(x=>{const k=(x.co||'').toUpperCase();if(!k)return;(com[k]=com[k]||{ab:0,dir:0,sen:0,b:new maplibregl.LngLatBounds()});com[k].ab++;if(x.s.crit==='directa')com[k].dir++;if(x.cer.length)com[k].sen++;com[k].b.extend([x.ln,x.la]);});
+  for(const k of Object.keys(com).sort((a,b)=>com[b].ab-com[a].ab)){if(!vivo())return;const c=com[k];
+   caption('Comuna',titulo(k),c.ab+' grifos con falla abierta · '+c.dir+' directa · '+c.sen+' junto a un lugar sensible');
+   const cam=map.cameraForBounds(c.b,{padding:padding(),maxZoom:14});await volar(Object.assign({pitch:55,bearing:-24,duration:3000},cam));if(!vivo())return;await dormir(2800);}
+  caption('Lugares sensibles','Colegios, salud, emergencias y cárceles',sen.length+' grifos con falla abierta están a menos de '+S.radio+' m de un lugar sensible');
+  const antesV=S.vista;S.vista='lug';aplicarVista();await dormir(2600);if(!vivo())return;S.vista=antesV;aplicarVista();
+  const pri=gs.filter(x=>x.s&&x.s.crit==='directa'&&x.s.est==='pendiente').sort((a,b)=>(b.cer.length?1:0)-(a.cer.length?1:0)||b.s.abiertos-a.s.abiertos).slice(0,3);
+  for(const x of pri){if(!vivo())return;caption('Prioridad',x.k+' · '+titulo(x.co),(x.s.tipos[0]||'Operatividad directa')+(x.cer.length?' · a '+Math.round(x.cer[0].d)+' m de '+x.cer[0].o.n:''));
+   await volar({center:[x.ln,x.la],zoom:17,pitch:60,bearing:-30,duration:3200});if(!vivo())return;fichaGrifo(x.k);await dormir(3200);if(popup)popup.remove();}
+  caption('Gestión Sacyr','Centro de control','Recorrido terminado · toca cualquier grifo o lugar para ver su ficha');
+  await volar(Object.assign({pitch:S.tres?52:0,bearing:S.tres?-14:0,duration:3200},map.cameraForBounds(limitesParque(),{padding:padding()})));await dormir(2500);
+ }finally{if(vivo())detenerTour();}}
+function detenerTour(){S.tour=null;document.getElementById('btour').classList.remove('on');caption(null);map.stop();}
+
+/* ---------- carga ---------- */
+const CLAVE='ccCache.v1';
+function procesar(h,c){
+ const LEG={inmediato:'directa',corto:'indirecta',mediano:'senaletica'};const hall=[];
+ h.forEach(d=>{const x=d.data();const det=Array.isArray(x.hallazgos_detalle)?x.hallazgos_detalle:[];
+  if(!det.length&&!x.tipo_hallazgo)return;if(typeof x.lat!=='number'||typeof x.lng!=='number')return;
+  let cr=LEG[x.prioridad]||x.prioridad||'senaletica';if(det.length&&det.every(d2=>/pintura/i.test(d2.tipo_hallazgo||'')))cr='senaletica';
+  const t=det.length?det.map(d2=>d2&&d2.tipo_hallazgo).filter(Boolean).map(String):(x.tipo_hallazgo?[String(x.tipo_hallazgo)]:[]);
+  hall.push({id:d.id,c:(x.codigo_grifo||'').toUpperCase(),co:x.comuna||'',cr,e:x.estado||'pendiente',la:x.lat,ln:x.lng,t});});
+ const grifos=[];c.forEach(d=>{const x=d.data();if(typeof x.lat==='number'&&typeof x.lng==='number')grifos.push({k:String(x.codigo||d.id).toUpperCase(),la:x.lat,ln:x.lng,co:x.comuna||'',loc:x.localidad||'',mod:x.modelo||'',dia:x.diametro_conexion||'',ano:x.ano_instalacion||''});});
+ return{hall,parque:c.size,grifos};}
+function estado(t){document.getElementById('estado').textContent=t;}
+function iniciar(desdeCache){
+ document.getElementById('cst').textContent='Preparando el mapa…';
+ S.geo=construirGeo();capasBase();panelIzq();aplicarVista();
+ estado(desdeCache?'Datos guardados · actualizando con el catastro…':'Catastro al día · '+new Date().toLocaleString('es-CL',{dateStyle:'medium',timeStyle:'short'}));
+ document.getElementById('carga').classList.add('off');S.listo=true;
+ /* entrada cinematográfica */
+ const cam=map.cameraForBounds(limitesParque(),{padding:padding()});
+ map.flyTo(Object.assign({pitch:0,bearing:0,duration:3400,essential:true},cam));
+}
+async function cargar(){
+ const pCapas=fetch('capas-mapa.json').then(r=>r.ok?r.json():null).catch(()=>null);
+ const pMapa=crearMapa();
+ let guardado=null,txtGuardado='';try{guardado=JSON.parse(localStorage.getItem(CLAVE)||'null');if(guardado&&guardado.datos)txtGuardado=JSON.stringify(guardado.datos);}catch(e){guardado=null;}
+ const fijarCapas=j=>{datos.capas=j||{comunas:[],sect:[],places:[],lug:[]};datos.capas.lug=(datos.capas.lug||[]).filter(l=>CATS[l.c]);};
+ let dibujado=false;
+ const pFire=new Promise((res,rej)=>{try{
+   firebase.initializeApp({apiKey:"AIzaSyApa-zy4sV8iM1-MNgtIvRcev9j8CAve10",authDomain:"hallazgos-grifos-app.firebaseapp.com",projectId:"hallazgos-grifos-app",storageBucket:"hallazgos-grifos-app.firebasestorage.app",messagingSenderId:"156705018338",appId:"1:156705018338:web:9c35d7983923aaa123e9bb"});
+   const db=firebase.firestore();Promise.all([db.collection('hallazgos').get(),db.collection('catalogo_grifos').get()]).then(([h,c])=>res(procesar(h,c))).catch(rej);
+  }catch(e){rej(e);}});
+ if(guardado&&guardado.datos&&Array.isArray(guardado.datos.hall)){
+  datos=guardado.datos;const j=await pCapas;fijarCapas(j);await pMapa;iniciar(true);dibujado=true;}
+ try{const nuevo=await pFire;const txt=JSON.stringify(nuevo);try{localStorage.setItem(CLAVE,JSON.stringify({t:Date.now(),datos:nuevo}));}catch(e){}
+  if(!dibujado){datos=nuevo;const j=await pCapas;fijarCapas(j);await pMapa;iniciar(false);dibujado=true;}
+  else if(txtGuardado!==txt){nuevo.capas=datos.capas;datos=nuevo;recalcular();estado('Catastro al día · '+new Date().toLocaleString('es-CL',{dateStyle:'medium',timeStyle:'short'}));}
+  else estado('Catastro al día · '+new Date().toLocaleString('es-CL',{dateStyle:'medium',timeStyle:'short'}));
+ }catch(e){if(dibujado)estado('Sin conexión al catastro · mostrando datos guardados');else{document.getElementById('cst').textContent='No se pudo leer el catastro: '+e.message;}}
+}
+function enlazar(){
+ document.getElementById('b3d').onclick=toggle3D;document.getElementById('bsat').onclick=toggleSat;document.getElementById('btour').onclick=tour;document.getElementById('bfull').onclick=pantalla;
+ document.getElementById('bmov').onclick=()=>document.getElementById('pizq').classList.toggle('on');
+ const b=document.getElementById('busca');b.onkeydown=e=>{if(e.key==='Enter'){buscar(b.value);b.blur();}};
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(S.tour)detenerTour();if(popup)popup.remove();}});
+ window.addEventListener('resize',()=>{if(map)map.resize();});}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{enlazar();cargar();});else{enlazar();cargar();}
+</script></body></html>
