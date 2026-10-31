@@ -50,7 +50,7 @@ html,body{margin:0;height:100%;background:#020a1c;color:var(--txt);font:500 13px
 .btn svg{width:16px;height:16px;flex:none}
 .btn.on svg *{stroke:#001640}
 .busca{display:flex;align-items:center;gap:8px;background:var(--glass);backdrop-filter:blur(14px);border:1px solid var(--borde);border-radius:12px;height:46px;padding:0 12px;box-shadow:var(--sombra)}
-.busca input{all:unset;width:110px;font:600 12px 'IBM Plex Mono',monospace;color:#fff;text-transform:uppercase}
+.busca input{all:unset;width:110px;font:700 12px Inter,sans-serif;color:#fff;text-transform:uppercase;letter-spacing:.03em}
 .busca input::placeholder{color:var(--mute);text-transform:none;font-family:Inter}
 .busca svg{width:15px;height:15px;color:var(--cy2)}
 
@@ -97,7 +97,7 @@ html,body{margin:0;height:100%;background:#020a1c;color:var(--txt);font:500 13px
 .barra span{height:100%}
 .pri{all:unset;cursor:pointer;display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:10px;width:100%;transition:background .15s}
 .pri:hover{background:rgba(1,179,215,.1)}
-.pri .k{font:600 12px 'IBM Plex Mono',monospace;color:#fff;min-width:66px}
+.pri .k{font:700 12px Inter,sans-serif;color:#fff;min-width:66px;font-variant-numeric:tabular-nums;letter-spacing:.02em}
 .pri .w{flex:1;min-width:0;font-size:11px;color:var(--soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pri .p{width:9px;height:9px;border-radius:50%;background:var(--dir);box-shadow:0 0 10px var(--dir);flex:none;animation:pul 1.6s infinite}
 @keyframes pul{0%,100%{transform:scale(1)}50%{transform:scale(1.35)}}
@@ -332,7 +332,18 @@ function crearMapa(){
 function primerSimbolo(){const ls=map.getStyle().layers;const s=ls.find(l=>l.type==='symbol');return s?s.id:undefined;}
 /* primera etiqueta de la base que no sea agua ni flechas: lo que va antes queda bajo los nombres pero sobre las calles */
 function antesEtiquetas(){const ls=map.getStyle().layers;const s=ls.find(l=>l.type==='symbol'&&!/water_name|oneway/.test(l.id));return s?s.id:undefined;}
+/* La base "dark" de OpenFreeMap es casi negra: se retiñe al azul marino de la marca
+   para que calles, agua y manzanas se lean sin competir con los grifos. */
+function tematizar(){
+ const T={background:['background-color','#061331'],water:['fill-color','#0a2550'],waterway:['line-color','#0f3366'],landuse_residential:['fill-color','#0c1f44'],landuse_park:['fill-color','#0a2740'],landcover_wood:['fill-color','#0a2238'],building:['fill-color','#0e2347'],
+  highway_path:['line-color','#1c3159'],highway_minor:['line-color','#223c6e'],highway_major_casing:['line-color','#0b1a3a'],highway_major_inner:['line-color','#2e5390'],highway_major_subtle:['line-color','#2a4a80'],
+  highway_motorway_casing:['line-color','#0b1a3a'],highway_motorway_inner:['line-color','#3b6bb3'],highway_motorway_subtle:['line-color','#2e5390'],railway:['line-color','#243a66'],railway_minor:['line-color','#1f3358'],railway_transit:['line-color','#1f3358'],boundary_state:['line-color','#2a4a80'],'boundary_country_z5-':['line-color','#2a4a80']};
+ Object.keys(T).forEach(id=>{if(map.getLayer(id))map.setPaintProperty(id,T[id][0],T[id][1]);});
+ if(map.getLayer('building'))map.setPaintProperty('building','fill-outline-color','#17325f');
+ map.getStyle().layers.forEach(l=>{if(l.type!=='symbol')return;const esLugar=/^place_/.test(l.id);
+  map.setPaintProperty(l.id,'text-color',esLugar?'#9FB3CC':'#8CA3C4');map.setPaintProperty(l.id,'text-halo-color','rgba(6,19,49,.9)');if(esLugar)map.setPaintProperty(l.id,'text-opacity',.7);});}
 function capasBase(){
+ tematizar();
  const antes=primerSimbolo(),etq=antesEtiquetas();
  map.addSource('dem',{type:'raster-dem',tiles:[DEM],encoding:'terrarium',tileSize:256,maxzoom:14,attribution:''});
  map.addSource('sat',{type:'raster',tiles:[SAT],tileSize:256,maxzoom:19});
