@@ -389,6 +389,7 @@ function crearMapa(){
  map=new maplibregl.Map({container:'mapa',style:ESTILO,center:[-70.9,-33.7],zoom:7.2,pitch:0,bearing:0,maxPitch:72,antialias:true,attributionControl:false,hash:false});
  map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'bottom-right');
  map.addControl(new maplibregl.AttributionControl({compact:true,customAttribution:'Grifos y hallazgos: catastro Sacyr · Mapa © <a href="https://openfreemap.org">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · Relieve: AWS Terrain Tiles · Satélite © Esri'}));
+ map.once('load',()=>document.querySelectorAll('.maplibregl-ctrl-attrib').forEach(e=>e.classList.remove('maplibregl-compact-show')));
  return new Promise(r=>map.once('load',r));}
 function primerSimbolo(){const ls=map.getStyle().layers;const s=ls.find(l=>l.type==='symbol');return s?s.id:undefined;}
 /* primera etiqueta de la base que no sea agua ni flechas: lo que va antes queda bajo los nombres pero sobre las calles */
@@ -618,8 +619,8 @@ function fichaGrifo(k){
  if(g.cer.length){h+='<div class="pl">Lugares sensibles a ≤ '+S.radio+' m</div>'+g.cer.slice(0,3).map(x=>'<div class="pli"><span class="ic" style="background:'+colCat(x.o.c)+'">'+svgIco(x.o.c,10)+'</span>'+esc(x.o.n)+'<span>'+Math.round(x.d)+' m</span></div>').join('')+(g.cer.length>3?'<div class="pt">y '+(g.cer.length-3)+' más</div>':'');}
  if(fotos.length>1)h+='<div class="fx-th">'+fotos.map((u,i)=>'<img src="'+esc(u)+'" alt="Foto '+(i+1)+'" loading="lazy" referrerpolicy="no-referrer" data-i="'+i+'"'+(i===0?' class="on"':'')+'>').join('')+'</div>';
  h+='<div class="pacc">'+(MODO_TABLERO&&ppal?'<button data-a="det" class="pri-b">Detalle completo</button>':'')+'<button data-a="zoom">Acercar</button><button data-a="sat">Satélite</button></div></div>';
- popup=new maplibregl.Popup({className:'pop popx',maxWidth:'340px',offset:14}).setLngLat([g.ln,g.la]).setHTML(h).addTo(map);
- const el=popup.getElement();
+ popup=new maplibregl.Popup({className:'pop popx',maxWidth:'340px',offset:14,focusAfterOpen:false}).setLngLat([g.ln,g.la]).setHTML(h).addTo(map);
+ const el=popup.getElement();requestAnimationFrame(()=>{const c=el.querySelector('.maplibregl-popup-content');if(c)c.scrollTop=0;});
  el.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{const a=b.dataset.a;
   if(a==='zoom')map.flyTo({center:[g.ln,g.la],zoom:18,pitch:60,duration:1800});
   else if(a==='sat'){if(!S.sat)toggleSat();map.flyTo({center:[g.ln,g.la],zoom:18.5,pitch:0,duration:1800});}
