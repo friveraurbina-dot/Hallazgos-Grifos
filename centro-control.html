@@ -543,12 +543,15 @@ function chips(){const el=document.getElementById('simple');if(!el||!MODO_TABLER
  const tot=(S.comuna==='todos'&&datos.parque>gs.length)?datos.parque:gs.length;
  /* misma unidad que el encabezado del tablero: cada grifo una vez, en su peor categoría
     pendiente → parque = con falla (directa + indirecta) + sólo señalética + buenos */
- const oper=gs.filter(x=>ab(x)&&x.s.crit!=='senaletica'),dir=oper.filter(x=>x.s.crit==='directa'),sen=gs.filter(x=>ab(x)&&x.s.crit==='senaletica'),bue=tot-oper.length-sen.length;
+ let oper=gs.filter(x=>ab(x)&&x.s.crit!=='senaletica').length,dir=gs.filter(x=>ab(x)&&x.s.crit==='directa').length,sen=gs.filter(x=>ab(x)&&x.s.crit==='senaletica').length,bue=tot-oper-sen,total=tot;
+ /* si el tablero mandó sus cifras (mismo sector), se usan tal cual: así los chips y el
+    encabezado coinciden aunque algún grifo con hallazgo no tenga coordenada en el mapa */
+ const cf=S.cifras;if(cf&&cf.tot){total=cf.tot;dir=cf.dir;oper=cf.dir+cf.ind;sen=cf.sen;bue=cf.bue;}
  const ch=(id,dots,n,l,s)=>'<button class="chip'+(S.filtro===id?' on':'')+'" data-f="'+id+'" aria-pressed="'+(S.filtro===id)+'">'+dots+'<b>'+fmt(n)+'</b><span>'+l+'</span>'+(s?'<small>· '+s+'</small>':'')+'</button>';
  const pt=(c,lv)=>'<i style="--c:'+c+'"'+(lv?' class="lv"':'')+'></i>';
- el.innerHTML=ch('todos','',tot,'Parque de grifos',S.comuna==='todos'?'':titulo(S.comuna))
-  +ch('oper',pt(COL.directa)+pt(COL.indirecta),oper.length,'Con falla',fmt(dir.length)+' directa · '+fmt(oper.length-dir.length)+' indirecta')
-  +ch('senal',pt(COL.senaletica,1),sen.length,'Sólo señalética','pintura · atenuados')
+ el.innerHTML=ch('todos','',total,'Parque de grifos',S.comuna==='todos'?'':titulo(S.comuna))
+  +ch('oper',pt(COL.directa)+pt(COL.indirecta),oper,'Con falla',fmt(dir)+' directa · '+fmt(oper-dir)+' indirecta')
+  +ch('senal',pt(COL.senaletica,1),sen,'Sólo señalética','pintura · atenuados')
   +ch('bueno',pt(COL.sin,1),bue,'Grifos buenos','sin hallazgos pendientes');
  el.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{const f=b.dataset.f;S.filtro=(S.filtro===f||f==='todos')?'todos':f;aplicarVista();if(S.filtro==='todos')encuadrarComuna();else encuadrarFiltro();});}
 function recalcular(fit){S.geo=construirGeo();['grifos','lug','radios','sect','sectl','calor','hex'].forEach(k=>{const src=map.getSource(k);if(!src)return;src.setData({grifos:S.geo.fG,lug:S.geo.fL,radios:S.geo.fR,sect:S.geo.fS,sectl:S.geo.fSl,calor:S.geo.fC,hex:S.geo.fH}[k]);});aplicarVista();if(fit)encuadrar();}
@@ -746,6 +749,7 @@ function iniciar(desdeCache){
  S.geo=construirGeo();capasBase();panelIzq();aplicarVista();
  estado(desdeCache?'Datos guardados · actualizando con el catastro…':'Catastro al día · '+new Date().toLocaleString('es-CL',{dateStyle:'medium',timeStyle:'short'}));
  document.getElementById('carga').classList.add('off');S.listo=true;
+ if(MODO_TABLERO){try{parent.postMessage({accion:'listo'},location.origin);}catch(e){}}   // el tablero responde con el sector y sus cifras
  /* entrada cinematográfica */
  if(MODO_TABLERO&&S.comuna!=='todos'){const b=new maplibregl.LngLatBounds();S.geo.grifos.forEach(g=>{if(g.co===S.comuna)b.extend([g.ln,g.la]);});if(!b.isEmpty()){map.fitBounds(b,{padding:padding(),duration:2600,maxZoom:14.5});return;}}
  const cam=map.cameraForBounds(limitesParque(),{padding:padding()});
@@ -778,7 +782,7 @@ function modoTablero(){
  NOMC.sin='Grifo bueno (sin hallazgos)';NOMC.resuelto='Grifo bueno (hallazgos resueltos)';NOMC.senaletica='Sólo señalética (pintura)';NOMC.directa='Falla directa';NOMC.indirecta='Falla indirecta';
  const c=PARAMS.get('sector');if(c&&c!=='todos')S.comuna=c.toUpperCase();
  window.addEventListener('message',e=>{if(e.origin!==location.origin)return;const m=e.data||{};if(!S.listo)return;
-  if(m.accion==='sector'){S.comuna=(m.comuna&&m.comuna!=='todos')?String(m.comuna).toUpperCase():'todos';S.filtro='todos';aplicarVista();encuadrarComuna();}
+  if(m.accion==='sector'){const c=(m.comuna&&m.comuna!=='todos')?String(m.comuna).toUpperCase():'todos';const igual=c===S.comuna;S.comuna=c;if(m.cifras)S.cifras=m.cifras;if(!igual)S.filtro='todos';aplicarVista();if(!igual)encuadrarComuna();}
   if(m.accion==='grifo'&&m.codigo)irAGrifo(String(m.codigo).toUpperCase());
   if(m.accion==='filtro'&&m.filtro){S.filtro=m.filtro;aplicarVista();encuadrarFiltro();}});}
 function encuadrarComuna(){if(S.comuna==='todos'){encuadrar(true);return;}const b=new maplibregl.LngLatBounds();let n=0;S.geo.grifos.forEach(g=>{if(g.co===S.comuna){b.extend([g.ln,g.la]);n++;}});if(n)map.fitBounds(b,{padding:padding(),duration:1600,maxZoom:14.5,pitch:S.tres?50:0});}

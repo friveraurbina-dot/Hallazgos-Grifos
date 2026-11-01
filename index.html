@@ -2574,7 +2574,8 @@ function renderDashboard(){
     rail.style.display = '';
   }
 
-  // Centro de control (mapa vectorial 3D) dentro del tablero: ver módulo "CENTRO DE CONTROL EN EL TABLERO".
+  // Mapa del parque dentro del tablero: ver módulo "CENTRO DE CONTROL EN EL TABLERO".
+  CC_CIFRAS = {tot:parqueTotal, pend:gPend, dir:G.directa, ind:G.indirecta, sen:G.senaletica, bue:gBuenos};
   construirCentroControl();
 
   // Gráficos
@@ -2671,14 +2672,18 @@ function construirCentroControl(){
     document.addEventListener('scroll', ccProgramar, true);
     window.addEventListener('resize', ccProgramar);
     if(window.ResizeObserver){ const ro = new ResizeObserver(ccProgramar); ro.observe(document.body); const mn = document.getElementById('main'); if(mn) ro.observe(mn); }
-  } else ccEnviar({accion:'sector', comuna:sector});
+  } else ccEnviar({accion:'sector', comuna:sector, cifras:CC_CIFRAS});
   ccProgramar();
 }
+// Cifras del encabezado (unidad "grifos") que el mapa muestra en sus chips, para que
+// tablero y mapa digan exactamente lo mismo aunque algún grifo no tenga coordenada.
+let CC_CIFRAS = null;
 function ccEnviar(m){ try{ if(CC_FRAME && CC_FRAME.contentWindow) CC_FRAME.contentWindow.postMessage(m, location.origin); }catch(e){} }
 // Mensajes que llegan desde el centro de control (mismo origen): abrir el detalle completo de un hallazgo.
 window.addEventListener('message', e=>{
   if(e.origin!==location.origin) return;
   const m = e.data || {};
+  if(m.accion==='listo') ccEnviar({accion:'sector', comuna:FILTRO_SECTOR_DASHBOARD||'todos', cifras:CC_CIFRAS});   // el mapa terminó de cargar: le mandamos sector y cifras
   if(m.accion==='detalle' && m.id && HALLAZGOS.some(h=>h.id===m.id)) openDetail(m.id);
 });
 function ccProgramar(){ if(CC_RAF) return; CC_RAF = requestAnimationFrame(()=>{ CC_RAF = 0; ccPosicionar(); }); }
