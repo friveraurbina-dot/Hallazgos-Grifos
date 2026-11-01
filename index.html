@@ -2602,7 +2602,8 @@ function construirCentroControl(){
     CC_FRAME = document.createElement('iframe'); CC_FRAME.id = 'ccFrame';
     CC_FRAME.title = 'Centro de control del parque de grifos';
     CC_FRAME.setAttribute('allowfullscreen',''); CC_FRAME.allow = 'fullscreen';
-    CC_FRAME.src = 'centro-control.html?modo=tablero&sector=' + encodeURIComponent(sector);
+    // &v= cambia cada hora: así el navegador no se queda con una copia vieja del centro de control más de una hora
+    CC_FRAME.src = 'centro-control.html?modo=tablero&sector=' + encodeURIComponent(sector) + '&v=' + Math.floor(Date.now()/3600000);
     CC_CAPA.appendChild(CC_FRAME); document.body.appendChild(CC_CAPA);
     document.addEventListener('scroll', ccProgramar, true);
     window.addEventListener('resize', ccProgramar);
