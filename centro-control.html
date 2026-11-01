@@ -539,10 +539,12 @@ function aplicarVista(){
    pintura pendiente, que se muestran atenuados). Tocar un chip filtra; tocarlo de nuevo vuelve al parque. */
 function chips(){const el=document.getElementById('simple');if(!el||!MODO_TABLERO)return;
  const gs=S.geo.grifos.filter(x=>S.comuna==='todos'||x.co===S.comuna),ab=x=>x.s&&x.s.abiertos>0;
- const oper=gs.filter(x=>ab(x)&&x.s.crit!=='senaletica'),dir=oper.filter(x=>x.s.crit==='directa'),sen=gs.filter(x=>ab(x)&&x.s.crit==='senaletica'),bue=gs.length-oper.length;
+ /* con todas las comunas se usa el total del catastro (incluye los pocos grifos sin coordenada) para que el chip diga lo mismo que el tablero: 799 y 656 */
+ const tot=(S.comuna==='todos'&&datos.parque>gs.length)?datos.parque:gs.length;
+ const oper=gs.filter(x=>ab(x)&&x.s.crit!=='senaletica'),dir=oper.filter(x=>x.s.crit==='directa'),sen=gs.filter(x=>ab(x)&&x.s.crit==='senaletica'),bue=tot-oper.length;
  const ch=(id,dots,n,l,s)=>'<button class="chip'+(S.filtro===id?' on':'')+'" data-f="'+id+'" aria-pressed="'+(S.filtro===id)+'">'+dots+'<b>'+fmt(n)+'</b><span>'+l+'</span>'+(s?'<small>· '+s+'</small>':'')+'</button>';
  const pt=(c,lv)=>'<i style="--c:'+c+'"'+(lv?' class="lv"':'')+'></i>';
- el.innerHTML=ch('todos','',gs.length,'Parque de grifos',S.comuna==='todos'?'':titulo(S.comuna))
+ el.innerHTML=ch('todos','',tot,'Parque de grifos',S.comuna==='todos'?'':titulo(S.comuna))
   +ch('oper',pt(COL.directa)+pt(COL.indirecta),oper.length,'Con falla',fmt(dir.length)+' directa')
   +ch('bueno',pt(COL.sin,1),bue,'Grifos buenos','sin falla de operatividad')
   +ch('senal',pt(COL.senaletica,1),sen.length,'Sólo señalética','pintura · atenuados');
