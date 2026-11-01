@@ -500,7 +500,7 @@ function aplicarVista(){
  if(S.filtro.startsWith('g:'))f.push(['all',['>',['get','ab'],0],['in',S.filtro.slice(2),['get','grp']]]);
  if(S.filtro==='resuelto')f.push(['==',['get','crit'],'resuelto']);
  if(S.filtro==='sin')f.push(['==',['get','crit'],'sin']);
- if(S.filtro==='bueno')f.push(['match',['get','crit'],['sin','resuelto','senaletica'],true,false]);   // sin falla de operatividad (misma unidad que el tablero)
+ if(S.filtro==='bueno')f.push(['match',['get','crit'],['sin','resuelto'],true,false]);   // buenos = sin ningún hallazgo pendiente (misma unidad que el tablero)
  if(S.filtro==='senal')f.push(['==',['get','crit'],'senaletica']);
  const filtro=f.length?['all',...f]:null;
  ['grifo-glow','grifo-core','grifo-txt'].forEach(id=>map.setFilter(id,filtro));
@@ -514,7 +514,7 @@ function aplicarVista(){
  /* en el tablero el parque bueno queda como fondo tenue, la señalética atenuada y sólo
     resaltan las fallas de operatividad (rojo / naranjo); si se filtra por buenos o por
     señalética, ese grupo sube de intensidad para poder revisarlo */
- const opB=S.filtro==='bueno'?.85:.3,opS=(S.filtro==='senal'||S.filtro==='bueno')?.85:.38;
+ const opB=S.filtro==='bueno'?.85:.3,opS=S.filtro==='senal'?.85:.38;
  map.setPaintProperty('grifo-core','circle-opacity',MODO_TABLERO&&v==='hall'?['match',['get','crit'],'sin',opB,'resuelto',opB,'senaletica',opS,1]:(v==='lug'?.75:1));
  map.setPaintProperty('grifo-core','circle-stroke-opacity',MODO_TABLERO&&v==='hall'?['match',['get','crit'],'sin',opB*.8,'resuelto',opB*.8,'senaletica',opS*.8,1]:1);
  map.setLayoutProperty('lug-ico','icon-size',['interpolate',['linear'],['zoom'],9,v==='lug'?.6:.42,13,v==='lug'?1:.75,16,v==='lug'?1.15:.95]);
@@ -541,13 +541,15 @@ function chips(){const el=document.getElementById('simple');if(!el||!MODO_TABLER
  const gs=S.geo.grifos.filter(x=>S.comuna==='todos'||x.co===S.comuna),ab=x=>x.s&&x.s.abiertos>0;
  /* con todas las comunas se usa el total del catastro (incluye los pocos grifos sin coordenada) para que el chip diga lo mismo que el tablero: 799 y 656 */
  const tot=(S.comuna==='todos'&&datos.parque>gs.length)?datos.parque:gs.length;
- const oper=gs.filter(x=>ab(x)&&x.s.crit!=='senaletica'),dir=oper.filter(x=>x.s.crit==='directa'),sen=gs.filter(x=>ab(x)&&x.s.crit==='senaletica'),bue=tot-oper.length;
+ /* misma unidad que el encabezado del tablero: cada grifo una vez, en su peor categoría
+    pendiente → parque = con falla (directa + indirecta) + sólo señalética + buenos */
+ const oper=gs.filter(x=>ab(x)&&x.s.crit!=='senaletica'),dir=oper.filter(x=>x.s.crit==='directa'),sen=gs.filter(x=>ab(x)&&x.s.crit==='senaletica'),bue=tot-oper.length-sen.length;
  const ch=(id,dots,n,l,s)=>'<button class="chip'+(S.filtro===id?' on':'')+'" data-f="'+id+'" aria-pressed="'+(S.filtro===id)+'">'+dots+'<b>'+fmt(n)+'</b><span>'+l+'</span>'+(s?'<small>· '+s+'</small>':'')+'</button>';
  const pt=(c,lv)=>'<i style="--c:'+c+'"'+(lv?' class="lv"':'')+'></i>';
  el.innerHTML=ch('todos','',tot,'Parque de grifos',S.comuna==='todos'?'':titulo(S.comuna))
-  +ch('oper',pt(COL.directa)+pt(COL.indirecta),oper.length,'Con falla',fmt(dir.length)+' directa')
-  +ch('bueno',pt(COL.sin,1),bue,'Grifos buenos','sin falla de operatividad')
-  +ch('senal',pt(COL.senaletica,1),sen.length,'Sólo señalética','pintura · atenuados');
+  +ch('oper',pt(COL.directa)+pt(COL.indirecta),oper.length,'Con falla',fmt(dir.length)+' directa · '+fmt(oper.length-dir.length)+' indirecta')
+  +ch('senal',pt(COL.senaletica,1),sen.length,'Sólo señalética','pintura · atenuados')
+  +ch('bueno',pt(COL.sin,1),bue,'Grifos buenos','sin hallazgos pendientes');
  el.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{const f=b.dataset.f;S.filtro=(S.filtro===f||f==='todos')?'todos':f;aplicarVista();if(S.filtro==='todos')encuadrarComuna();else encuadrarFiltro();});}
 function recalcular(fit){S.geo=construirGeo();['grifos','lug','radios','sect','sectl','calor','hex'].forEach(k=>{const src=map.getSource(k);if(!src)return;src.setData({grifos:S.geo.fG,lug:S.geo.fL,radios:S.geo.fR,sect:S.geo.fS,sectl:S.geo.fSl,calor:S.geo.fC,hex:S.geo.fH}[k]);});aplicarVista();if(fit)encuadrar();}
 function limitesParque(pad){const b=new maplibregl.LngLatBounds();datos.grifos.forEach(g=>b.extend([g.ln,g.la]));datos.hall.forEach(h=>b.extend([h.ln,h.la]));return b;}
@@ -581,7 +583,7 @@ function encuadrarFiltro(){
 function pasaGrifo(x){const f=S.filtro,ab=x.s&&x.s.abiertos>0;if(S.comuna!=='todos'&&x.co!==S.comuna)return false;if(S.vista==='hall'&&!x.s&&!MODO_TABLERO)return false;
  if(f==='todos')return true;if(f==='vencido')return !!(x.s&&x.s.plazo&&x.s.plazo.estado==='vencido');if(f==='oper')return ab&&x.s.crit!=='senaletica';if(f==='abierta')return S.vista==='hall'?(ab&&x.s.est==='en_proceso'):ab;if(f==='directa')return x.s&&x.s.crit==='directa';if(f==='sensible')return ab&&x.s.crit!=='senaletica'&&x.cer.length>0;
  if(f.startsWith('g:'))return ab&&x.grp.includes(f.slice(2));if(f==='resuelto')return x.s&&!ab;if(f==='sin')return !x.s;
- if(f==='bueno')return !(ab&&x.s.crit!=='senaletica');if(f==='senal')return ab&&x.s.crit==='senaletica';return true;}
+ if(f==='bueno')return !ab;if(f==='senal')return ab&&x.s.crit==='senaletica';return true;}
 function pasaLugar(l){const f=S.filtro;if(f==='riesgo')return l.ndir>0;if(f==='sinlug')return !l.cer.length;if(f.startsWith('g:'))return CATS[l.c].g===f.slice(2);return true;}
 
 function panelIzq(){

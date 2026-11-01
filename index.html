@@ -445,7 +445,12 @@ nav.rail .rr-com .rr-top{font:700 10px 'Montserrat',sans-serif;letter-spacing:.1
 nav.rail .rr-com .rr-dot{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 5px;border-radius:999px;background:#C8334D;color:#fff;font:800 10px 'Inter',sans-serif;letter-spacing:0;}
 nav.rail .rr-com .rr-n{font:800 20px/1.1 'Montserrat',sans-serif;color:#fff;letter-spacing:-.03em;}
 nav.rail .rr-com .rr-s{font-size:9.5px;color:#9FB3D1;font-weight:500;line-height:1.3;}
-nav.rail .rr-com .rr-s em{font-style:normal;color:#FFD83D;font-weight:700;}
+nav.rail .rr-com .rr-s em{font-style:normal;color:rgba(255,216,61,.75);font-weight:700;}
+nav.rail .rr-com .rr-s .rr-d{color:#FF8A9B;}nav.rail .rr-com .rr-s .rr-i{color:#FFB46E;}
+nav.rail .rr-st.ind{background:rgba(255,154,60,.16);border-color:rgba(255,180,110,.4);cursor:pointer;}
+nav.rail .rr-st.ok{background:rgba(53,224,161,.12);border-color:rgba(53,224,161,.35);}
+nav.rail .rr-st.alert{cursor:pointer;}
+nav.rail .rr-st.sen b{color:rgba(255,255,255,.75);}
 @media(max-width:760px){
   #railResumen{display:none !important;}
   .hero-stats{display:grid !important;}
@@ -857,6 +862,27 @@ main{padding:20px 22px 56px;}
 .pb-track i{display:block;height:100%;min-width:4px;}
 .pb-track .ok{background:linear-gradient(90deg,#2F9E78,#35E0A1);border-radius:99px 4px 4px 99px;}
 .pb-track .bad{background:linear-gradient(90deg,#E2A33D,#C8334D);border-radius:4px 99px 99px 4px;}
+/* barra en grifos (01/11): buenos · sólo señalética (atenuada) · falla indirecta · falla directa */
+.pb-track .sen{background:#FFD83D;opacity:.45;}
+.pb-track .ind{background:#FF9A3C;}
+.pb-track .dir{background:#FF4D63;border-radius:4px 99px 99px 4px;}
+/* Resumen del parque en grifos, en el espacio libre del encabezado (01/11) */
+.hero-resumen{display:none;}
+@media(min-width:761px){
+  .hero-resumen{display:flex;flex-direction:column;justify-content:center;gap:5px;align-self:center;min-width:0;}
+  .hr-tt{font:700 9px 'Montserrat',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-2);white-space:nowrap;}
+  .hr-row{display:grid;grid-template-columns:repeat(3,minmax(92px,1fr));gap:5px;}
+  .hr-st{display:flex;flex-direction:column;gap:1px;min-width:0;padding:5px 8px 4px;border-radius:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-left-width:3px;border-left-color:rgba(255,255,255,.25);}
+  .hr-st b{font:800 17px/1 'Montserrat',sans-serif;color:#fff;letter-spacing:-.03em;font-variant-numeric:tabular-nums;}
+  .hr-st span{font-size:8.5px;font-weight:600;line-height:1.2;color:#B9CBE6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .hr-st.pend{border-left-color:#63D1E0;}
+  .hr-st.dir{border-left-color:#FF4D63;background:rgba(255,77,99,.16);cursor:pointer;}
+  .hr-st.ind{border-left-color:#FF9A3C;background:rgba(255,154,60,.12);cursor:pointer;}
+  .hr-st.sen{border-left-color:rgba(255,216,61,.55);cursor:pointer;}
+  .hr-st.sen b{color:rgba(255,255,255,.72);}
+  .hr-st.ok{border-left-color:#35E0A1;}
+  .hr-st[onclick]:hover{background:rgba(255,255,255,.14);}
+}
 .pb-leg{display:flex;gap:18px;flex-wrap:wrap;margin-top:7px;font-size:11.5px;color:rgba(255,255,255,.8);}
 .pb-leg i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;vertical-align:-1px;}
 .pb-leg i.ok{background:#35E0A1;}.pb-leg i.bad{background:#E2A33D;}
@@ -992,7 +1018,7 @@ main{padding:14px 22px 56px;}
 .ring-txt .rs{font-size:9.5px;}
 /* Encabezado compacto (31/10, "lo principal es el mapa"): una franja de ~120 px */
 @media(min-width:761px){
-  .hero{grid-template-columns:1fr 118px 88px !important;padding:8px 16px 9px !important;gap:12px !important;margin-bottom:8px !important;border-radius:14px;}
+  .hero{grid-template-columns:minmax(650px,1fr) auto 118px 88px !important;padding:8px 16px 9px !important;gap:12px !important;margin-bottom:8px !important;border-radius:14px;}
   .hero h1{font-size:16px !important;}
   .hero-sub,.nota-norma{display:none !important;}
   .hero-live{margin-top:1px !important;font-size:10.5px;}
@@ -1011,7 +1037,11 @@ main{padding:14px 22px 56px;}
   .hero-hydrant{width:118px !important;margin:0 0 -9px !important;}
   .hero-hydrant svg{filter:drop-shadow(0 5px 10px rgba(0,0,0,.35));}
 }
-@media(max-width:1340px) and (min-width:761px){ .hero{grid-template-columns:1fr 88px !important;} }
+/* Con el resumen en grifos (01/11) el operador sólo cabe desde 1500 px; más angosto se
+   esconde para que la fila de botones no se parta. Bajo 1200 px el resumen baja a una
+   segunda fila del encabezado. */
+@media(max-width:1499px) and (min-width:761px){ .hero{grid-template-columns:minmax(600px,1fr) auto 88px !important;} .hero-hydrant{display:none !important;} }
+@media(max-width:1199px) and (min-width:761px){ .hero{grid-template-columns:1fr 88px !important;} .hero-ring{grid-column:2;grid-row:1;} .hero-resumen{grid-column:1/-1;grid-row:2;align-self:start;} .hr-row{grid-template-columns:repeat(6,minmax(84px,1fr));max-width:720px;} }
 
 .mapa-card .com-cards{padding-top:6px;}
 .ccard .cc-n{font-size:18px;}
@@ -2081,6 +2111,22 @@ function renderDashboard(){
   const parqueTotal = catalogoSector.length;
   const pctParque = parqueTotal ? (codigosAbiertos.size/parqueTotal*100) : null;
   const directasAbiertas = abiertos.filter(h=>criticidadDeRegistro(h)==='directa');
+  // ---- Unidad única "grifos" (01/11): cada grifo cuenta UNA vez, en su peor categoría
+  // pendiente (directa > indirecta > señalética). Así parque = directa + indirecta +
+  // sólo señalética + buenos, y el encabezado, el menú lateral, las tarjetas de comuna y
+  // los chips del mapa dicen lo mismo. Los paneles que hablan de "hallazgos" siguen
+  // contando registros, porque un grifo puede tener varios.
+  const peorPorGrifo = (opers, sens)=>{ const m = {};
+    opers.forEach(h=>{ const c=h.codigo_grifo; if(!c) return; const k=criticidadDeRegistro(h); if(!m[c] || ORDEN_CRITICIDAD.indexOf(k) < ORDEN_CRITICIDAD.indexOf(m[c].k)) m[c] = {k, comuna:h.comuna||''}; });
+    sens.forEach(h=>{ const c=h.codigo_grifo; if(c && !m[c]) m[c] = {k:'senaletica', comuna:h.comuna||''}; });
+    return m; };
+  const senAbiertasArr = senaleticaSector.filter(h=>h.estado!=='resuelto');
+  const grifosPend = peorPorGrifo(abiertos, senAbiertasArr);                 // sector elegido
+  const G = {directa:0, indirecta:0, senaletica:0}; Object.values(grifosPend).forEach(v=>G[v.k]++);
+  const gPend = Object.keys(grifosPend).length;                               // grifos con algún hallazgo pendiente
+  const gBuenos = Math.max(0, parqueTotal - gPend);                           // sin ningún hallazgo pendiente
+  const gPct = parqueTotal ? gPend/parqueTotal*100 : null;
+  const pct1 = x => x.toFixed(1).replace('.',',');
   const pctResuelto = total ? Math.round((estados.resuelto||0)/total*100) : 0;
   const fechaResolucion = h=>{
     if(h.estado!=='resuelto') return null;
@@ -2126,8 +2172,7 @@ function renderDashboard(){
   hallazgosSector.concat(senaleticaSector).forEach(h=>{ const c=criticidadDeRegistro(h), e=h.estado||'pendiente'; if(cruce[c] && cruce[c][e]!==undefined) cruce[c][e]++; });
 
   // Señalética (pinturas) como categoría propia en los indicadores
-  const senAbiertasArr = senaleticaSector.filter(h=>h.estado!=='resuelto');
-  const senEdades = senAbiertasArr.map(h=>diasTranscurridos(h.fecha_creacion));
+  const senEdades = senAbiertasArr.map(h=>diasTranscurridos(h.fecha_creacion));   // senAbiertasArr se define arriba, junto a la unidad "grifos"
   const sen90 = senEdades.filter(e=>e>90).length;
   const senPct = senaleticaSector.length ? Math.round(senEjecutadas/senaleticaSector.length*100) : 0;
   const senComuna = {}; senaleticaTodos.forEach(h=>{ if(h.estado!=='resuelto'){ const c=h.comuna||'Sin comuna'; senComuna[c]=(senComuna[c]||0)+1; } });
@@ -2157,7 +2202,14 @@ function renderDashboard(){
   senaleticaTodos.forEach(h=>{ if(h.estado==='resuelto') return; const c = h.comuna || 'Sin comuna';
     const e = comunaStats[c] = comunaStats[c] || {total:0, abiertos:0, directa:0, grifos:0}; e.sen = (e.sen||0)+1; });
   Object.keys(CATALOGO_GRIFOS||{}).forEach(k=>{ const c = (CATALOGO_GRIFOS[k].comuna)||'Sin comuna'; if(comunaStats[c]) comunaStats[c].grifos++; });
-  const comunaCards = Object.keys(comunaStats).map(k=>[k, comunaStats[k]]).sort((a,b)=>b[1].abiertos-a[1].abiertos);
+  // Las tarjetas de comuna también en grifos (todo el parque, sin filtro de sector):
+  // gPend = grifos con algún hallazgo pendiente, gDir / gInd / gSen = por peor categoría.
+  const grifosPendTodos = peorPorGrifo(conHallazgo.filter(h=>h.estado!=='resuelto'), senaleticaTodos.filter(h=>h.estado!=='resuelto'));
+  Object.values(comunaStats).forEach(e=>{ e.gPend=0; e.gDir=0; e.gInd=0; e.gSen=0; });
+  Object.values(grifosPendTodos).forEach(v=>{ const e = comunaStats[v.comuna||'Sin comuna']; if(!e) return; e.gPend++; if(v.k==='directa') e.gDir++; else if(v.k==='indirecta') e.gInd++; else e.gSen++; });
+  const GT = {pend:Object.keys(grifosPendTodos).length, directa:0, indirecta:0, senaletica:0}; Object.values(grifosPendTodos).forEach(v=>GT[v.k]++);
+  const parqueTodo = Object.keys(CATALOGO_GRIFOS||{}).length;
+  const comunaCards = Object.keys(comunaStats).map(k=>[k, comunaStats[k]]).sort((a,b)=>b[1].gPend-a[1].gPend);
   const abiertosTotales = conHallazgo.filter(h=>h.estado!=='resuelto').length;
 
   // Atención inmediata: operatividad directa abierta, los más antiguos primero
@@ -2182,15 +2234,15 @@ function renderDashboard(){
         <div class="hero-live"><span class="dot"></span>Datos en tiempo real · actualizado ${horaAct} · ${total} hallazgos registrados · ${totalInspecciones} inspecciones${FILTRO_SECTOR_DASHBOARD!=='todos' ? ` · Sector: ${escHtml(FILTRO_SECTOR_DASHBOARD)}` : ''}</div>
         <div class="hero-stats">
           <div class="hs"><div class="hn" ${parqueTotal?`data-count="${parqueTotal}"`:''}>${parqueTotal||'—'}</div><div class="hl">Grifos en el parque</div></div>
-          <div class="hs"><div class="hn" data-count="${codigosAbiertos.size}">${codigosAbiertos.size}</div><div class="hl">Grifos con hallazgos abiertos</div>${pctParque!==null?`<div class="hsub">${pctParque.toFixed(1).replace('.',',')}% del parque</div>`:''}</div>
-          <div class="hs hs-alert"><div class="hn" data-count="${directasAbiertas.length}">${directasAbiertas.length}</div><div class="hl">Operatividad directa abierta</div><div class="hsub">prioridad máxima</div></div>
-          <div class="hs" style="cursor:pointer" onclick="irAListaConFiltro('prioridad','senaletica')" title="Señalética (pintura): categoría propia, no afecta la operatividad del grifo"><div class="hn" data-count="${senPendientes}">${senPendientes}</div><div class="hl">Señalética pendiente</div><div class="hsub">${senEjecutadas} ejecutada${senEjecutadas===1?'':'s'} · ${senPct}% de avance</div></div>
+          <div class="hs"><div class="hn" data-count="${gPend}">${gPend}</div><div class="hl">Grifos con hallazgos pendientes</div>${gPct!==null?`<div class="hsub">${pct1(gPct)}% del parque</div>`:''}</div>
+          <div class="hs hs-alert"><div class="hn" data-count="${G.directa}">${G.directa}</div><div class="hl">Con falla directa</div><div class="hsub">${G.indirecta} con falla indirecta</div></div>
+          <div class="hs" style="cursor:pointer" onclick="irAListaConFiltro('prioridad','senaletica')" title="Señalética (pintura): categoría propia, no afecta la operatividad del grifo"><div class="hn" data-count="${G.senaletica}">${G.senaletica}</div><div class="hl">Sólo señalética</div><div class="hsub">${senPendientes} pinturas pendientes · ${senPct}% ejecutado</div></div>
         </div>
         <div class="nota-norma">* ${NOTA_NORMA_PINTURA}</div>
-        ${parqueTotal ? (()=>{ const con = Math.min(codigosAbiertos.size, parqueTotal), sin = parqueTotal-con, pc = con/parqueTotal*100;
+        ${parqueTotal ? (()=>{ const w = n => (Math.min(n,parqueTotal)/parqueTotal*100);
           return `<div class="park-bar">
-            <div class="pb-top"><b>Estado del parque de grifos</b><span>${sin} sin hallazgos abiertos (${(100-pc).toFixed(1).replace('.',',')}%)</span></div>
-            <div class="pb-track"><i class="ok" style="width:${100-pc}%" title="${sin} grifos sin hallazgos abiertos"></i><i class="bad" style="width:${pc}%" title="${con} grifos con hallazgos abiertos"></i></div>
+            <div class="pb-top"><b>Estado del parque de grifos</b><span>${gBuenos} grifos buenos, sin hallazgos pendientes (${pct1(gBuenos/parqueTotal*100)}%)</span></div>
+            <div class="pb-track"><i class="ok" style="width:${w(gBuenos)}%" title="${gBuenos} grifos buenos"></i><i class="sen" style="width:${w(G.senaletica)}%" title="${G.senaletica} grifos sólo con señalética pendiente"></i><i class="ind" style="width:${w(G.indirecta)}%" title="${G.indirecta} grifos con falla indirecta"></i><i class="dir" style="width:${w(G.directa)}%" title="${G.directa} grifos con falla directa"></i></div>
           </div>`; })() : ''}
         <div class="hero-actions">
           <div class="hero-sector"><label for="filtroSectorSelect">Sector</label>
@@ -2202,6 +2254,17 @@ function renderDashboard(){
           <button class="btn btn-hero" onclick="imprimirReportePDF()">🖨️ Reporte ejecutivo (PDF)</button>
           ${ROLE==='singemelec' ? `<button class="btn btn-hero-ghost" onclick="document.getElementById('csvInput').click()" title="Cada fila del archivo se guarda como un HALLAZGO nuevo (no carga grifos al catastro)">⬆ Importar hallazgos (CSV)</button>` : ''}
           <input type="file" id="csvInput" accept=".csv" style="display:none" onchange="handleCSVImport(event)">
+        </div>
+      </div>
+      <div class="hero-resumen" role="group" aria-label="Resumen del parque en grifos">
+        <div class="hr-tt">Resumen del parque · en grifos${FILTRO_SECTOR_DASHBOARD!=='todos' ? ` · ${escHtml(FILTRO_SECTOR_DASHBOARD)}` : ''}</div>
+        <div class="hr-row">
+          <div class="hr-st"><b ${parqueTotal?`data-count="${parqueTotal}"`:''}>${parqueTotal||'—'}</b><span>Parque total</span></div>
+          <div class="hr-st pend"><b data-count="${gPend}">${gPend}</b><span>Con hallazgos pendientes${gPct!==null?` · ${pct1(gPct)}%`:''}</span></div>
+          <div class="hr-st dir" onclick="irAListaConFiltro('prioridad','directa')" title="Grifos cuya peor falla pendiente es de operatividad directa (plazo SISS 48 h)"><b data-count="${G.directa}">${G.directa}</b><span>Directa</span></div>
+          <div class="hr-st ind" onclick="irAListaConFiltro('prioridad','indirecta')" title="Grifos cuya peor falla pendiente es de operatividad indirecta"><b data-count="${G.indirecta}">${G.indirecta}</b><span>Indirecta</span></div>
+          <div class="hr-st sen" onclick="irAListaConFiltro('prioridad','senaletica')" title="Grifos que sólo tienen señalética (pintura) pendiente · ${senPendientes} pinturas pendientes"><b data-count="${G.senaletica}">${G.senaletica}</b><span>Señalética</span></div>
+          <div class="hr-st ok"><b data-count="${gBuenos}">${gBuenos}</b><span>Buenos</span></div>
         </div>
       </div>
       <div class="hero-hydrant" aria-hidden="true">
@@ -2320,13 +2383,13 @@ function renderDashboard(){
       </div>
       <div class="com-cards">
         <button type="button" class="ccard ${FILTRO_SECTOR_DASHBOARD==='todos'?'sel':''}" onclick="cambiarFiltroSectorDashboard('todos')" title="Ver todas las comunas">
-          <span class="cc-top">Todas las comunas</span><span class="cc-n">${abiertosTotales}</span><span class="cc-s">hallazgos abiertos${senaleticaTodos.length?` · <b class="cc-sen">${senaleticaTodos.filter(h=>h.estado!=='resuelto').length} señalética</b>`:''}</span>
+          <span class="cc-top">Todas las comunas</span><span class="cc-n">${GT.pend}</span><span class="cc-s">grifos con pendientes de ${parqueTodo} · ${GT.directa} directa · ${GT.indirecta} indirecta${GT.senaletica?` · <b class="cc-sen">${GT.senaletica} señalética</b>`:''}</span>
         </button>
         ${comunaCards.map(([nom,c])=>`
         <button type="button" class="ccard ${FILTRO_SECTOR_DASHBOARD===nom?'sel':''}" onclick="cambiarFiltroSectorDashboard(${FILTRO_SECTOR_DASHBOARD===nom ? "'todos'" : JSON.stringify(nom).replace(/"/g,'&quot;')})" title="${FILTRO_SECTOR_DASHBOARD===nom ? 'Volver a todas las comunas' : 'Ver solo '+escHtml(nom)}">
-          <span class="cc-top">${escHtml(nom)}${c.directa?`<i class="cc-dot" title="${c.directa} de operatividad directa abiertos">${c.directa}</i>`:''}</span>
-          <span class="cc-n">${c.abiertos}</span>
-          <span class="cc-s">${c.grifos?`${c.grifos} grifos · `:''}${c.total} hallazgo${c.total===1?'':'s'}${c.sen?` · <b class="cc-sen">${c.sen} señalética</b>`:''}</span>
+          <span class="cc-top">${escHtml(nom)}${c.gDir?`<i class="cc-dot" title="${c.gDir} grifos con falla directa pendiente">${c.gDir}</i>`:''}</span>
+          <span class="cc-n">${c.gPend}</span>
+          <span class="cc-s">grifos con pendientes${c.grifos?` de ${c.grifos}`:''} · ${c.gDir} directa · ${c.gInd} indirecta${c.gSen?` · <b class="cc-sen">${c.gSen} señalética</b>`:''}</span>
         </button>`).join('')}
       </div>
       <div class="cc-host" id="ccHost"><div class="cc-cargando">Cargando el mapa del parque…</div></div>
@@ -2491,20 +2554,22 @@ function renderDashboard(){
   const rail = document.getElementById('railResumen');
   if(rail){
     const comBtn = (nom, sel, n, sub, dot) => `<button type="button" class="rr-com ${sel?'sel':''}" onclick="cambiarFiltroSectorDashboard(${sel && nom!=='todos' ? "'todos'" : JSON.stringify(nom).replace(/"/g,'&quot;')})" title="${nom==='todos'?'Ver todas las comunas':(sel?'Volver a todas las comunas':'Ver solo '+escHtml(nom))}">
-      <span class="rr-top">${nom==='todos'?'Todas las comunas':escHtml(nom)}${dot?`<i class="rr-dot" title="${dot} de operatividad directa abiertos">${dot}</i>`:''}</span>
+      <span class="rr-top">${nom==='todos'?'Todas las comunas':escHtml(nom)}${dot?`<i class="rr-dot" title="${dot} grifos con falla directa pendiente">${dot}</i>`:''}</span>
       <span class="rr-n">${n}</span><span class="rr-s">${sub}</span></button>`;
     rail.innerHTML = `
       <button type="button" class="nav-group rr-tt ${railSec('parque')?'':'abierto'}" onclick="railPlegar('parque',this)" aria-expanded="${!railSec('parque')}">Parque<i></i></button>
       <div class="rr-stats" ${railSec('parque')?'hidden':''}>
         <div class="rr-st"><b ${parqueTotal?`data-count="${parqueTotal}"`:''}>${parqueTotal||'—'}</b><span>Grifos en el parque</span></div>
-        <div class="rr-st"><b data-count="${codigosAbiertos.size}">${codigosAbiertos.size}</b><span>Grifos con hallazgos abiertos${pctParque!==null?` · ${pctParque.toFixed(1).replace('.',',')}%`:''}</span></div>
-        <div class="rr-st alert"><b data-count="${directasAbiertas.length}">${directasAbiertas.length}</b><span>Operatividad directa abierta · prioridad máxima</span></div>
-        <div class="rr-st sen" onclick="irAListaConFiltro('prioridad','senaletica')" title="Señalética (pintura): categoría propia, no afecta la operatividad del grifo"><b data-count="${senPendientes}">${senPendientes}</b><span>Señalética pendiente${senaleticaSector.length?` · ${senPct}% ejecutada`:''}</span></div>
+        <div class="rr-st"><b data-count="${gPend}">${gPend}</b><span>Con hallazgos pendientes${gPct!==null?` · ${pct1(gPct)}%`:''}</span></div>
+        <div class="rr-st alert" onclick="irAListaConFiltro('prioridad','directa')" title="Grifos cuya peor falla pendiente es de operatividad directa"><b data-count="${G.directa}">${G.directa}</b><span>Falla directa · prioridad máxima</span></div>
+        <div class="rr-st ind" onclick="irAListaConFiltro('prioridad','indirecta')" title="Grifos cuya peor falla pendiente es de operatividad indirecta"><b data-count="${G.indirecta}">${G.indirecta}</b><span>Falla indirecta</span></div>
+        <div class="rr-st sen" onclick="irAListaConFiltro('prioridad','senaletica')" title="Grifos que sólo tienen señalética (pintura) pendiente · ${senPendientes} pinturas pendientes, ${senPct}% ejecutado"><b data-count="${G.senaletica}">${G.senaletica}</b><span>Sólo señalética · atenuados en el mapa</span></div>
+        <div class="rr-st ok"><b data-count="${gBuenos}">${gBuenos}</b><span>Grifos buenos · sin pendientes</span></div>
       </div>
       <button type="button" class="nav-group rr-tt ${railSec('comunas')?'':'abierto'}" onclick="railPlegar('comunas',this)" aria-expanded="${!railSec('comunas')}">Comunas<i></i></button>
       <div class="rr-coms" ${railSec('comunas')?'hidden':''}>
-        ${comBtn('todos', FILTRO_SECTOR_DASHBOARD==='todos', abiertosTotales, `hallazgos abiertos${senaleticaTodos.length?` · <em>${senaleticaTodos.filter(h=>h.estado!=='resuelto').length} señalética</em>`:''}`)}
-        ${comunaCards.map(([nom,c])=>comBtn(nom, FILTRO_SECTOR_DASHBOARD===nom, c.abiertos, `${c.grifos?`${c.grifos} grifos · `:''}${c.total} hallazgo${c.total===1?'':'s'}${c.sen?` · <em>${c.sen} señalética</em>`:''}`, c.directa)).join('')}
+        ${comBtn('todos', FILTRO_SECTOR_DASHBOARD==='todos', GT.pend, `grifos con pendientes de ${parqueTodo} · <b class="rr-d">${GT.directa}</b> directa · <b class="rr-i">${GT.indirecta}</b> indirecta${GT.senaletica?` · <em>${GT.senaletica} señalética</em>`:''}`)}
+        ${comunaCards.map(([nom,c])=>comBtn(nom, FILTRO_SECTOR_DASHBOARD===nom, c.gPend, `grifos con pendientes${c.grifos?` de ${c.grifos}`:''} · <b class="rr-d">${c.gDir}</b> directa · <b class="rr-i">${c.gInd}</b> indirecta${c.gSen?` · <em>${c.gSen} señalética</em>`:''}`, c.gDir)).join('')}
       </div>`;
     rail.style.display = '';
   }
