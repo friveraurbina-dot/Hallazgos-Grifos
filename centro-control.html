@@ -197,6 +197,22 @@ body.tablero .pan.izq{top:72px;left:12px;bottom:12px;width:250px}
 body.tablero .kpi{min-width:124px;padding:7px 12px}
 body.tablero .kpi .n{font-size:22px}
 body.tablero .cap{bottom:18px}
+/* ---- modo simple dentro del tablero: sólo el mapa y cuatro chips de lectura ----
+   (sin barra de herramientas, sin paneles, sin 3D/satélite/recorrido; todo eso sigue
+   disponible en la página completa centro-control.html) */
+body.tablero .bher,body.tablero .mov,body.tablero .pan.izq{display:none}
+.simple{display:none}
+body.tablero .simple{display:flex;position:fixed;left:12px;top:12px;z-index:21;gap:6px;flex-wrap:wrap;max-width:calc(100% - 70px);pointer-events:none}
+.chip{all:unset;pointer-events:auto;cursor:pointer;display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px 0 10px;border-radius:10px;background:var(--glass);backdrop-filter:blur(12px);border:1px solid var(--borde);box-shadow:var(--sombra);font:600 11px Inter,sans-serif;color:var(--txt);white-space:nowrap;transition:border-color .15s,background .15s}
+.chip i{width:9px;height:9px;border-radius:50%;background:var(--c);box-shadow:0 0 8px var(--c);flex:none}
+.chip i+i{margin-left:-4px}
+.chip i.lv{opacity:.45;box-shadow:none}
+.chip b{font:800 13px Montserrat,sans-serif;color:#fff;font-variant-numeric:tabular-nums}
+.chip small{font:500 10px Inter,sans-serif;color:var(--soft)}
+.chip:hover{border-color:var(--cy2)}
+.chip.on{background:rgba(1,179,215,.18);border-color:var(--cy2);box-shadow:0 0 0 1px rgba(99,209,224,.35),var(--sombra)}
+body.tablero .maplibregl-ctrl-bottom-right{bottom:10px;right:10px}
+@media(max-width:720px){.chip small{display:none}.chip{height:30px;padding:0 9px 0 8px}}
 /* ---- móvil ---- */
 @media(max-width:1000px){
  .pan.der{display:none}
@@ -242,6 +258,7 @@ body.tablero .cap{bottom:18px}
 <aside class="pan der" id="pder" aria-label="Comunas y prioridades"></aside>
 <button class="btn mov" id="bmov" aria-label="Mostrar capas">Capas</button>
 <button class="btn bher" id="bher" title="Mostrar u ocultar las herramientas del mapa (capas, 3D, satélite, recorrido, buscador)" aria-pressed="false"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M2 4.5h12M2 8h12M2 11.5h12"/><circle cx="5" cy="4.5" r="1.4" fill="#001640"/><circle cx="11" cy="8" r="1.4" fill="#001640"/><circle cx="7" cy="11.5" r="1.4" fill="#001640"/></svg><span class="tx">Herramientas</span></button>
+<div class="simple" id="simple" role="group" aria-label="Qué mostrar en el mapa"></div>
 <div class="cap" id="cap" role="status"></div>
 <div class="aviso" id="aviso"></div>
 <div class="carga" id="carga"><div class="lg">Gestión Sacyr</div><h2>Centro de control</h2><div class="st" id="cst">Leyendo el catastro de grifos…</div><div class="bar"><i></i></div></div>
@@ -257,6 +274,9 @@ const ESTILO='https://tiles.openfreemap.org/styles/dark';
 const DEM='https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
 const SAT='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 const COL={directa:'#FF4D63',indirecta:'#FF9A3C',senaletica:'#FFD83D',resuelto:'#6E85A3',sin:'#2FB8D8'};
+/* dentro del tablero el mapa se lee en tres niveles: falla (rojo / naranjo), señalética
+   atenuada y grifos buenos como un solo fondo tenue (sin hallazgos y resueltos iguales) */
+if(new URLSearchParams(location.search).get('modo')==='tablero'){COL.sin='#6F93BF';COL.resuelto='#6F93BF';}
 const NOMC={directa:'Operatividad directa',indirecta:'Operatividad indirecta',senaletica:'Señalética',resuelto:'Todo resuelto',sin:'Sin hallazgos'};
 const ESTN={pendiente:'Pendiente',en_proceso:'En proceso',resuelto:'Resuelto',sin:''};
 const ORD=['directa','indirecta','senaletica'];
@@ -441,12 +461,12 @@ function capasBase(){
  Object.keys(CATS).forEach(c=>map.addImage('ico-'+c,imagenCat(c),{pixelRatio:2}));
  map.addImage('pulso',pulso('rgb(255,77,99)'),{pixelRatio:2});
  const colCrit=['match',['get','crit'],'directa',COL.directa,'indirecta',COL.indirecta,'senaletica',COL.senaletica,'resuelto',COL.resuelto,COL.sin];
- const rBase=['match',['get','crit'],'directa',1,'indirecta',.88,'senaletica',.7,'resuelto',.55,.5];
+ const rBase=['match',['get','crit'],'directa',1,'indirecta',.88,'senaletica',MODO_TABLERO?.58:.7,'resuelto',MODO_TABLERO?.5:.55,.5];
  const radio=(k)=>['interpolate',['linear'],['zoom'],9,['*',rBase,3.2*k],12,['*',rBase,5*k],15,['*',rBase,8.5*k],18,['*',rBase,13*k]];
  map.addLayer({id:'grifo-glow',type:'circle',source:'grifos',paint:{'circle-color':colCrit,'circle-radius':radio(2.3),'circle-blur':1,'circle-opacity':['match',['get','crit'],'sin',.18,'resuelto',.2,.5],'circle-pitch-alignment':'viewport'}});
  map.addLayer({id:'grifo-pulso',type:'symbol',source:'grifos',filter:['==',['get','pulso'],1],layout:{'icon-image':'pulso','icon-allow-overlap':true,'icon-ignore-placement':true,'icon-size':['interpolate',['linear'],['zoom'],9,.45,13,.8,17,1.2]}});
  map.addLayer({id:'grifo-core',type:'circle',source:'grifos',paint:{'circle-color':['case',['==',['get','est'],'en_proceso'],'#0b1b33',colCrit],'circle-radius':radio(1),
-  'circle-stroke-color':['case',['==',['get','est'],'en_proceso'],colCrit,'rgba(255,255,255,.9)'],'circle-stroke-width':['case',['==',['get','est'],'en_proceso'],2.2,['match',['get','crit'],'sin',.6,1]],'circle-pitch-alignment':'viewport'}});
+  'circle-stroke-color':['case',['==',['get','est'],'en_proceso'],colCrit,'rgba(255,255,255,.9)'],'circle-stroke-width':['case',['==',['get','est'],'en_proceso'],2.2,['match',['get','crit'],'sin',.6,'resuelto',MODO_TABLERO?.6:1,'senaletica',MODO_TABLERO?.7:1,1]],'circle-pitch-alignment':'viewport'}});
  map.addLayer({id:'lug-ico',type:'symbol',source:'lug',layout:{'icon-image':['concat','ico-',['get','c']],'icon-size':['interpolate',['linear'],['zoom'],9,.45,13,.8,16,1],'icon-allow-overlap':false,'symbol-sort-key':['get','pri'],
   'text-field':['step',['zoom'],'',13.5,['get','n']],'text-font':['Noto Sans Bold'],'text-size':11,'text-offset':[0,1.3],'text-anchor':'top','text-optional':true,'text-max-width':12},
   paint:{'text-color':'#EAF4FF','text-halo-color':'rgba(2,10,28,.95)','text-halo-width':1.4,'icon-opacity':.95}});
@@ -480,6 +500,8 @@ function aplicarVista(){
  if(S.filtro.startsWith('g:'))f.push(['all',['>',['get','ab'],0],['in',S.filtro.slice(2),['get','grp']]]);
  if(S.filtro==='resuelto')f.push(['==',['get','crit'],'resuelto']);
  if(S.filtro==='sin')f.push(['==',['get','crit'],'sin']);
+ if(S.filtro==='bueno')f.push(['match',['get','crit'],['sin','resuelto','senaletica'],true,false]);   // sin falla de operatividad (misma unidad que el tablero)
+ if(S.filtro==='senal')f.push(['==',['get','crit'],'senaletica']);
  const filtro=f.length?['all',...f]:null;
  ['grifo-glow','grifo-core','grifo-txt'].forEach(id=>map.setFilter(id,filtro));
  map.setFilter('grifo-pulso',filtro?['all',['==',['get','pulso'],1],filtro]:['==',['get','pulso'],1]);
@@ -489,14 +511,19 @@ function aplicarVista(){
  if(S.filtro.startsWith('g:'))fl.push(['==',['get','g'],S.filtro.slice(2)]);
  map.setFilter('lug-ico',fl.length?['all',...fl]:null);
  map.setFilter('radios-f',fl.length?['all',...fl.filter(x=>x[1][1]!=='ncer')]:null);map.setFilter('radios-l',map.getFilter('radios-f'));
- /* en el tablero el parque sano queda como fondo tenue y sólo resaltan las fallas */
- map.setPaintProperty('grifo-core','circle-opacity',MODO_TABLERO&&v==='hall'?['match',['get','crit'],'sin',.28,'resuelto',.4,1]:(v==='lug'?.75:1));
- map.setPaintProperty('grifo-core','circle-stroke-opacity',MODO_TABLERO&&v==='hall'?['match',['get','crit'],'sin',.25,'resuelto',.4,1]:1);
+ /* en el tablero el parque bueno queda como fondo tenue, la señalética atenuada y sólo
+    resaltan las fallas de operatividad (rojo / naranjo); si se filtra por buenos o por
+    señalética, ese grupo sube de intensidad para poder revisarlo */
+ const opB=S.filtro==='bueno'?.85:.3,opS=(S.filtro==='senal'||S.filtro==='bueno')?.85:.38;
+ map.setPaintProperty('grifo-core','circle-opacity',MODO_TABLERO&&v==='hall'?['match',['get','crit'],'sin',opB,'resuelto',opB,'senaletica',opS,1]:(v==='lug'?.75:1));
+ map.setPaintProperty('grifo-core','circle-stroke-opacity',MODO_TABLERO&&v==='hall'?['match',['get','crit'],'sin',opB*.8,'resuelto',opB*.8,'senaletica',opS*.8,1]:1);
  map.setLayoutProperty('lug-ico','icon-size',['interpolate',['linear'],['zoom'],9,v==='lug'?.6:.42,13,v==='lug'?1:.75,16,v==='lug'?1.15:.95]);
  map.setLayoutProperty('lug-ico','text-field',['step',['zoom'],'',v==='lug'?12.5:13.5,['get','n']]);
  map.setPaintProperty('lug-ico','icon-opacity',v==='hall'?.78:.97);
+ /* en el tablero los lugares sensibles sólo aparecen cuando se pide verlos (tarjeta Zona prioritaria o filtro por grupo): el mapa queda limpio, sólo grifos */
+ if(MODO_TABLERO)map.setLayoutProperty('lug-ico','visibility',(S.filtro==='sensible'||S.filtro.startsWith('g:')||v==='lug')?'visible':'none');
  ['radios-f','radios-l'].forEach(id=>map.setLayoutProperty(id,'visibility',v==='lug'?'visible':'none'));
- map.setPaintProperty('grifo-glow','circle-opacity',['match',['get','crit'],'sin',v==='parque'?.25:0,'resuelto',MODO_TABLERO?.08:.18,v==='lug'?.3:.5]);
+ map.setPaintProperty('grifo-glow','circle-opacity',['match',['get','crit'],'sin',v==='parque'?.25:0,'resuelto',MODO_TABLERO?.08:.18,'senaletica',MODO_TABLERO?.1:(v==='lug'?.3:.5),v==='lug'?.3:.5]);
  ['sect-f','sect-l','sect-t'].forEach(id=>map.setLayoutProperty(id,'visibility',S.capas.sect?'visible':'none'));
  ['pobl-f','pobl-l','pobl-t','pobl-t2'].forEach(id=>map.setLayoutProperty(id,'visibility',S.capas.pobl?'visible':'none'));
  map.setLayoutProperty('com-l','visibility',S.capas.com?'visible':'none');
@@ -505,7 +532,21 @@ function aplicarVista(){
  map.setLayoutProperty('hill','visibility',S.capas.relieve?'visible':'none');
  map.setLayoutProperty('edif','visibility',S.capas.edif?'visible':'none');
  map.setLayoutProperty('sat','visibility',S.sat?'visible':'none');
- kpis();panelDer();leyenda();}
+ kpis();panelDer();leyenda();chips();}
+/* Chips del modo simple (tablero): parque completo · con falla (rojo/naranjo) · grifos
+   buenos · sólo señalética. Mismas unidades que el tablero: "falla" = operatividad
+   (directa + indirecta); "bueno" = sin falla de operatividad (incluye los que sólo tienen
+   pintura pendiente, que se muestran atenuados). Tocar un chip filtra; tocarlo de nuevo vuelve al parque. */
+function chips(){const el=document.getElementById('simple');if(!el||!MODO_TABLERO)return;
+ const gs=S.geo.grifos.filter(x=>S.comuna==='todos'||x.co===S.comuna),ab=x=>x.s&&x.s.abiertos>0;
+ const oper=gs.filter(x=>ab(x)&&x.s.crit!=='senaletica'),dir=oper.filter(x=>x.s.crit==='directa'),sen=gs.filter(x=>ab(x)&&x.s.crit==='senaletica'),bue=gs.length-oper.length;
+ const ch=(id,dots,n,l,s)=>'<button class="chip'+(S.filtro===id?' on':'')+'" data-f="'+id+'" aria-pressed="'+(S.filtro===id)+'">'+dots+'<b>'+fmt(n)+'</b><span>'+l+'</span>'+(s?'<small>· '+s+'</small>':'')+'</button>';
+ const pt=(c,lv)=>'<i style="--c:'+c+'"'+(lv?' class="lv"':'')+'></i>';
+ el.innerHTML=ch('todos','',gs.length,'Parque de grifos',S.comuna==='todos'?'':titulo(S.comuna))
+  +ch('oper',pt(COL.directa)+pt(COL.indirecta),oper.length,'Con falla',fmt(dir.length)+' directa')
+  +ch('bueno',pt(COL.sin,1),bue,'Grifos buenos','sin falla de operatividad')
+  +ch('senal',pt(COL.senaletica,1),sen.length,'Sólo señalética','pintura · atenuados');
+ el.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{const f=b.dataset.f;S.filtro=(S.filtro===f||f==='todos')?'todos':f;aplicarVista();if(S.filtro==='todos')encuadrarComuna();else encuadrarFiltro();});}
 function recalcular(fit){S.geo=construirGeo();['grifos','lug','radios','sect','sectl','calor','hex'].forEach(k=>{const src=map.getSource(k);if(!src)return;src.setData({grifos:S.geo.fG,lug:S.geo.fL,radios:S.geo.fR,sect:S.geo.fS,sectl:S.geo.fSl,calor:S.geo.fC,hex:S.geo.fH}[k]);});aplicarVista();if(fit)encuadrar();}
 function limitesParque(pad){const b=new maplibregl.LngLatBounds();datos.grifos.forEach(g=>b.extend([g.ln,g.la]));datos.hall.forEach(h=>b.extend([h.ln,h.la]));return b;}
 function padding(){const w=innerWidth,der=MODO_TABLERO?30:340,izq=document.body.classList.contains('sinpanel')?30:310,top=(MODO_TABLERO&&!document.body.classList.contains('herr'))?36:100;return w>1000?{top,bottom:40,left:izq,right:der}:w>720?{top,bottom:40,left:izq-10,right:30}:{top:120,bottom:60,left:20,right:20};}
@@ -537,7 +578,8 @@ function encuadrarFiltro(){
  if(!ids.length)return;const b=new maplibregl.LngLatBounds();ids.forEach(o=>b.extend([o.ln,o.la]));map.fitBounds(b,{padding:padding(),duration:1400,maxZoom:15.5});}
 function pasaGrifo(x){const f=S.filtro,ab=x.s&&x.s.abiertos>0;if(S.comuna!=='todos'&&x.co!==S.comuna)return false;if(S.vista==='hall'&&!x.s&&!MODO_TABLERO)return false;
  if(f==='todos')return true;if(f==='vencido')return !!(x.s&&x.s.plazo&&x.s.plazo.estado==='vencido');if(f==='oper')return ab&&x.s.crit!=='senaletica';if(f==='abierta')return S.vista==='hall'?(ab&&x.s.est==='en_proceso'):ab;if(f==='directa')return x.s&&x.s.crit==='directa';if(f==='sensible')return ab&&x.s.crit!=='senaletica'&&x.cer.length>0;
- if(f.startsWith('g:'))return ab&&x.grp.includes(f.slice(2));if(f==='resuelto')return x.s&&!ab;if(f==='sin')return !x.s;return true;}
+ if(f.startsWith('g:'))return ab&&x.grp.includes(f.slice(2));if(f==='resuelto')return x.s&&!ab;if(f==='sin')return !x.s;
+ if(f==='bueno')return !(ab&&x.s.crit!=='senaletica');if(f==='senal')return ab&&x.s.crit==='senaletica';return true;}
 function pasaLugar(l){const f=S.filtro;if(f==='riesgo')return l.ndir>0;if(f==='sinlug')return !l.cer.length;if(f.startsWith('g:'))return CATS[l.c].g===f.slice(2);return true;}
 
 function panelIzq(){
@@ -728,6 +770,8 @@ async function cargar(){
    sector/comuna, ir a un grifo, aplicar un filtro. */
 function modoTablero(){
  if(!MODO_TABLERO)return;document.body.classList.add('tablero');
+ const t=document.querySelector('.carga h2');if(t)t.textContent='Parque de grifos';
+ NOMC.sin='Grifo bueno (sin hallazgos)';NOMC.resuelto='Grifo bueno (hallazgos resueltos)';NOMC.senaletica='Sólo señalética (pintura)';NOMC.directa='Falla directa';NOMC.indirecta='Falla indirecta';
  const c=PARAMS.get('sector');if(c&&c!=='todos')S.comuna=c.toUpperCase();
  window.addEventListener('message',e=>{if(e.origin!==location.origin)return;const m=e.data||{};if(!S.listo)return;
   if(m.accion==='sector'){S.comuna=(m.comuna&&m.comuna!=='todos')?String(m.comuna).toUpperCase():'todos';S.filtro='todos';aplicarVista();encuadrarComuna();}
