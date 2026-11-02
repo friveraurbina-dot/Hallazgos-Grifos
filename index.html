@@ -510,6 +510,16 @@ nav.rail .rr-st.sen{grid-column:1/-1;flex-direction:row;align-items:baseline;gap
 .nv-tab{color:var(--text-soft);min-width:220px;}
 .nv-venc{color:#C8334D;font-weight:700;}.nv-aviso{color:#B7791F;font-weight:600;}.nv-ok{color:var(--musgo);font-weight:600;}
 .nv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-top:14px;}
+/* Normativa ejecutiva (02/11): dos columnas, cifras grandes */
+.nv-exec .nv-tabla td{padding:12px 14px;}
+.nv-exec .nv-cat{font-size:13.5px;}
+.nv-exec .nv-cat small{display:block;font-size:11px;color:var(--text-soft);font-weight:500;margin-top:2px;}
+.nv-exec .nv-hoy{min-width:260px;}
+.nv-exec .nv-n{font:800 22px/1 'Montserrat',sans-serif;color:var(--ink,#002359);margin-right:4px;}
+.nv-exec .nv-hoy .nv-venc,.nv-exec .nv-hoy .nv-aviso,.nv-exec .nv-hoy .nv-ok{display:inline-block;margin-left:10px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;}
+.nv-exec .nv-hoy .nv-venc{background:rgba(200,51,77,.1);}
+.nv-exec .nv-hoy .nv-aviso{background:rgba(226,163,61,.14);}
+.nv-exec .nv-hoy .nv-ok{background:rgba(47,158,120,.12);}
 .nv-box{background:#F7FAFD;border:1px solid var(--line);border-radius:12px;padding:12px 14px;}
 .nv-box h4{margin:0 0 6px;font:700 12px 'Montserrat',sans-serif;color:var(--ink);}
 .nv-box ul{margin:0;padding-left:18px;font-size:12.5px;line-height:1.5;color:var(--text);}
@@ -2501,49 +2511,25 @@ function renderDashboard(){
       const dir = directasAbiertas, ind = abiertos.filter(h=>criticidadDeRegistro(h)==='indirecta'), sen = senAbiertasArr;
       const dirV = dir.filter(h=>hrs(h)>48).length, indV = ind.filter(h=>hrs(h)>24*90).length, senV = sen.filter(h=>hrs(h)>24*90).length;
       const indA = ind.filter(h=>hrs(h)>24*7 && hrs(h)<=24*90).length, senA = sen.filter(h=>hrs(h)>24*7 && hrs(h)<=24*90).length;
-      const fila = (col, cat, campos, plazo, hoy, tablero, filtro) => `<tr>
-        <td><span class="nv-cat"><i style="background:${col}"></i>${cat}</span></td>
-        <td class="nv-campos">${campos}</td>
-        <td class="nv-plazo">${plazo}</td>
-        <td class="nv-hoy">${hoy}</td>
-        <td class="nv-tab">${tablero}</td></tr>`;
-      return `<div class="panel normativa">
+      /* (02/11) Versión ejecutiva: sólo la categoría SISS (con su plazo) y cómo está hoy el parque.
+         Los campos de inspección, las reglas y los puntos por validar se quitaron del tablero. */
+      const hoyTxt = FILTRO_SECTOR_DASHBOARD==='todos' ? 'el parque' : escHtml(FILTRO_SECTOR_DASHBOARD);
+      const fila = (col, cat, plazo, n, lbl, venc, vencTxt, aviso, avisoTxt) => `<tr>
+        <td><span class="nv-cat"><i style="background:${col}"></i>${cat}<small>plazo SISS: ${plazo}</small></span></td>
+        <td class="nv-hoy"><b class="nv-n">${n}</b> ${lbl}${venc?`<span class="nv-venc">${venc} ${vencTxt}</span>`:(n?`<span class="nv-ok">todos dentro de plazo</span>`:'')}${aviso?`<span class="nv-aviso">${aviso} ${avisoTxt}</span>`:''}</td></tr>`;
+      return `<div class="panel normativa nv-exec">
       <div class="nv-head">
-        <div><h3>Normativa SISS · por qué el tablero se ve así</h3>
-        <p class="sub">El protocolo PR036 no trae una tabla de "niveles de hallazgo". La clasificación sale de las tres categorías que usa la SISS para fijar los plazos de reparación; cada campo de la hoja de Inspección de Grifos cae en una de ellas, y el tablero usa esas mismas tres categorías, sus colores y sus plazos.</p></div>
-        <span class="nv-chip">Protocolo PR036 · hoja de Inspección de Grifos</span>
+        <div><h3>Normativa SISS · plazos de reparación</h3>
+        <p class="sub">Las tres categorías del protocolo PR036 y cómo está hoy ${hoyTxt} respecto de sus plazos (hallazgos abiertos).</p></div>
+        <span class="nv-chip">Protocolo PR036</span>
       </div>
       <div class="nv-tabla-wrap"><table class="nv-tabla">
-        <thead><tr><th>Categoría SISS</th><th>Campos de inspección que marcan hallazgo</th><th>Plazo de reparación</th><th>Hoy en ${FILTRO_SECTOR_DASHBOARD==='todos'?'el parque':escHtml(FILTRO_SECTOR_DASHBOARD)}</th><th>Cómo lo muestra el tablero</th></tr></thead>
+        <thead><tr><th>Categoría SISS</th><th>Hoy en ${hoyTxt}</th></tr></thead>
         <tbody>
-        ${fila(PRIORIDAD_COLOR.directa,'<b>1 · Operatividad directa</b><small>impide operar el grifo</small>','Opera Vástago = 2 · Vástago rodadura = 2 · Vástago torsión = 2 · Boca Hilo Estado = 2 · Tapa Boca = 2 / Tapa Boca Estado = 2','<b>Máx. 48 h</b> desde que se conoce la falla',
-          `<b>${dir.length}</b> abiertos${dirV?`<br><span class="nv-venc">${dirV} con más de 48 h</span>`:'<br><span class="nv-ok">todos dentro de 48 h</span>'}`,
-          'Rojo con halo; <b>pulso</b> mientras está pendiente. Primero en "Atención inmediata" y en "Prioridad hoy". La tarjeta <b>Fuera de plazo SISS</b> del mapa los cuenta.')}
-        ${fila(PRIORIDAD_COLOR.indirecta,'<b>2 · Operatividad indirecta</b><small>mecánica / cámara</small>','Fuga Agua = 1 · Válvula Pie Operativa = 2 · Válvula Pie Estado = 2 (cerrada) · Válvula Pie Cámara = 2 · Válvula Pie Tapa = 2','<b>1 semana a 3 meses</b>, según magnitud',
-          `<b>${ind.length}</b> abiertos${indV?`<br><span class="nv-venc">${indV} con más de 3 meses</span>`:''}${indA?`<br><span class="nv-aviso">${indA} entre 1 semana y 3 meses</span>`:''}`,
-          'Naranjo. Cuenta como falla de operatividad en todos los indicadores; aviso en la ficha desde la semana y vencido a los 3 meses.')}
-        ${fila(PRIORIDAD_COLOR.senaletica,'<b>3 · Señalética</b><small>visibilidad</small>','Color amarillo rey = 2 · Estado pintura = 2 · Línea negra = 2 · Número sobre línea = 2 · Anillo verde = 2','<b>1 semana a 3 meses</b>',
-          `<b>${sen.length}</b> pendientes${senV?`<br><span class="nv-venc">${senV} con más de 3 meses</span>`:''}${senA?`<br><span class="nv-aviso">${senA} entre 1 semana y 3 meses</span>`:''}`,
-          'Amarillo. Se cuenta aparte de la operatividad (como % ejecutado) para que no tape las fallas que dejan el grifo inoperativo. Es hallazgo igual: NCh 1646.Of1998.')}
-        ${fila('#7C8AA0','<b>Desempeño hidráulico</b><small>fuera de las tres categorías</small>','Cumple Presión = 2 (bajo 15 mca) · Cumple Caudal = 2 (bajo 5 mca con el grifo abierto, por modelación)','Sin plazo explícito en el protocolo',
-          '<span style="color:var(--text-soft)">No se registra en esta app</span>','No se visualiza: la app no recibe mediciones de presión ni caudal. Si se cargan, se puede agregar como cuarta capa.')}
+        ${fila(PRIORIDAD_COLOR.directa,'<b>1 · Operatividad directa</b>','máx. 48 h',dir.length,'abiertos',dirV,'con más de 48 h',0,'')}
+        ${fila(PRIORIDAD_COLOR.indirecta,'<b>2 · Operatividad indirecta</b>','1 semana a 3 meses',ind.length,'abiertos',indV,'con más de 3 meses',indA,'entre 1 semana y 3 meses')}
+        ${fila(PRIORIDAD_COLOR.senaletica,'<b>3 · Señalética</b>','1 semana a 3 meses',sen.length,'pendientes',senV,'con más de 3 meses',senA,'entre 1 semana y 3 meses')}
         </tbody></table></div>
-      <div class="nv-grid">
-        <div class="nv-box"><h4>Reglas asociadas</h4><ul>
-          <li>Hay que informar <b>todas</b> las anomalías encontradas, aunque se corrijan después. Por eso la lista "pendientes por riesgo" muestra todo lo abierto y no sólo un top.</li>
-          <li>Cada corrección se respalda con la <b>Orden de Intervención</b> y la <b>Fecha Última Intervención</b>; las OT deben quedar disponibles para la SISS durante <b>2 años</b>. En la app, el estado "Ejecutado" exige respaldo de la solución.</li>
-          <li>Frecuencia mínima de inspección: <b>anual</b>. Los grifos en <b>zona de riesgo 1 a 4</b> se inspeccionan como mínimo <b>semestralmente</b>: 1 = hospital / colegio / cárcel / centro comercial · 2 = alta densidad · 3 = alto riesgo social · 4 = otro.</li>
-        </ul></div>
-        <div class="nv-box"><h4>Zonas de riesgo en el tablero</h4><ul>
-          <li>La <b>zona prioritaria</b> del catastro (grifo a ≤150 m de colegio o jardín, centro de salud, municipalidad o cárcel) es la aproximación hoy disponible a la zona de riesgo 1 de la SISS.</li>
-          <li>El mapa dibuja además los <b>lugares sensibles</b> del entorno (salud, educación, bomberos y policía, cárceles y centros comerciales) y la tarjeta <b>Zona prioritaria</b> filtra los grifos con falla cercanos a ellos, para argumentar la inspección semestral grifo por grifo.</li>
-          <li>Las zonas 2, 3 y 4 (densidad, riesgo social, otro) no están en el catastro; si Sacyr las entrega por grifo, se incorporan como filtro.</li>
-        </ul></div>
-        <div class="nv-box nv-ojo"><h4>Dos puntos por validar con la sanitaria</h4><ul>
-          <li>La <b>tapa de boca</b> quedó en operatividad directa porque el protocolo incluye el "estado de bocas de admisión" en esa categoría. Es una interpretación: conviene confirmarla con el criterio de la sanitaria.</li>
-          <li>Hay una inconsistencia en <b>Válvula Pie Estado</b>: la tabla usa 1 = abierta y 2 = cerrada, pero el texto del punto 32 dice cerrada = 0. Para el XML del SINAR se usaría el código de la tabla (2).</li>
-        </ul></div>
-      </div>
     </div>`;})()}
 
     <div class="dash-row dr-a">
