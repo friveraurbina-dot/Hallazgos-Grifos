@@ -416,7 +416,11 @@ nav.rail .rail-foot{color:#6E88B0;}
 .hero-stats,.mapa-card .mapa-head,.mapa-card .com-cards{display:none !important;}
 .hero{margin-bottom:10px !important;}
 #railResumen{display:flex;flex-direction:column;gap:3px;margin-top:4px;}
-nav.rail .rail-toggle{all:unset;cursor:pointer;position:absolute;right:-13px;top:14px;width:26px;height:26px;border-radius:50%;background:#01B3D7;color:#001640;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,.35);z-index:6;transition:transform .2s;}
+/* Botón para contraer el menú: dentro del menú (antes sobresalía por el borde y el
+   overflow del menú lo recortaba), más grande y con título */
+nav.rail .rail-toggle{all:unset;cursor:pointer;position:absolute;right:10px;top:10px;width:32px;height:32px;border-radius:50%;background:#01B3D7;color:#001640;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,.35);z-index:6;transition:transform .2s,background .15s;}
+nav.rail .rail-toggle svg{width:18px;height:18px;}
+body.rail-min nav.rail .rail-toggle{position:static;margin:2px auto 10px;}
 nav.rail .rail-toggle:hover{transform:scale(1.1);}
 body.rail-min nav.rail .rail-toggle svg{transform:rotate(180deg);}
 nav.rail .rr-tt{all:unset;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font:700 10px 'Montserrat',sans-serif;letter-spacing:.2em;text-transform:uppercase;color:#6E8FBF;padding:12px 12px 6px;}

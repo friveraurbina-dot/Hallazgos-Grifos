@@ -212,6 +212,16 @@ body.tablero .simple{display:flex;position:fixed;left:12px;top:12px;z-index:21;g
 .chip:hover{border-color:var(--cy2)}
 .chip.on{background:rgba(1,179,215,.18);border-color:var(--cy2);box-shadow:0 0 0 1px rgba(99,209,224,.35),var(--sombra)}
 body.tablero .maplibregl-ctrl-bottom-right{bottom:10px;right:10px}
+/* Ficha del grifo como panel lateral fijo (modo tablero): siempre se ve completa, con
+   scroll propio, en vez de un popup que se corta contra el borde del mapa */
+.ficha{display:none}
+body.tablero .ficha{display:block;position:fixed;top:12px;right:12px;bottom:12px;width:350px;max-width:calc(100% - 24px);z-index:23;background:var(--glass);backdrop-filter:blur(14px);border:1px solid var(--borde);border-radius:14px;box-shadow:var(--sombra);overflow:auto;scrollbar-width:thin;animation:sube .25s ease-out}
+body.tablero .ficha[hidden]{display:none}
+.ficha .fx-x{all:unset;position:absolute;right:8px;top:8px;z-index:2;cursor:pointer;width:28px;height:28px;border-radius:50%;background:rgba(3,14,36,.75);color:#fff;font-size:17px;line-height:28px;text-align:center;border:1px solid var(--borde)}
+.ficha .fx-x:hover{background:rgba(1,179,215,.4)}
+.ficha .fx-foto{height:200px;border-radius:14px 14px 0 0;overflow:hidden}
+body.tablero.conficha .maplibregl-ctrl-bottom-right{right:374px}
+@media(max-width:720px){body.tablero .ficha{top:auto;bottom:8px;left:8px;right:8px;width:auto;max-height:70vh}}
 @media(max-width:720px){.chip small{display:none}.chip{height:30px;padding:0 9px 0 8px}}
 /* ---- móvil ---- */
 @media(max-width:1000px){
@@ -259,6 +269,7 @@ body.tablero .maplibregl-ctrl-bottom-right{bottom:10px;right:10px}
 <button class="btn mov" id="bmov" aria-label="Mostrar capas">Capas</button>
 <button class="btn bher" id="bher" title="Mostrar u ocultar las herramientas del mapa (capas, 3D, satélite, recorrido, buscador)" aria-pressed="false"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M2 4.5h12M2 8h12M2 11.5h12"/><circle cx="5" cy="4.5" r="1.4" fill="#001640"/><circle cx="11" cy="8" r="1.4" fill="#001640"/><circle cx="7" cy="11.5" r="1.4" fill="#001640"/></svg><span class="tx">Herramientas</span></button>
 <div class="simple" id="simple" role="group" aria-label="Qué mostrar en el mapa"></div>
+<aside class="ficha" id="ficha" hidden aria-label="Ficha del grifo"><button class="fx-x" id="fichaX" title="Cerrar ficha" aria-label="Cerrar ficha">×</button><div id="fichaBody"></div></aside>
 <div class="cap" id="cap" role="status"></div>
 <div class="aviso" id="aviso"></div>
 <div class="carga" id="carga"><div class="lg">Gestión Sacyr</div><h2>Centro de control</h2><div class="st" id="cst">Leyendo el catastro de grifos…</div><div class="bar"><i></i></div></div>
@@ -482,6 +493,7 @@ function capasBase(){
  map.on('mousemove','lug-ico',e=>{const p=e.features[0].properties;mostrarTip(e.lngLat,'<b>'+esc(p.n)+'</b> · '+esc(p.nom));});
  map.on('click','grifo-core',e=>{e.preventDefault();fichaGrifo(e.features[0].properties.k);});
  map.on('click','lug-ico',e=>{if(e.defaultPrevented)return;fichaLugar(+e.features[0].properties.i);});
+ map.on('click',e=>{if(!MODO_TABLERO)return;if(map.queryRenderedFeatures(e.point,{layers:['grifo-core','lug-ico']}).length)return;cerrarFicha();});
  map.on('click','sect-f',e=>{if(e.defaultPrevented||map.queryRenderedFeatures(e.point,{layers:['grifo-core','lug-ico']}).length)return;const p=e.features[0].properties;mostrarTip(e.lngLat,'<b>Sector '+esc(p.n)+'</b> · '+p.total+' grifos',true);});
 }
 function mostrarTip(ll,html,fijo){if(tip)tip.remove();tip=new maplibregl.Popup({closeButton:false,closeOnClick:true,className:'tip',offset:12,maxWidth:'300px'}).setLngLat(ll).setHTML(html).addTo(map);if(!fijo)return;}
@@ -668,8 +680,16 @@ function fichaGrifo(k){
  if(g.cer.length){h+='<div class="pl">Lugares sensibles a ≤ '+S.radio+' m</div>'+g.cer.slice(0,3).map(x=>'<div class="pli"><span class="ic" style="background:'+colCat(x.o.c)+'">'+svgIco(x.o.c,10)+'</span>'+esc(x.o.n)+'<span>'+Math.round(x.d)+' m</span></div>').join('')+(g.cer.length>3?'<div class="pt">y '+(g.cer.length-3)+' más</div>':'');}
  if(fotos.length>1)h+='<div class="fx-th">'+fotos.map((u,i)=>'<img src="'+esc(u)+'" alt="Foto '+(i+1)+'" loading="lazy" referrerpolicy="no-referrer" data-i="'+i+'"'+(i===0?' class="on"':'')+'>').join('')+'</div>';
  h+='<div class="pacc">'+(MODO_TABLERO&&ppal?'<button data-a="det" class="pri-b">Detalle completo</button>':'')+'<button data-a="zoom">Acercar</button><button data-a="sat">Satélite</button></div></div>';
- popup=new maplibregl.Popup({className:'pop popx',maxWidth:'340px',offset:14,focusAfterOpen:false}).setLngLat([g.ln,g.la]).setHTML(h).addTo(map);
- const el=popup.getElement();requestAnimationFrame(()=>{const c=el.querySelector('.maplibregl-popup-content');if(c)c.scrollTop=0;});
+ let el;
+ if(MODO_TABLERO){
+  const pan=document.getElementById('ficha'),body=document.getElementById('fichaBody');body.innerHTML=h;pan.hidden=false;pan.scrollTop=0;document.body.classList.add('conficha');el=body;
+  /* si el grifo queda tapado por el panel, se corre el mapa lo justo para dejarlo a la vista */
+  const pt=map.project([g.ln,g.la]),lim=map.getContainer().clientWidth-pan.offsetWidth-40;
+  if(pt.x>lim)map.panBy([pt.x-lim+60,0],{duration:500});
+ }else{
+  popup=new maplibregl.Popup({className:'pop popx',maxWidth:'340px',offset:14,focusAfterOpen:false}).setLngLat([g.ln,g.la]).setHTML(h).addTo(map);
+  el=popup.getElement();requestAnimationFrame(()=>{const c=el.querySelector('.maplibregl-popup-content');if(c)c.scrollTop=0;});
+ }
  el.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{const a=b.dataset.a;
   if(a==='zoom')map.flyTo({center:[g.ln,g.la],zoom:18,pitch:60,duration:1800});
   else if(a==='sat'){if(!S.sat)toggleSat();map.flyTo({center:[g.ln,g.la],zoom:18.5,pitch:0,duration:1800});}
@@ -677,6 +697,7 @@ function fichaGrifo(k){
  el.querySelectorAll('.fx-th img').forEach(im=>im.onclick=()=>{el.querySelector('.fx-foto img').src=im.src;el.querySelectorAll('.fx-th img').forEach(x=>x.classList.toggle('on',x===im));});
  el.querySelectorAll('.fx-foto img').forEach(im=>im.onclick=()=>window.open(im.src,'_blank','noopener'));
 }
+function cerrarFicha(){const pan=document.getElementById('ficha');if(!pan||pan.hidden)return;pan.hidden=true;document.body.classList.remove('conficha');}
 function fichaLugar(i){
  const l=S.geo.lug[i];if(!l)return;if(popup)popup.remove();if(tip)tip.remove();
  const cer=l.cer;
@@ -792,11 +813,12 @@ function enlazar(){modoTablero();
  let abierto=!MODO_TABLERO;try{const v=localStorage.getItem('ccPanel');if(v!==null)abierto=v==='1';}catch(e){}
  panelVisible(abierto);
  document.getElementById('bpan').onclick=()=>{panelVisible(document.body.classList.contains('sinpanel'));if(S.listo)encuadrar(true);};
+ document.getElementById('fichaX').onclick=cerrarFicha;
  document.getElementById('bher').onclick=()=>{const on=document.body.classList.toggle('herr');const b=document.getElementById('bher');b.classList.toggle('on',on);b.setAttribute('aria-pressed',on);};
  document.getElementById('b3d').onclick=toggle3D;document.getElementById('bsat').onclick=toggleSat;document.getElementById('btour').onclick=tour;document.getElementById('bfull').onclick=pantalla;
  document.getElementById('bmov').onclick=()=>{document.getElementById('pizq').classList.toggle('on');panelVisible(true);};
  const b=document.getElementById('busca');b.onkeydown=e=>{if(e.key==='Enter'){buscar(b.value);b.blur();}};
- document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(S.tour)detenerTour();if(popup)popup.remove();}
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(S.tour)detenerTour();if(popup)popup.remove();cerrarFicha();}
   if(e.key===' '&&S.tour&&document.activeElement.tagName!=='INPUT'){e.preventDefault();pausarTour();}});
  window.addEventListener('resize',()=>{if(map)map.resize();});}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{enlazar();cargar();});else{enlazar();cargar();}
