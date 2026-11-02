@@ -822,7 +822,13 @@ function modoTablero(){
  window.addEventListener('message',e=>{if(e.origin!==location.origin)return;const m=e.data||{};if(!S.listo)return;
   if(m.accion==='sector'){const c=(m.comuna&&m.comuna!=='todos')?String(m.comuna).toUpperCase():'todos';const igual=c===S.comuna;S.comuna=c;if(m.cifras)S.cifras=m.cifras;if(!igual)S.filtro='todos';aplicarVista();if(!igual)encuadrarComuna();}
   if(m.accion==='grifo'&&m.codigo)irAGrifo(String(m.codigo).toUpperCase());
-  if(m.accion==='filtro'&&m.filtro){S.filtro=m.filtro;aplicarVista();encuadrarFiltro();}});}
+  if(m.accion==='filtro'&&m.filtro){S.filtro=m.filtro;aplicarVista();encuadrarFiltro();}
+  if(m.accion==='captura')capturarMapa().then(png=>{try{parent.postMessage({accion:'captura',png},location.origin);}catch(e){}});});}
+/* Captura del mapa para el informe ejecutivo del tablero: se lee el canvas de WebGL dentro
+   del mismo cuadro en que MapLibre lo dibuja (sin preserveDrawingBuffer). JPEG para que el
+   informe pese poco. */
+function capturarMapa(){return new Promise(res=>{if(!map||!S.listo){res(null);return;}
+ let ok=false;map.once('render',()=>{try{res(map.getCanvas().toDataURL('image/jpeg',.86));ok=true;}catch(e){res(null);ok=true;}});map.triggerRepaint();setTimeout(()=>{if(!ok)res(null);},3000);});}
 function encuadrarComuna(){if(S.comuna==='todos'){encuadrar(true);return;}const b=new maplibregl.LngLatBounds();let n=0;S.geo.grifos.forEach(g=>{if(g.co===S.comuna){b.extend([g.ln,g.la]);n++;}});if(n)map.fitBounds(b,{padding:padding(),duration:1600,maxZoom:14.5,pitch:S.tres?50:0});}
 function panelVisible(on){document.body.classList.toggle('sinpanel',!on);const b=document.getElementById('bpan');b.classList.toggle('on',on);b.setAttribute('aria-pressed',on);
  try{localStorage.setItem('ccPanel',on?'1':'0');}catch(e){}}

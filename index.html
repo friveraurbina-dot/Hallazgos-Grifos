@@ -2061,6 +2061,10 @@ function render(){
 const ZONA_CONCESION_BOUNDS = [[-33.62, -71.02], [-33.05, -70.48]];
 
 let DASH_ANIMADO = false;
+// Foto de las cifras del tablero (unidad "grifos" + tarjetas de gestión). La llena
+// renderDashboard y la usa el informe ejecutivo del perfil Sacyr, para que el informe
+// diga exactamente lo mismo que la pantalla.
+let DASH_RESUMEN = null;
 function renderDashboard(){
   const main = document.getElementById('main');
   // Las pinturas y demás señalética NO son hallazgos de operatividad: se
@@ -2231,6 +2235,24 @@ function renderDashboard(){
   const atencion = directasAbiertas.slice().sort((a,b)=>new Date(a.fecha_creacion)-new Date(b.fecha_creacion)).slice(0,7);
   const animarDash = !DASH_ANIMADO; DASH_ANIMADO = true;
   const RING_C = 2*Math.PI*66;
+  {
+    const hrsN = h => (Date.now() - new Date(h.fecha_creacion).getTime())/36e5;
+    const indN = abiertos.filter(h=>criticidadDeRegistro(h)==='indirecta');
+    DASH_RESUMEN = {
+      fecha: fmtDate(new Date()), sector: FILTRO_SECTOR_DASHBOARD,
+      parqueTotal, gPend, gBuenos, G: Object.assign({}, G), gPct,
+      comunas: comunaCards.map(([nom,c])=>({nom, grifos:c.grifos||0, gPend:c.gPend||0, gDir:c.gDir||0, gInd:c.gInd||0, gSen:c.gSen||0})),
+      parqueTodo, GT: Object.assign({}, GT),
+      hallAbiertos: abiertos.length, senPendientes, senEjecutadas, senPct, total, estados: Object.assign({}, estados), pctResuelto,
+      nuevos7, resueltos30, nuevos30, vencidos90, edadProm, edadPromTot,
+      buckets: buckets.map(b=>({l:b.l, n:b.n, op:b.op, s:b.s, c:b.c})),
+      zp: {grifos:zpGrifos.length, directa:zpDirecta.size, parque:zpParque, sen:zpSen, porTipo:Object.assign({}, zpPorTipo)},
+      atencion: atencion.map(h=>({codigo:h.codigo_grifo||'—', direccion:h.direccion||'', comuna:h.comuna||'', dias:diasTranscurridos(h.fecha_creacion), estado:h.estado, tipos:obtenerDetalleHallazgos(h).map(d=>d.tipo_hallazgo).filter(Boolean).join(', ')})),
+      norma: {dir:directasAbiertas.length, dirV:directasAbiertas.filter(h=>hrsN(h)>48).length,
+              ind:indN.length, indV:indN.filter(h=>hrsN(h)>24*90).length, indA:indN.filter(h=>hrsN(h)>24*7 && hrsN(h)<=24*90).length,
+              sen:senAbiertasArr.length, senV:senAbiertasArr.filter(h=>hrsN(h)>24*90).length, senA:senAbiertasArr.filter(h=>hrsN(h)>24*7 && hrsN(h)<=24*90).length}
+    };
+  }
 
   main.innerHTML = `
   <div class="page">
@@ -5414,18 +5436,182 @@ new Chart(document.getElementById('repChart2'), {type:'bar',
 
 /* Descarga el informe ejecutivo como archivo .html */
 function descargarReporteEjecutivo(){
-  const html = construirReporteHTML();
+  // Perfil Sacyr: sólo el informe ejecutivo (lo que muestra el tablero), con el mapa capturado.
+  if(ROLE==='sacyr'){
+    if(!DASH_RESUMEN && currentPage==='dashboard') renderDashboard();
+    toast('Generando el informe ejecutivo…');
+    capturarMapaCC().then(png=>descargarHtml(construirReporteEjecutivoSacyr(png), 'informe-ejecutivo-parque-grifos'));
+    return;
+  }
+  descargarHtml(construirReporteHTML(), 'informe-ejecutivo-grifos');
+}
+function descargarHtml(html, nombre){
   const blob = new Blob([html], {type:'text/html'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   const stamp = new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
   a.href = url;
-  a.download = `informe-ejecutivo-grifos-${stamp}.html`;
+  a.download = `${nombre}-${stamp}.html`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
   toast('Informe ejecutivo descargado');
+}
+/* ---------------- INFORME EJECUTIVO DEL PERFIL SACYR (02/11) ----------------
+   Para Sacyr Aguas el informe es sólo lo que muestra el tablero ejecutivo: las cifras en
+   grifos, el mapa tal como se ve en pantalla, las comunas, las tarjetas de gestión y los
+   plazos SISS. Sin introducción ni listados de hallazgos (eso sigue en el reporte de la
+   pestaña Hallazgos). Las cifras salen de DASH_RESUMEN, la misma foto que pinta la pantalla,
+   y el mapa es una captura del centro de control embebido (así no depende de tiles
+   externos al abrir el archivo). */
+function capturarMapaCC(){
+  return new Promise(res=>{
+    if(!CC_FRAME || !CC_FRAME.contentWindow){ res(null); return; }
+    let listo = false;
+    const fin = v => { if(listo) return; listo = true; window.removeEventListener('message', onMsg); res(v); };
+    const onMsg = e => { if(e.origin!==location.origin) return; const m = e.data||{}; if(m.accion==='captura') fin(m.png||null); };
+    window.addEventListener('message', onMsg);
+    ccEnviar({accion:'captura'});
+    setTimeout(()=>fin(null), 5000);
+  });
+}
+function construirReporteEjecutivoSacyr(mapaPng){
+  const R = DASH_RESUMEN;
+  if(!R) return '<!DOCTYPE html><html lang="es"><body>Abre primero el tablero ejecutivo para generar el informe.</body></html>';
+  const n = x => (x===null||x===undefined) ? '—' : Number(x).toLocaleString('es-CL');
+  const pct = x => x.toFixed(1).replace('.',',');
+  const esc = escHtml;
+  const sectorTxt = R.sector==='todos' ? 'Todas las comunas' : R.sector;
+  const w = x => R.parqueTotal ? Math.min(100, x/R.parqueTotal*100) : 0;
+  const comunasHtml = R.comunas.map(c=>`<tr><td><b>${esc(c.nom)}</b></td><td>${n(c.grifos)}</td><td>${n(c.gPend)}</td><td class="d">${n(c.gDir)}</td><td class="i">${n(c.gInd)}</td><td class="s">${n(c.gSen)}</td><td class="ok">${n(Math.max(0,c.grifos-c.gPend))}</td></tr>`).join('');
+  const maxB = Math.max(1, ...R.buckets.map(b=>b.n));
+  const bucketsHtml = R.buckets.map(b=>`<div class="bk"><span class="bl">${b.l}</span><span class="bb"><i style="width:${b.n/maxB*100}%;background:${b.c}"></i></span><span class="bn">${n(b.n)}</span></div>`).join('');
+  const atencionHtml = R.atencion.length ? R.atencion.map((h,i)=>`<tr><td class="mono">${i+1}</td><td><b>${esc(h.codigo)}</b></td><td>${esc(h.direccion)}${h.comuna?`<small>${esc(h.comuna)}</small>`:''}</td><td>${esc(h.tipos||'—')}</td><td class="mono">${n(h.dias)} d</td><td><span class="est ${h.estado}">${ESTADO_LABEL[h.estado]||h.estado}</span></td></tr>`).join('') : '<tr><td colspan="6" class="vacio">Sin fallas de operatividad directa abiertas.</td></tr>';
+  const N = R.norma;
+  const html = `<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8"><title>Informe ejecutivo · Parque Grifos Sacyr — ${esc(R.fecha)}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#001640;--navy:#002359;--accent:#01B3D7;--accent-2:#63D1E0;--line:#D6E2EC;--text:#0E2142;--soft:#5A6F8C;--dir:#FF4D63;--ind:#FF9A3C;--sen:#E6C24A;--ok:#2FB387;--paper:#fff;--bg:#EDF3F8;}
+*{box-sizing:border-box;}body{margin:0;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);font-size:13.5px;line-height:1.5;}
+.mono{font-family:'IBM Plex Mono',monospace;}
+header{background:linear-gradient(100deg,#001640,#002359 55%,#0B3A86);color:#fff;padding:28px 34px;border-bottom:4px solid var(--accent);}
+header .eye{font:700 10px 'Montserrat',sans-serif;letter-spacing:.22em;text-transform:uppercase;color:var(--accent-2);}
+header h1{font:800 24px 'Montserrat',sans-serif;margin:6px 0 4px;letter-spacing:-.01em;}
+header p{margin:0;color:#BCD0E4;font-size:12px;}
+header .emp{margin-top:10px;font-size:11px;color:#9FB3CC;text-transform:uppercase;letter-spacing:.06em;}header .emp b{color:#fff;}
+.wrap{max-width:1040px;margin:0 auto;padding:26px 24px 60px;}
+section{margin-bottom:26px;}
+h2{font:800 17px 'Montserrat',sans-serif;color:var(--ink);margin:0 0 4px;letter-spacing:-.01em;}
+h2 small{display:block;font:500 11.5px 'Inter',sans-serif;color:var(--soft);margin-top:2px;}
+.sec-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;border-bottom:2px solid var(--line);padding-bottom:8px;margin-bottom:14px;}
+.chip{font:700 10px 'IBM Plex Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-2);background:#0B3A86;padding:4px 10px;border-radius:4px;white-space:nowrap;}
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
+.kpi{background:var(--paper);border:1px solid var(--line);border-left:5px solid var(--c,var(--ink));border-radius:10px;padding:12px 14px;}
+.kpi .num{font:800 30px/1 'Montserrat',sans-serif;color:var(--ink);font-variant-numeric:tabular-nums;}
+.kpi .lbl{font-size:10.5px;color:var(--soft);margin-top:6px;text-transform:uppercase;letter-spacing:.05em;font-weight:600;}
+.kpi .sub{font-size:11px;color:var(--soft);margin-top:3px;}
+.kpi.sen{opacity:.75;}.kpi.sen .num{font-size:24px;color:#6B6B5A;}
+.barra{margin-top:14px;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:12px 14px;}
+.barra .t{display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:7px;}.barra .t b{font:700 10.5px 'Montserrat',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--navy);}.barra .t span{font-weight:700;color:var(--ok);}
+.track{display:flex;gap:2px;height:14px;border-radius:99px;overflow:hidden;background:#E3EBF2;}.track i{display:block;height:100%;min-width:3px;}
+.leyenda{display:flex;gap:16px;flex-wrap:wrap;margin-top:9px;font-size:11.5px;color:var(--soft);}.leyenda span{display:inline-flex;align-items:center;gap:6px;}.leyenda i{width:10px;height:10px;border-radius:50%;display:inline-block;}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:16px;}
+.mapa img{width:100%;display:block;border-radius:8px;border:1px solid var(--line);background:#061331;}
+.mapa .sinmapa{height:260px;display:flex;align-items:center;justify-content:center;color:var(--soft);background:#061331;border-radius:8px;}
+table{width:100%;border-collapse:collapse;font-size:12.5px;}th,td{padding:8px 9px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;}
+th{font:600 10px 'IBM Plex Mono',monospace;text-transform:uppercase;color:var(--soft);letter-spacing:.04em;}
+td.d{color:#C8334D;font-weight:700;}td.i{color:#C96A12;font-weight:700;}td.s{color:#8A6D00;}td.ok{color:#1F8C66;font-weight:700;}td small{display:block;color:var(--soft);font-size:11px;}
+tr.tot td{font-weight:700;background:#F5F9FC;}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.card h3{font:700 13px 'Montserrat',sans-serif;margin:0 0 8px;color:var(--ink);}
+.card .big{font:800 30px/1 'Montserrat',sans-serif;color:var(--ink);}.card .big small{font:600 12px 'Inter',sans-serif;color:var(--soft);margin-left:6px;}
+.card p{margin:6px 0 0;font-size:12px;color:var(--soft);}
+.bk{display:grid;grid-template-columns:76px 1fr 34px;align-items:center;gap:8px;font-size:11.5px;margin-top:5px;}.bk .bb{height:9px;background:#E3EBF2;border-radius:99px;overflow:hidden;}.bk .bb i{display:block;height:100%;border-radius:99px;}.bk .bn{text-align:right;font-weight:700;}
+.est{font-size:10px;font-weight:700;padding:2px 8px;border-radius:12px;text-transform:uppercase;background:#F1EEE6;color:#7A7263;}.est.en_proceso{background:#EAF1EC;color:#3F6E46;}
+td.vacio{color:var(--soft);text-align:center;}
+.norma td:first-child{white-space:nowrap;}.norma .cat i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:-1px;}
+.venc{color:#C8334D;font-weight:700;}.aviso{color:#B8860B;font-weight:700;}.okt{color:#1F8C66;font-weight:700;}
+.nota{font-size:11.5px;color:var(--soft);margin-top:8px;}
+footer{text-align:center;font-size:11px;color:var(--soft);font-family:'IBM Plex Mono',monospace;padding:22px;}
+@media(max-width:820px){.kpis{grid-template-columns:repeat(2,1fr);}.grid-3{grid-template-columns:1fr;}}
+@media print{body{background:#fff;}.wrap{padding:10px 6px 20px;}section,.panel,.card,table{page-break-inside:avoid;}header{border-bottom-width:2px;padding:20px 26px;}.kpis{grid-template-columns:repeat(5,1fr);}.grid-3{grid-template-columns:repeat(3,1fr);}}
+</style></head>
+<body>
+<header>
+  <div class="eye">Gestión Sacyr · Parque Grifos Sacyr</div>
+  <h1>Informe ejecutivo del parque de grifos</h1>
+  <p>Emitido el ${esc(R.fecha)} · ${esc(sectorTxt)} · cifras en grifos: cada grifo cuenta una vez, en su peor categoría pendiente</p>
+  <div class="emp">Empresa mandante: <b>Sacyr Aguas</b> &nbsp;·&nbsp; Empresa de servicio: <b>Singemelec</b></div>
+</header>
+<div class="wrap">
+
+  <section>
+    <div class="sec-head"><h2>Resumen del parque<small>Estado actual de los ${n(R.parqueTotal)} grifos del catastro${R.sector==='todos'?'':' en '+esc(sectorTxt)}</small></h2><span class="chip">1 · Parque</span></div>
+    <div class="kpis">
+      <div class="kpi" style="--c:var(--ink)"><div class="num">${n(R.parqueTotal)}</div><div class="lbl">Parque total</div><div class="sub">grifos en el catastro</div></div>
+      <div class="kpi" style="--c:var(--ok)"><div class="num">${n(R.gBuenos)}</div><div class="lbl">Grifos buenos</div><div class="sub">${R.parqueTotal?pct(R.gBuenos/R.parqueTotal*100)+'% sin hallazgos pendientes':''}</div></div>
+      <div class="kpi" style="--c:var(--dir)"><div class="num">${n(R.G.directa)}</div><div class="lbl">Falla directa</div><div class="sub">plazo SISS 48 h · prioridad máxima</div></div>
+      <div class="kpi" style="--c:var(--ind)"><div class="num">${n(R.G.indirecta)}</div><div class="lbl">Falla indirecta</div><div class="sub">mecánica / cámara</div></div>
+      <div class="kpi sen" style="--c:var(--sen)"><div class="num">${n(R.G.senaletica)}</div><div class="lbl">Sólo señalética</div><div class="sub">pintura · en ejecución por Singemelec</div></div>
+    </div>
+    <div class="barra">
+      <div class="t"><b>Estado del parque de grifos</b><span>${n(R.gBuenos)} grifos buenos, sin hallazgos pendientes (${R.parqueTotal?pct(R.gBuenos/R.parqueTotal*100):'—'}%)</span></div>
+      <div class="track"><i style="width:${w(R.gBuenos)}%;background:var(--ok)" title="buenos"></i><i style="width:${w(R.G.senaletica)}%;background:var(--sen);opacity:.6" title="sólo señalética"></i><i style="width:${w(R.G.indirecta)}%;background:var(--ind)" title="falla indirecta"></i><i style="width:${w(R.G.directa)}%;background:var(--dir)" title="falla directa"></i></div>
+      <div class="leyenda"><span><i style="background:var(--ok)"></i>Buenos ${n(R.gBuenos)}</span><span><i style="background:var(--sen);opacity:.6"></i>Sólo señalética ${n(R.G.senaletica)}</span><span><i style="background:var(--ind)"></i>Falla indirecta ${n(R.G.indirecta)}</span><span><i style="background:var(--dir)"></i>Falla directa ${n(R.G.directa)}</span><span>· Con hallazgos pendientes: <b>${n(R.gPend)}</b>${R.gPct!==null?' ('+pct(R.gPct)+'%)':''}</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Mapa del parque<small>Tal como se ve en el tablero: rojo = falla directa, naranjo = falla indirecta, verde = grifo bueno, amarillo tenue = sólo señalética</small></h2><span class="chip">2 · Mapa</span></div>
+    <div class="panel mapa">${mapaPng ? `<img src="${mapaPng}" alt="Mapa del parque de grifos">` : '<div class="sinmapa">El mapa no pudo capturarse. Genera el informe desde el tablero con el mapa a la vista.</div>'}
+      <div class="leyenda"><span><i style="background:var(--dir)"></i>Falla directa (con pulso mientras está pendiente)</span><span><i style="background:var(--ind)"></i>Falla indirecta</span><span><i style="background:var(--ok)"></i>Grifo bueno</span><span><i style="background:var(--sen);opacity:.6"></i>Sólo señalética, atenuada</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Por comuna<small>Grifos con hallazgos pendientes y su desglose; todo el parque, sin filtro de sector</small></h2><span class="chip">3 · Comunas</span></div>
+    <div class="panel"><table>
+      <thead><tr><th>Comuna</th><th>Grifos</th><th>Con pendientes</th><th>Falla directa</th><th>Falla indirecta</th><th>Sólo señalética</th><th>Buenos</th></tr></thead>
+      <tbody>${comunasHtml}
+      <tr class="tot"><td>Todas las comunas</td><td>${n(R.parqueTodo)}</td><td>${n(R.GT.pend)}</td><td class="d">${n(R.GT.directa)}</td><td class="i">${n(R.GT.indirecta)}</td><td class="s">${n(R.GT.senaletica)}</td><td class="ok">${n(Math.max(0,R.parqueTodo-R.GT.pend))}</td></tr>
+      </tbody></table></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Gestión de hallazgos<small>Registros de hallazgos (un grifo puede tener varios) y su resolución por parte de Singemelec</small></h2><span class="chip">4 · Gestión</span></div>
+    <div class="grid-3">
+      <div class="panel card"><h3>Hallazgos abiertos</h3><div class="big">${n(R.hallAbiertos + R.senPendientes)}</div><p>${n(R.hallAbiertos)} de operatividad + ${n(R.senPendientes)} de señalética · ${n(R.nuevos7)} nuevos en los últimos 7 días</p></div>
+      <div class="panel card"><h3>Avance de resolución</h3><div class="big">${R.pctResuelto}<small>%</small></div><p>${n(R.estados.resuelto||0)} de ${n(R.total)} hallazgos de operatividad resueltos · señalética ${R.senPct}% ejecutada (${n(R.senEjecutadas)} de ${n(R.senEjecutadas+R.senPendientes)}) · ${n(R.resueltos30)} resueltos en 30 días</p></div>
+      <div class="panel card"><h3>Zona prioritaria</h3><div class="big">${n(R.zp.grifos)}<small>grifos</small></div><p>con hallazgos abiertos a ≤150 m de colegios, salud, municipalidad o cárcel${R.zp.directa?` · <b style="color:#C8334D">${n(R.zp.directa)} con falla directa</b>`:''} · ${n(R.zp.parque)} grifos del parque en zona prioritaria</p></div>
+    </div>
+    <div class="grid-3" style="margin-top:12px;grid-template-columns:1fr 2fr;">
+      <div class="panel card"><h3>Antigüedad de los abiertos</h3>${bucketsHtml}<p>Promedio ${n(R.edadPromTot)} días · ${n(R.vencidos90)} de operatividad con más de 90 días</p></div>
+      <div class="panel card"><h3>Atención inmediata · fallas directas más antiguas</h3>
+        <table><thead><tr><th>#</th><th>Grifo</th><th>Dirección</th><th>Hallazgo</th><th>Abierto</th><th>Estado</th></tr></thead><tbody>${atencionHtml}</tbody></table>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Plazos SISS · protocolo PR036<small>Por qué el tablero se lee en tres categorías y qué está fuera de plazo hoy</small></h2><span class="chip">5 · Normativa</span></div>
+    <div class="panel norma"><table>
+      <thead><tr><th>Categoría SISS</th><th>Plazo de reparación</th><th>Hoy en ${esc(sectorTxt==='Todas las comunas'?'el parque':sectorTxt)}</th><th>En el tablero</th></tr></thead>
+      <tbody>
+      <tr><td class="cat"><i style="background:var(--dir)"></i><b>1 · Operatividad directa</b></td><td><b>Máx. 48 h</b> desde que se conoce la falla</td><td><b>${n(N.dir)}</b> abiertos · ${N.dirV?`<span class="venc">${n(N.dirV)} con más de 48 h</span>`:'<span class="okt">todos dentro de 48 h</span>'}</td><td>Rojo, con pulso mientras está pendiente; primero en Atención inmediata</td></tr>
+      <tr><td class="cat"><i style="background:var(--ind)"></i><b>2 · Operatividad indirecta</b></td><td><b>1 semana a 3 meses</b>, según magnitud</td><td><b>${n(N.ind)}</b> abiertos${N.indV?` · <span class="venc">${n(N.indV)} con más de 3 meses</span>`:''}${N.indA?` · <span class="aviso">${n(N.indA)} entre 1 semana y 3 meses</span>`:''}</td><td>Naranjo; cuenta como falla de operatividad</td></tr>
+      <tr><td class="cat"><i style="background:var(--sen)"></i><b>3 · Señalética</b></td><td><b>1 semana a 3 meses</b></td><td><b>${n(N.sen)}</b> pendientes${N.senV?` · <span class="venc">${n(N.senV)} con más de 3 meses</span>`:''}${N.senA?` · <span class="aviso">${n(N.senA)} entre 1 semana y 3 meses</span>`:''}</td><td>Amarillo atenuado; se mide aparte como % ejecutado (NCh 1646.Of1998)</td></tr>
+      </tbody></table>
+      <p class="nota">Inspección mínima anual; semestral en zonas de riesgo 1 a 4 (1 = hospital / colegio / cárcel / centro comercial). La zona prioritaria del catastro (≤150 m de colegio, salud, municipalidad o cárcel) es la aproximación disponible a la zona de riesgo 1. El desempeño hidráulico (presión / caudal) no se registra en la plataforma.</p>
+    </div>
+  </section>
+
+</div>
+<footer>Informe estático generado desde el tablero ejecutivo Gestión Sacyr el ${esc(R.fecha)} · no se actualiza automáticamente; vuelve a generarlo para reflejar el estado más reciente.</footer>
+</body></html>`;
+  return html;
 }
 
 /* ---------------- REPORTE COMPLETO DE HALLAZGOS (pestaña Hallazgos) ----------------
@@ -6010,14 +6196,22 @@ function exportarExcelSacyr(){
    origen y suelen fallar al capturarlas como imagen/canvas; la impresión
    nativa no tiene ese problema. */
 function imprimirReportePDF(){
-  const html = construirReporteHTML();
-  const w = window.open('', '_blank');
+  const w = window.open('', '_blank');   // se abre de inmediato (si no, el navegador bloquea la ventana)
   if(!w){ toast('Habilita las ventanas emergentes del navegador para generar el PDF'); return; }
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
-  toast('Elige "Guardar como PDF" en el diálogo de impresión que se abrirá');
-  setTimeout(()=>{ try{ w.focus(); w.print(); }catch(e){ console.error(e); } }, 1200);
+  const escribir = html => {
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    toast('Elige "Guardar como PDF" en el diálogo de impresión que se abrirá');
+    setTimeout(()=>{ try{ w.focus(); w.print(); }catch(e){ console.error(e); } }, 1200);
+  };
+  if(ROLE==='sacyr'){   // perfil Sacyr: informe ejecutivo del tablero, con el mapa capturado
+    if(!DASH_RESUMEN && currentPage==='dashboard') renderDashboard();
+    w.document.write('<p style="font-family:sans-serif;padding:20px">Generando el informe ejecutivo…</p>');
+    capturarMapaCC().then(png=>escribir(construirReporteEjecutivoSacyr(png)));
+    return;
+  }
+  escribir(construirReporteHTML());
 }
 
 /* ---------------- IMPORTAR CSV ---------------- */
