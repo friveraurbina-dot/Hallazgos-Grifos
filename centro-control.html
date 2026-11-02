@@ -225,6 +225,15 @@ body.tablero .simple{display:flex;position:fixed;left:12px;top:12px;z-index:21;g
 .chip:hover{border-color:var(--cy2)}
 .chip.on{background:rgba(1,179,215,.18);border-color:var(--cy2);box-shadow:0 0 0 1px rgba(99,209,224,.35),var(--sombra)}
 body.tablero .maplibregl-ctrl-bottom-right{bottom:10px;right:10px}
+/* marcador del grifo buscado */
+.marcador{position:relative;width:0;height:0;pointer-events:none}
+.marcador i{position:absolute;left:0;top:0;border-radius:50%;transform:translate(-50%,-50%)}
+.marcador .c{width:30px;height:30px;border:3px solid #fff;box-shadow:0 0 0 3px rgba(1,179,215,.9),0 0 18px rgba(99,209,224,.9)}
+.marcador .p1,.marcador .p2{width:30px;height:30px;border:3px solid #63D1E0;animation:marcaPulso 2.2s ease-out infinite}
+.marcador .p2{animation-delay:1.1s}
+@keyframes marcaPulso{0%{transform:translate(-50%,-50%) scale(1);opacity:.95}100%{transform:translate(-50%,-50%) scale(3.4);opacity:0}}
+.marcador span{position:absolute;left:0;top:-26px;transform:translate(-50%,-100%);background:#01B3D7;color:#001640;font:800 13px Montserrat,sans-serif;letter-spacing:.04em;padding:4px 10px;border-radius:999px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.45)}
+.marcador span::after{content:"";position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);border:6px solid transparent;border-top-color:#01B3D7;border-bottom:0}
 /* Ficha del grifo como panel lateral fijo (modo tablero): siempre se ve completa, con
    scroll propio, en vez de un popup que se corta contra el borde del mapa */
 .ficha{display:none}
@@ -756,13 +765,20 @@ function panelDer(){
  p.querySelectorAll('.com').forEach(b=>b.onclick=()=>{const c=com[b.dataset.c];map.fitBounds(c.b,{padding:padding(),pitch:50,bearing:-16,duration:2200,maxZoom:14.5});});
  p.querySelectorAll('.pri:not(.grp)').forEach(b=>b.onclick=()=>irAGrifo(b.dataset.k));
  p.querySelectorAll('.pri.grp').forEach(b=>b.onclick=()=>{const f=b.dataset.f;S.filtro=S.filtro===f?'todos':f;aplicarVista();if(S.filtro!=='todos')encuadrarFiltro();});}
-function irAGrifo(k){const g=S.geo.grifos.find(x=>x.k===k);if(!g)return;map.flyTo({center:[g.ln,g.la],zoom:17,pitch:58,bearing:-20,duration:2400,essential:true});map.once('moveend',()=>fichaGrifo(k));}
+/* Marca del grifo buscado: un marcador HTML (no una capa WebGL) con anillo pulsante y el
+   código en grande; así no depende de glifos ni de tiles y se ve igual en cualquier zoom. */
+let MARCA=null;
+function marcarGrifo(g){if(MARCA){MARCA.remove();MARCA=null;}if(!g||!map)return;
+ const el=document.createElement('div');el.className='marcador';el.innerHTML='<i class="p1"></i><i class="p2"></i><i class="c"></i><span>'+esc(g.k)+'</span>';
+ MARCA=new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([g.ln,g.la]).addTo(map);}
+function irAGrifo(k){const g=S.geo.grifos.find(x=>x.k===k);if(!g)return;marcarGrifo(g);
+ map.flyTo({center:[g.ln,g.la],zoom:MODO_TABLERO?16.6:17,pitch:MODO_TABLERO?0:58,bearing:MODO_TABLERO?0:-20,duration:2200,essential:true});map.once('moveend',()=>fichaGrifo(k));}
 
 /* ---------- fichas ---------- */
 function fechaCorta(f){const t=f?new Date(f):null;return t&&!isNaN(t)?t.toLocaleDateString('es-CL',{day:'2-digit',month:'short',year:'numeric'}):'';}
 const FOTO_MALA=new Set();   // URLs de fotos que no cargaron en esta sesión
 function fichaGrifo(k){
- const g=S.geo.grifos.find(x=>x.k===k);if(!g)return;if(popup)popup.remove();if(tip)tip.remove();
+ const g=S.geo.grifos.find(x=>x.k===k);if(!g)return;if(popup)popup.remove();if(tip)tip.remove();if(MODO_TABLERO)marcarGrifo(g);
  const s=g.s,c=g.cat,col=!s?COL.sin:COL[s.crit],proc=s&&s.est==='en_proceso';
  /* registros del grifo: abiertos primero, el más grave y más antiguo arriba */
  const rs=(g.rs||[]).slice().sort((a,b)=>((a.e==='resuelto')-(b.e==='resuelto'))||(ORD.indexOf(a.cr)-ORD.indexOf(b.cr))||(new Date(a.f||0)-new Date(b.f||0)));
@@ -819,7 +835,7 @@ function vistaNormal(){if(S.sat)toggleSat();cerrarFicha();
  const cam=map.cameraForBounds(b,{padding:padding(),maxZoom:S.comuna==='todos'?14:14.5});
  map.flyTo(Object.assign({pitch:0,bearing:0,duration:1600,essential:true},cam));marcarVista(false);}
 function marcarVista(alt){if(!MODO_TABLERO)return;if(alt===undefined)alt=S.sat||map.getPitch()>5||map.getZoom()>15.2;document.body.classList.toggle('vista-alt',!!alt);}
-function cerrarFicha(){const pan=document.getElementById('ficha');if(!pan||pan.hidden)return;pan.hidden=true;if(S.ruta){document.getElementById('rutaPan').hidden=false;}else document.body.classList.remove('conficha');}
+function cerrarFicha(){const pan=document.getElementById('ficha');if(!pan||pan.hidden)return;pan.hidden=true;marcarGrifo(null);if(S.ruta){document.getElementById('rutaPan').hidden=false;}else document.body.classList.remove('conficha');}
 function fichaLugar(i){
  const l=S.geo.lug[i];if(!l)return;if(popup)popup.remove();if(tip)tip.remove();
  const cer=l.cer;
@@ -924,11 +940,11 @@ function modoTablero(){
  const t=document.querySelector('.carga h2');if(t)t.textContent='Parque de grifos';
  NOMC.sin='Grifo bueno (sin hallazgos)';NOMC.resuelto='Grifo bueno (hallazgos resueltos)';NOMC.senaletica='Sólo señalética (pintura)';NOMC.directa='Falla directa';NOMC.indirecta='Falla indirecta';
  const c=PARAMS.get('sector');if(c&&c!=='todos')S.comuna=c.toUpperCase();
- window.addEventListener('message',e=>{if(e.origin!==location.origin)return;const m=e.data||{};if(!S.listo)return;
+ window.addEventListener('message',e=>{if(e.origin!==location.origin||e.source===window)return;const m=e.data||{};if(!S.listo)return;
   if(m.accion==='sector'){const c=(m.comuna&&m.comuna!=='todos')?String(m.comuna).toUpperCase():'todos';const igual=c===S.comuna;S.comuna=c;if(m.cifras)S.cifras=m.cifras;if(!igual)S.filtro='todos';if(S.ruta&&!igual){rutaVisible(true);}else aplicarVista();if(!igual){if(S.ruta)encuadrarRuta();else encuadrarComuna();}}
-  if(m.accion==='grifo'&&m.codigo)irAGrifo(String(m.codigo).toUpperCase());
+  if(m.accion==='grifo'&&m.codigo){const k=String(m.codigo).toUpperCase();const g=S.geo.grifos.find(x=>x.k===k)||S.geo.grifos.find(x=>x.k.startsWith(k));if(g)irAGrifo(g.k);else try{parent.postMessage({accion:'grifoNoEncontrado',codigo:k},location.origin);}catch(e){}}
   if(m.accion==='filtro'&&m.filtro){S.filtro=m.filtro;aplicarVista();encuadrarFiltro();}
-  if(m.accion==='ruta'){if(m.comuna!==undefined){S.comuna=(m.comuna&&m.comuna!=='todos')?String(m.comuna).toUpperCase():'todos';}rutaVisible(m.on!==false);if(S.ruta)encuadrarRuta();}
+  if(m.accion==='ruta'&&!Array.isArray(m.rutas)){if(m.comuna!==undefined){S.comuna=(m.comuna&&m.comuna!=='todos')?String(m.comuna).toUpperCase():'todos';}rutaVisible(m.on!==false);if(S.ruta)encuadrarRuta();}
   if(m.accion==='rutaResumen')try{parent.postMessage({accion:'ruta',rutas:resumenRuta()},location.origin);}catch(e){}
   if(m.accion==='captura')capturarMapa().then(png=>{try{parent.postMessage({accion:'captura',png},location.origin);}catch(e){}});});}
 /* Captura del mapa para el informe ejecutivo del tablero: se lee el canvas de WebGL dentro

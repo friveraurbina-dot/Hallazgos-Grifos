@@ -1,0 +1,17 @@
+{
+  "id": "./terreno.html",
+  "name": "Terreno · Grifos Sacyr",
+  "short_name": "Terreno Grifos",
+  "description": "Captura en terreno de visitas e inspecciones de grifos — Singemelec / Sacyr Aguas",
+  "start_url": "./terreno.html",
+  "scope": "./terreno",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#061331",
+  "theme_color": "#002359",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

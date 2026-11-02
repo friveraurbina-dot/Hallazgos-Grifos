@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#002359">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Terreno Grifos">
+<title>Terreno · Gestión Sacyr</title>
+<link rel="manifest" href="manifest-terreno.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<!-- Firebase (misma base de datos del tablero). Sólo compat, igual que index.html. -->
+<script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-storage-compat.js"></script>
+<style>
+:root{--ink:#001640;--navy:#002359;--cy:#01B3D7;--cy2:#63D1E0;--txt:#E8F0FA;--soft:#9FB3CC;--mute:#6B82A1;--dir:#FF4D63;--ind:#FF9A3C;--sen:#FFD83D;--ok:#36D399;--bg:#061331;--card:rgba(255,255,255,.06);--line:rgba(255,255,255,.12);}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--txt);font:500 15px/1.45 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,sans-serif;min-height:100%}
+body{padding-bottom:env(safe-area-inset-bottom)}
+button,input,select,textarea{font:inherit}
+.top{position:sticky;top:0;z-index:10;background:linear-gradient(120deg,#001640,#002359 60%,#0B3A86);padding:calc(10px + env(safe-area-inset-top)) 14px 10px;display:flex;align-items:center;gap:10px;border-bottom:2px solid var(--cy)}
+.top .lg{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--cy),#0e7fa8);display:flex;align-items:center;justify-content:center;font:900 13px Montserrat,sans-serif;color:#001640;flex:none}
+.top h1{margin:0;font:800 15px/1.1 Montserrat,sans-serif}
+.top .sub{font-size:11px;color:var(--soft)}
+.top .est{margin-left:auto;text-align:right;font-size:11px;color:var(--soft);line-height:1.25}
+.top .est b{display:block;color:#fff;font-size:12px}
+.top .est .on{color:var(--ok)}.top .est .off{color:var(--sen)}
+.top .est .pend{color:var(--sen);font-weight:700}
+main{padding:14px 14px 90px;max-width:620px;margin:0 auto}
+.v{display:none}.v.on{display:block}
+h2{font:800 20px Montserrat,sans-serif;margin:4px 0 4px}
+.sub{color:var(--soft);font-size:13px;margin:0 0 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.card h3{margin:0 0 8px;font:800 12px Montserrat,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--cy2)}
+label.f{display:block;font-size:12px;font-weight:700;color:var(--soft);margin:10px 0 5px;text-transform:uppercase;letter-spacing:.06em}
+.in{width:100%;background:rgba(0,0,0,.25);border:1px solid var(--line);border-radius:10px;padding:12px;color:#fff;font-size:16px;outline:none}
+.in:focus{border-color:var(--cy2)}
+select.in{appearance:none;-webkit-appearance:none}
+textarea.in{min-height:84px;resize:vertical}
+.btn{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px 16px;border-radius:12px;background:linear-gradient(120deg,var(--cy),#0b6fa8);color:#fff;font-weight:800;font-size:16px;text-align:center;margin-top:10px;min-height:50px}
+.btn.g{background:rgba(255,255,255,.08);border:1px solid var(--line);color:var(--txt);font-weight:700}
+.btn.r{background:linear-gradient(120deg,#C8334D,#8f1f33)}
+.btn.s{padding:9px 12px;min-height:40px;font-size:14px;width:auto;display:inline-flex}
+.btn:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:8px}.row>*{flex:1}
+.pasos{display:flex;gap:6px;margin:0 0 14px}
+.pasos i{flex:1;height:5px;border-radius:3px;background:rgba(255,255,255,.12)}
+.pasos i.on{background:var(--cy2)}.pasos i.ok{background:var(--ok)}
+.err{background:rgba(255,77,99,.15);border:1px solid rgba(255,77,99,.5);border-radius:10px;padding:10px 12px;font-size:13px;margin-top:10px;display:none}
+.err.on{display:block}
+.tip{font-size:12.5px;color:var(--soft)}
+/* grifo */
+.gl{list-style:none;margin:8px 0 0;padding:0}
+.gl li{display:flex;align-items:center;gap:10px;padding:10px 6px;border-top:1px solid var(--line);cursor:pointer}
+.gl li b{font-family:Montserrat,sans-serif}
+.gl li small{display:block;color:var(--soft);font-size:12px}
+.gl li .d{margin-left:auto;color:var(--cy2);font-weight:700;white-space:nowrap;font-size:13px}
+.gsel{display:flex;gap:12px;align-items:center}
+.gsel .k{font:800 22px Montserrat,sans-serif;color:#fff}
+.gsel small{display:block;color:var(--soft);font-size:12px;line-height:1.35}
+.zp{display:inline-block;margin-top:4px;background:rgba(255,216,61,.18);color:#FFE99A;border:1px solid rgba(255,216,61,.5);border-radius:999px;padding:2px 8px;font-size:11px;font-weight:700}
+/* fotos */
+.foto{position:relative;background:rgba(0,0,0,.3);border:2px dashed var(--line);border-radius:14px;min-height:190px;display:flex;align-items:center;justify-content:center;overflow:hidden;margin-top:8px}
+.foto.ok{border-style:solid;border-color:var(--ok)}
+.foto img{width:100%;max-height:300px;object-fit:cover;display:block}
+.foto .ph{text-align:center;color:var(--soft);padding:20px}
+.foto .ph b{display:block;color:#fff;font-size:17px;margin-bottom:4px}
+.foto input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
+.foto .chk{position:absolute;right:10px;top:10px;background:var(--ok);color:#001640;font-weight:800;border-radius:999px;padding:3px 10px;font-size:12px}
+.fp{display:flex;gap:8px;margin-top:8px}
+.fp .btn{margin-top:0}
+.galeria{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.galeria div{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;background:rgba(0,0,0,.3)}
+.galeria img{width:100%;height:100%;object-fit:cover}
+.galeria button{all:unset;position:absolute;right:4px;top:4px;background:rgba(0,0,0,.7);color:#fff;border-radius:50%;width:24px;height:24px;text-align:center;line-height:24px;cursor:pointer}
+/* hallazgos */
+.hz{display:flex;align-items:flex-start;gap:10px;padding:10px 4px;border-top:1px solid var(--line);cursor:pointer}
+.hz input{width:22px;height:22px;flex:none;margin-top:2px;accent-color:var(--cy)}
+.hz span{flex:1}
+.hz small{display:block;color:var(--soft);font-size:11.5px}
+.hz i{width:10px;height:10px;border-radius:50%;flex:none;margin-top:7px}
+.seg{display:flex;gap:6px;margin-top:6px}
+.seg button{all:unset;flex:1;text-align:center;padding:10px;border-radius:10px;background:rgba(255,255,255,.07);border:1px solid var(--line);cursor:pointer;font-weight:700}
+.seg button.on{background:rgba(1,179,215,.25);border-color:var(--cy2)}
+/* resumen */
+.res dt{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-top:10px}
+.res dd{margin:2px 0 0;font-weight:600}
+.pill{display:inline-block;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:800;color:#001640}
+/* cola */
+.q{display:flex;align-items:center;gap:10px;padding:10px 4px;border-top:1px solid var(--line)}
+.q b{font-family:Montserrat,sans-serif}
+.q small{display:block;color:var(--soft);font-size:12px}
+.q .st{margin-left:auto;font-size:11px;font-weight:800;border-radius:999px;padding:3px 9px;white-space:nowrap}
+.st.pendiente{background:rgba(255,216,61,.2);color:#FFE99A}.st.subiendo{background:rgba(99,209,224,.2);color:var(--cy2)}.st.enviado{background:rgba(54,211,153,.2);color:#BFF5DF}.st.error{background:rgba(255,77,99,.2);color:#FFC3CB}
+.foot{position:fixed;left:0;right:0;bottom:0;background:rgba(3,14,36,.92);backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:10px 14px calc(10px + env(safe-area-inset-bottom));display:none;gap:8px;z-index:9}
+.foot.on{display:flex}
+.foot .btn{margin:0}
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#fff;color:#001640;padding:10px 16px;border-radius:999px;font-weight:700;font-size:14px;box-shadow:0 10px 30px rgba(0,0,0,.4);z-index:30;max-width:92%;text-align:center;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+.toast.e{background:#FF4D63;color:#fff}
+.gps{font-size:12px;color:var(--soft);display:flex;align-items:center;gap:6px;margin-top:8px}
+.gps i{width:8px;height:8px;border-radius:50%;background:var(--sen)}.gps.ok i{background:var(--ok)}
+.mini{font-size:12px;color:var(--mute)}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="lg">GS</div>
+  <div><h1>Terreno · Grifos</h1><div class="sub">Gestión Sacyr · Singemelec</div></div>
+  <div class="est" id="estado"><b id="estUser">—</b><span id="estRed">…</span></div>
+</header>
+
+<main>
+  <!-- LOGIN -->
+  <section class="v" id="vLogin">
+    <h2>Ingreso de técnico</h2>
+    <p class="sub">Usa tu correo y contraseña asignados por Singemelec. Los registros quedan firmados con tu nombre.</p>
+    <div class="card">
+      <label class="f" for="lEmail">Correo</label><input class="in" id="lEmail" type="email" autocomplete="username" inputmode="email" placeholder="nombre@singemelec.cl">
+      <label class="f" for="lPass">Contraseña</label><input class="in" id="lPass" type="password" autocomplete="current-password">
+      <button class="btn" id="bLogin">Entrar</button>
+      <div class="err" id="lErr"></div>
+    </div>
+    <p class="mini">Si olvidaste tu contraseña, pide a Singemelec que te la restablezca desde la consola.</p>
+  </section>
+
+  <!-- INICIO -->
+  <section class="v" id="vInicio">
+    <h2>Hola, <span id="hNombre">técnico</span></h2>
+    <p class="sub" id="hSub">Catastro: cargando…</p>
+    <button class="btn" id="bNueva">＋ Nueva visita a un grifo</button>
+    <div class="card" id="cCola"><h3>Visitas en este teléfono</h3><div id="cola"></div></div>
+    <div class="card"><h3>Cuenta</h3><div class="tip" id="cuentaTxt"></div><div class="row"><button class="btn g s" id="bSync">Sincronizar ahora</button><button class="btn g s" id="bSalir">Cerrar sesión</button></div></div>
+    <p class="mini">Versión terreno 1.0 · los datos entran al tablero ejecutivo apenas hay señal.</p>
+  </section>
+
+  <!-- VISITA -->
+  <section class="v" id="vVisita">
+    <div class="pasos" id="pasos"><i></i><i></i><i></i><i></i></div>
+
+    <!-- paso 1: grifo -->
+    <div class="p" id="p1">
+      <h2>1 · ¿Qué grifo?</h2>
+      <p class="sub">Escribe el código o elige uno de los más cercanos a tu posición.</p>
+      <div class="card">
+        <input class="in" id="gCod" placeholder="Código del grifo (ej. COL012)" autocomplete="off" autocapitalize="characters" list="dlCod"><datalist id="dlCod"></datalist>
+        <div class="gps" id="gpsTxt"><i></i>Buscando tu ubicación…</div>
+        <ul class="gl" id="gCerca"></ul>
+      </div>
+      <div class="card" id="gSelCard" style="display:none"><h3>Grifo seleccionado</h3><div class="gsel" id="gSel"></div></div>
+      <div class="card">
+        <h3>¿Se pudo inspeccionar?</h3>
+        <div class="seg" id="segReal"><button data-v="si" class="on">Sí</button><button data-v="no">No</button></div>
+        <div id="motivoBox" style="display:none">
+          <label class="f">Motivo</label>
+          <select class="in" id="motivo"><option value="falta_tiempo">Falta de tiempo</option><option value="feria">Feria</option><option value="zona_roja">Zona roja / sin acceso seguro</option><option value="otro">Otro</option></select>
+          <input class="in" id="motivoOtro" placeholder="Especifica el motivo" style="margin-top:8px;display:none">
+        </div>
+      </div>
+    </div>
+
+    <!-- paso 2: fotos guiadas -->
+    <div class="p" id="p2" style="display:none">
+      <h2>2 · Fotos de la visita</h2>
+      <p class="sub">Toma cada foto en el orden indicado. Se comprimen en el teléfono antes de enviarse.</p>
+      <div class="card"><h3>① Llegada al grifo</h3><div class="foto" id="fLlegada"></div></div>
+      <div class="card"><h3>② Toma de presión</h3><div class="foto" id="fPresion"></div>
+        <div class="row"><div><label class="f" for="presion">Presión (mca)</label><input class="in" id="presion" type="number" inputmode="decimal" step="0.1" min="0" placeholder="ej. 32"></div><div><label class="f" for="caudal">Caudal (l/s) · opcional</label><input class="in" id="caudal" type="number" inputmode="decimal" step="0.1" min="0" placeholder="ej. 12"></div></div>
+        <p class="tip" id="presionTip"></p></div>
+      <div class="card"><h3>③ Grifo en funcionamiento</h3><div class="foto" id="fFunc"></div></div>
+      <div class="card"><h3>④ Cámara y válvula de pie</h3><div class="foto" id="fCamara"></div></div>
+    </div>
+
+    <!-- paso 3: hallazgos -->
+    <div class="p" id="p3" style="display:none">
+      <h2>3 · ¿Hay hallazgos?</h2>
+      <p class="sub">Marca lo que encontraste. La criticidad la fija el catálogo (protocolo SISS), no el técnico.</p>
+      <div class="seg" id="segHall"><button data-v="no" class="on">Sin novedad</button><button data-v="si">Sí, hay hallazgos</button></div>
+      <div id="hallBox" style="display:none">
+        <div class="card"><h3>Operatividad directa · <span style="color:var(--dir)">rojo</span></h3><div id="hzDir"></div></div>
+        <div class="card"><h3>Operatividad indirecta · <span style="color:var(--ind)">naranjo</span></h3><div id="hzInd"></div></div>
+        <div class="card"><h3>Señalética · <span style="color:var(--sen)">amarillo</span></h3><div id="hzSen"></div></div>
+        <div class="card" id="valvBox" style="display:none"><h3>Válvula de pie</h3>
+          <label class="f">¿Se pudo abrir?</label><div class="seg" id="segVA"><button data-v="si">Sí</button><button data-v="no">No</button></div>
+          <div id="valvCerr" style="display:none"><label class="f">¿Quedó bien cerrada?</label><div class="seg" id="segVC"><button data-v="si">Sí</button><button data-v="no">No</button></div></div>
+        </div>
+        <div class="card"><h3>⑤ Fotos del hallazgo</h3><div class="foto" id="fHall"></div><div class="galeria" id="galHall"></div></div>
+      </div>
+      <div class="card"><label class="f" for="desc">Observaciones</label><textarea class="in" id="desc" placeholder="Lo que viste, lo que hiciste, lo que falta…"></textarea></div>
+    </div>
+
+    <!-- paso 4: resumen -->
+    <div class="p" id="p4" style="display:none">
+      <h2>4 · Revisar y guardar</h2>
+      <p class="sub">Si no hay señal, la visita queda guardada en el teléfono y se envía sola después.</p>
+      <div class="card"><dl class="res" id="resumen"></dl></div>
+      <div class="err" id="vErr"></div>
+    </div>
+  </section>
+</main>
+
+<div class="foot" id="foot">
+  <button class="btn g" id="bAtras">Atrás</button>
+  <button class="btn" id="bSig">Siguiente</button>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* =====================================================================
+   TERRENO · app de captura para técnicos de Singemelec (02/11/2026)
+   - Misma base Firebase del tablero (hallazgos-grifos-app).
+   - Escribe documentos en la colección "hallazgos" con EXACTAMENTE el mismo
+     formato que el formulario "Inspección" de index.html (origen:'inspeccion'),
+     más campos adicionales de terreno (tecnico_*, caudal_grifo, gps_precision_m,
+     fotos_hallazgo). No renombra ni elimina ningún campo existente.
+   - Funciona sin señal: la visita (datos + fotos como Blob) se guarda en
+     IndexedDB y se sincroniza sola al recuperar red.
+   ===================================================================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyApa-zy4sV8iM1-MNgtIvRcev9j8CAve10",
+  authDomain: "hallazgos-grifos-app.firebaseapp.com",
+  projectId: "hallazgos-grifos-app",
+  storageBucket: "hallazgos-grifos-app.firebasestorage.app",
+  messagingSenderId: "156705018338",
+  appId: "1:156705018338:web:9c35d7983923aaa123e9bb"
+};
+/* Mismo catálogo y criticidades que index.html (CATALOGO_HALLAZGOS). */
+const CATALOGO_HALLAZGOS = [
+  {nombre:'Vástago rodado', criticidad:'directa', tipo_elemento:'grifo'},
+  {nombre:'Obturador agripado', criticidad:'directa', tipo_elemento:'grifo'},
+  {nombre:'Válvula de pie cerrada (no se logra abrir)', criticidad:'directa', tipo_elemento:'grifo'},
+  {nombre:'Filtración de agua', criticidad:'directa', tipo_elemento:'grifo'},
+  {nombre:'Robo de agua', criticidad:'directa', tipo_elemento:'grifo'},
+  {nombre:'Boquilla dañada', criticidad:'directa', tipo_elemento:'grifo'},
+  {nombre:'Vástago dañado', criticidad:'directa', tipo_elemento:'grifo'},
+  {nombre:'Grifo dañado', criticidad:'directa', tipo_elemento:'grifo'},
+  {nombre:'Grifo obstruido', criticidad:'directa', tipo_elemento:'grifo'},
+  {nombre:'Grifo retirado / inexistente', criticidad:'directa', tipo_elemento:'grifo'},
+  {nombre:'Sin acceso', criticidad:'directa', tipo_elemento:'grifo'},
+  {nombre:'Cámara no visible', criticidad:'indirecta', tipo_elemento:'camara'},
+  {nombre:'Cámara con basura', criticidad:'indirecta', tipo_elemento:'camara'},
+  {nombre:'Tapa de cámara agripada', criticidad:'indirecta', tipo_elemento:'camara'},
+  {nombre:'Cámara dañada', criticidad:'indirecta', tipo_elemento:'camara'},
+  {nombre:'Cámara Inundada', criticidad:'indirecta', tipo_elemento:'camara'},
+  {nombre:'Cámara obstruida', criticidad:'indirecta', tipo_elemento:'camara'},
+  {nombre:'Pintura en mal estado', criticidad:'senaletica', tipo_elemento:'grifo'}
+];
+const VALVULA_TIPO = 'Válvula de pie cerrada (no se logra abrir)';
+const ORDEN_CRITICIDAD = ['directa','indirecta','senaletica'];
+const MOTIVO_LABEL = {falta_tiempo:'Falta de tiempo', feria:'Feria', zona_roja:'Zona roja / sin acceso seguro', otro:'Otro'};
+const COLC = {directa:'#FF4D63', indirecta:'#FF9A3C', senaletica:'#FFD83D'};
+const $ = id => document.getElementById(id);
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function uid(){ return 'H-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2,6).toUpperCase(); }
+let toastT; function toast(t, err){ const e=$('toast'); e.textContent=t; e.classList.toggle('e',!!err); e.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>e.classList.remove('on'), err?4200:2600); }
+
+/* ---------- Firebase ---------- */
+let app, auth, db, storage, USER=null, PERFIL={nombre:'', email:''};
+try{ app = firebase.initializeApp(firebaseConfig); auth = firebase.auth(); db = firebase.firestore(); storage = firebase.storage(); }
+catch(e){ console.error(e); }
+
+/* ---------- IndexedDB: cola de visitas y catálogo ---------- */
+const IDB = {
+  db:null,
+  abrir(){ return new Promise((res,rej)=>{ if(this.db) return res(this.db); const r=indexedDB.open('terrenoGrifos',1);
+    r.onupgradeneeded=()=>{ const d=r.result; if(!d.objectStoreNames.contains('visitas')) d.createObjectStore('visitas',{keyPath:'id'}); if(!d.objectStoreNames.contains('kv')) d.createObjectStore('kv'); };
+    r.onsuccess=()=>{ this.db=r.result; res(this.db); }; r.onerror=()=>rej(r.error); }); },
+  async tx(store, modo, fn){ const d=await this.abrir(); return new Promise((res,rej)=>{ const t=d.transaction(store,modo); const s=t.objectStore(store); const out=fn(s); t.oncomplete=()=>res((out&&typeof out==='object'&&'result' in out)?out.result:out); t.onerror=()=>rej(t.error); }); },
+  put(store,v,k){ return this.tx(store,'readwrite',s=>k!==undefined?s.put(v,k):s.put(v)); },
+  get(store,k){ return this.tx(store,'readonly',s=>s.get(k)); },
+  del(store,k){ return this.tx(store,'readwrite',s=>s.delete(k)); },
+  all(store){ return this.tx(store,'readonly',s=>s.getAll()); }
+};
+
+/* ---------- estado de red / cabecera ---------- */
+function pintarEstado(){ const r=$('estRed'); const on=navigator.onLine!==false; const pend=COLA.filter(v=>v.estado!=='enviado').length;
+  r.innerHTML = (on?'<span class="on">● con señal</span>':'<span class="off">● sin señal</span>') + (pend?` · <span class="pend">${pend} por enviar</span>`:''); }
+window.addEventListener('online', ()=>{ pintarEstado(); sincronizar(); }); window.addEventListener('offline', pintarEstado);
+
+/* ---------- vistas ---------- */
+function ver(id){ document.querySelectorAll('.v').forEach(v=>v.classList.toggle('on', v.id===id)); $('foot').classList.toggle('on', id==='vVisita'); window.scrollTo(0,0); }
+
+/* ---------- login ---------- */
+$('bLogin').onclick = async ()=>{
+  const email=$('lEmail').value.trim(), pass=$('lPass').value; const err=$('lErr'); err.classList.remove('on');
+  if(!email||!pass){ err.textContent='Escribe tu correo y tu contraseña.'; err.classList.add('on'); return; }
+  $('bLogin').disabled=true; $('bLogin').textContent='Entrando…';
+  try{ await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); await auth.signInWithEmailAndPassword(email, pass); }
+  catch(e){ const m={'auth/invalid-credential':'Correo o contraseña incorrectos.','auth/wrong-password':'Contraseña incorrecta.','auth/user-not-found':'Ese correo no está registrado. Pide a Singemelec que cree tu usuario.','auth/invalid-email':'El correo no es válido.','auth/too-many-requests':'Demasiados intentos. Espera unos minutos.','auth/network-request-failed':'Sin conexión: para entrar la primera vez necesitas señal.','auth/operation-not-allowed':'El ingreso con correo y contraseña no está habilitado en Firebase. Hay que activarlo en la consola (Authentication → Sign-in method).'};
+    err.textContent = m[e.code] || ('No se pudo entrar: '+(e.message||e.code)); err.classList.add('on'); }
+  $('bLogin').disabled=false; $('bLogin').textContent='Entrar';
+};
+$('lPass').addEventListener('keydown', e=>{ if(e.key==='Enter') $('bLogin').click(); });
+$('bSalir').onclick = async ()=>{ const pend=COLA.filter(v=>v.estado!=='enviado').length; if(pend && !confirm(`Hay ${pend} visita(s) sin enviar. Si cierras sesión siguen guardadas en este teléfono y se enviarán cuando vuelvas a entrar. ¿Cerrar sesión?`)) return; await auth.signOut(); };
+auth && auth.onAuthStateChanged(async u=>{
+  USER=u;
+  if(!u){ $('estUser').textContent='—'; ver('vLogin'); return; }
+  PERFIL.email=u.email||''; PERFIL.nombre=u.displayName || (u.email||'').split('@')[0].replace(/[._-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+  $('estUser').textContent=PERFIL.nombre; $('hNombre').textContent=PERFIL.nombre; $('cuentaTxt').textContent=`${PERFIL.email} · cada visita queda firmada con tu nombre.`;
+  await cargarCola(); ver('vInicio'); pintarEstado(); cargarCatalogo(); sincronizar();
+});
+
+/* ---------- catálogo de grifos (catalogo_grifos): caché local + refresco con señal ---------- */
+let CATALOGO = [];
+async function cargarCatalogo(){
+  try{ const c=await IDB.get('kv','catalogo'); if(c&&c.items){ CATALOGO=c.items; pintarCatalogoInfo(c.fecha); } }catch(e){}
+  if(navigator.onLine===false){ if(!CATALOGO.length) $('hSub').textContent='Sin catastro guardado y sin señal: conéctate una vez para descargarlo.'; return; }
+  try{ const snap=await db.collection('catalogo_grifos').get(); const items=[]; snap.forEach(d=>{ const x=d.data(); items.push({codigo:d.id, comuna:x.comuna||'', localidad:x.localidad||'', ubicacion:x.ubicacion||'', modelo:x.modelo||'', diametro_conexion:x.diametro_conexion||'', ano_instalacion:x.ano_instalacion||'', lat:typeof x.lat==='number'?x.lat:null, lng:typeof x.lng==='number'?x.lng:null, zp:!!x.zona_prioritaria}); });
+    if(items.length){ CATALOGO=items; const fecha=new Date().toISOString(); await IDB.put('kv',{items,fecha},'catalogo'); pintarCatalogoInfo(fecha); } }
+  catch(e){ console.warn('catálogo', e); if(!CATALOGO.length) $('hSub').textContent='No se pudo leer el catastro: '+(e.code||e.message); }
+}
+function pintarCatalogoInfo(fecha){ $('hSub').textContent=`Catastro: ${CATALOGO.length} grifos · actualizado ${new Date(fecha).toLocaleString('es-CL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}`; $('dlCod').innerHTML=CATALOGO.map(g=>`<option value="${esc(g.codigo)}">`).join(''); }
+const metros=(a,b,c,d)=>{const R=Math.PI/180;const x=(d-b)*R*Math.cos((a+c)/2*R),y=(c-a)*R;return Math.sqrt(x*x+y*y)*6371000;};
+
+/* ---------- cola de visitas ---------- */
+let COLA=[];
+async function cargarCola(){ try{ COLA=(await IDB.all('visitas')).sort((a,b)=>b.creado-a.creado); }catch(e){ COLA=[]; } pintarCola(); pintarEstado(); }
+function pintarCola(){ const el=$('cola'); const hoy=Date.now()-7*86400000; const lista=COLA.filter(v=>v.estado!=='enviado'||v.creado>hoy);
+  if(!lista.length){ el.innerHTML='<p class="tip">Todavía no hay visitas registradas en este teléfono.</p>'; return; }
+  el.innerHTML=lista.map(v=>`<div class="q"><div><b>${esc(v.datos.codigo_grifo||'—')}</b><small>${new Date(v.creado).toLocaleString('es-CL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})} · ${v.datos.inspeccion_realizada==='no'?'no inspeccionado':(v.datos.tiene_hallazgo==='si'?(v.datos.hallazgos_detalle.length+' hallazgo'+(v.datos.hallazgos_detalle.length===1?'':'s')):'sin novedad')}${v.error?' · <span style="color:#FFC3CB">'+esc(v.error)+'</span>':''}</small></div><span class="st ${v.estado}">${{pendiente:'Por enviar',subiendo:'Enviando…',enviado:'Enviado',error:'Reintentar'}[v.estado]||v.estado}</span></div>`).join('');
+}
+$('bSync').onclick=()=>{ if(navigator.onLine===false){ toast('Sin señal: se enviará solo cuando vuelva la red', true); return; } sincronizar(true); };
+
+/* Sincronización: por cada visita pendiente sube las fotos a Storage (mismas rutas que
+   index.html: hallazgos/{id}/grifo.jpg, operativo.jpg, presion.jpg, camara.jpg) y después
+   escribe el documento en Firestore. Si algo falla, la visita queda para reintentar. */
+let SINCRONIZANDO=false;
+async function sincronizar(manual){
+  if(SINCRONIZANDO || !USER || navigator.onLine===false) return;
+  const pend=COLA.filter(v=>v.estado==='pendiente'||v.estado==='error');
+  if(!pend.length){ if(manual) toast('No hay visitas pendientes de envío'); return; }
+  SINCRONIZANDO=true;
+  for(const v of pend){
+    v.estado='subiendo'; v.error=''; pintarCola(); pintarEstado();
+    try{
+      const url=async(blob,nombre)=>{ if(!blob) return null; const ref=storage.ref().child(`hallazgos/${v.id}/${nombre}`); await ref.put(blob,{contentType:'image/jpeg'}); return await ref.getDownloadURL(); };
+      const d=Object.assign({}, v.datos);
+      if(d.inspeccion_realizada==='si'){
+        d.foto_grifo = await url(v.fotos.llegada,'grifo.jpg');
+        d.foto_presion = await url(v.fotos.presion,'presion.jpg');
+        d.foto_grifo_operativo = await url(v.fotos.funcionamiento,'operativo.jpg');
+        d.foto_camara = await url(v.fotos.camara,'camara.jpg');
+        const fh=[]; for(let i=0;i<(v.fotos.hallazgo||[]).length;i++){ const u=await url(v.fotos.hallazgo[i],`hallazgo_${i}.jpg`); if(u) fh.push(u); }
+        d.fotos_hallazgo = fh; d.foto_hallazgo = fh[0]||null;
+      }
+      await db.collection('hallazgos').doc(v.id).set(d);
+      v.estado='enviado'; v.enviado=Date.now(); v.fotos={}; // las fotos ya están en la nube: se liberan del teléfono
+      await IDB.put('visitas', v);
+      toast(`Visita ${d.codigo_grifo||''} enviada al tablero`);
+    }catch(e){ console.error(e); v.estado='error'; v.error=(e.code||e.message||'error').toString().slice(0,80); await IDB.put('visitas', v); if(manual) toast('No se pudo enviar: '+v.error, true); }
+    pintarCola(); pintarEstado();
+  }
+  SINCRONIZANDO=false;
+}
+setInterval(()=>{ if(COLA.some(v=>v.estado==='pendiente'||v.estado==='error')) sincronizar(); }, 60000);
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) sincronizar(); });
+
+/* ---------- fotos: cámara + compresión en el teléfono ---------- */
+/* Se re-codifica siempre a JPEG (máx. 1600 px). Así nunca llega un HEIC renombrado ni una
+   foto de 8 MB al tablero: pesa ~300 KB y se ve en cualquier navegador. */
+function comprimir(file){ return new Promise((res,rej)=>{ const img=new Image(); const u=URL.createObjectURL(file);
+  img.onload=()=>{ URL.revokeObjectURL(u); const M=1600; let w=img.naturalWidth,h=img.naturalHeight; const k=Math.min(1,M/Math.max(w,h)); w=Math.round(w*k); h=Math.round(h*k);
+    const c=document.createElement('canvas'); c.width=w; c.height=h; c.getContext('2d').drawImage(img,0,0,w,h); c.toBlob(b=>b?res(b):rej(new Error('No se pudo procesar la foto')),'image/jpeg',.82); };
+  img.onerror=()=>{ URL.revokeObjectURL(u); rej(new Error('El navegador no pudo leer esta foto (formato no compatible). Toma la foto con la cámara desde la app.')); };
+  img.src=u; }); }
+function cajaFoto(id, titulo, ayuda, onFoto, multiple){
+  const box=$(id); const pintar=blob=>{ if(blob){ const u=URL.createObjectURL(blob); box.innerHTML=`<img src="${u}" alt="${esc(titulo)}"><span class="chk">✓ lista</span><input type="file" accept="image/*" capture="environment" aria-label="Repetir foto">`; box.classList.add('ok'); }
+    else { box.innerHTML=`<div class="ph"><b>📷 ${esc(titulo)}</b>${esc(ayuda)}</div><input type="file" accept="image/*" capture="environment" ${multiple?'multiple':''} aria-label="${esc(titulo)}">`; box.classList.remove('ok'); }
+    box.querySelector('input').onchange=async e=>{ const files=[...e.target.files]; if(!files.length) return; try{ toast('Procesando foto…'); for(const f of files){ const b=await comprimir(f); await onFoto(b); if(!multiple) pintar(b); } if(multiple) pintar(null); }catch(err){ toast(err.message, true); } }; };
+  pintar(null); return {pintar};
+}
+
+/* ---------- visita ---------- */
+let V=null, PASO=0, GPS=null, watchId=null;
+const cajas={};
+function nuevaVisita(){
+  V={id:uid(), creado:Date.now(), grifo:null, realizada:'si', motivo:'falta_tiempo', motivoOtro:'', fotos:{llegada:null,presion:null,funcionamiento:null,camara:null,hallazgo:[]}, presion:'', caudal:'', tieneHall:'no', hall:new Set(), valvA:'', valvC:'', desc:''};
+  PASO=0; $('gCod').value=''; $('gSelCard').style.display='none'; $('presion').value=''; $('caudal').value=''; $('desc').value=''; $('vErr').classList.remove('on');
+  document.querySelectorAll('#segReal button').forEach(b=>b.classList.toggle('on',b.dataset.v==='si')); $('motivoBox').style.display='none';
+  document.querySelectorAll('#segHall button').forEach(b=>b.classList.toggle('on',b.dataset.v==='no')); $('hallBox').style.display='none';
+  cajas.llegada=cajaFoto('fLlegada','Foto al llegar','El grifo completo y su entorno, antes de intervenir.',async b=>{V.fotos.llegada=b;});
+  cajas.presion=cajaFoto('fPresion','Foto de la toma de presión','Manómetro conectado, con la lectura visible.',async b=>{V.fotos.presion=b;});
+  cajas.func=cajaFoto('fFunc','Foto del grifo funcionando','Con el agua saliendo.',async b=>{V.fotos.funcionamiento=b;});
+  cajas.camara=cajaFoto('fCamara','Foto de la cámara y la válvula de pie','Cámara abierta, válvula visible.',async b=>{V.fotos.camara=b;});
+  cajas.hall=cajaFoto('fHall','Foto del hallazgo','Puedes tomar varias. Enfoca el problema.',async b=>{V.fotos.hallazgo.push(b); pintarGaleria();},true);
+  pintarGaleria(); pintarHallazgos(); mostrarPaso(); iniciarGPS(); ver('vVisita');
+}
+$('bNueva').onclick=nuevaVisita;
+function mostrarPaso(){ [1,2,3,4].forEach(n=>$('p'+n).style.display=(n===PASO+1)?'block':'none'); document.querySelectorAll('#pasos i').forEach((i,n)=>{ i.className=n<PASO?'ok':(n===PASO?'on':''); });
+  $('bAtras').textContent=PASO===0?'Cancelar':'Atrás'; $('bSig').textContent=PASO===3?'Guardar visita':'Siguiente'; window.scrollTo(0,0); if(PASO===3) pintarResumen(); }
+$('bAtras').onclick=()=>{ if(PASO===0){ if(confirm('¿Cancelar esta visita? Se perderán las fotos tomadas.')){ detenerGPS(); ver('vInicio'); } return; } PASO--; if(PASO===1&&V.realizada==='no') PASO=0; mostrarPaso(); };
+$('bSig').onclick=async ()=>{
+  if(PASO===0){ if(!V.grifo){ toast('Elige el grifo primero', true); return; } if(V.realizada==='no'){ if(V.motivo==='otro'&&!$('motivoOtro').value.trim()){ toast('Especifica el motivo', true); return; } V.motivoOtro=$('motivoOtro').value.trim(); PASO=3; mostrarPaso(); return; } PASO=1; mostrarPaso(); return; }
+  if(PASO===1){ V.presion=$('presion').value.trim(); V.caudal=$('caudal').value.trim(); const falta=['llegada','presion','funcionamiento','camara'].filter(k=>!V.fotos[k]);
+    if(falta.length){ toast('Faltan fotos: '+falta.map(k=>({llegada:'llegada',presion:'presión',funcionamiento:'funcionamiento',camara:'cámara'})[k]).join(', '), true); return; }
+    if(V.presion===''){ toast('Indica la presión medida', true); return; } PASO=2; mostrarPaso(); return; }
+  if(PASO===2){ V.desc=$('desc').value.trim(); if(V.tieneHall==='si'){ if(!V.hall.size){ toast('Marca al menos un hallazgo o elige "Sin novedad"', true); return; } if(V.hall.has(VALVULA_TIPO)){ if(!V.valvA){ toast('Indica si se pudo abrir la válvula', true); return; } if(V.valvA==='si'&&!V.valvC){ toast('Indica si la válvula quedó bien cerrada', true); return; } } } PASO=3; mostrarPaso(); return; }
+  if(PASO===3){ await guardarVisita(); }
+};
+/* grifo */
+$('gCod').addEventListener('input', ()=>{ const q=$('gCod').value.trim().toUpperCase(); const g=CATALOGO.find(x=>x.codigo===q); if(g) elegirGrifo(g); });
+$('gCod').addEventListener('change', ()=>{ const q=$('gCod').value.trim().toUpperCase(); const g=CATALOGO.find(x=>x.codigo===q)||CATALOGO.find(x=>x.codigo.startsWith(q)); if(g) elegirGrifo(g); else if(q) toast('Ese código no está en el catastro. Revisa el número o elige uno cercano.', true); });
+function elegirGrifo(g){ V.grifo=g; $('gCod').value=g.codigo; $('gSelCard').style.display='block';
+  $('gSel').innerHTML=`<div><span class="k">${esc(g.codigo)}</span><small>${esc([g.ubicacion,g.localidad,g.comuna].filter(Boolean).join(', ')||'Sin dirección en el catastro')}</small><small>${esc([g.modelo,g.diametro_conexion?'Ø '+g.diametro_conexion+' mm':'',g.ano_instalacion?'instalado '+g.ano_instalacion:''].filter(Boolean).join(' · '))}</small>${g.zp?'<span class="zp">Zona prioritaria · inspección semestral</span>':''}</div>`; }
+function pintarCercanos(){ if(!GPS||!CATALOGO.length) return; const l=CATALOGO.filter(g=>g.lat!==null).map(g=>({g,d:metros(GPS.lat,GPS.lng,g.lat,g.lng)})).sort((a,b)=>a.d-b.d).slice(0,6);
+  $('gCerca').innerHTML=l.map(x=>`<li data-k="${esc(x.g.codigo)}"><div><b>${esc(x.g.codigo)}</b><small>${esc([x.g.ubicacion,x.g.localidad].filter(Boolean).join(', '))}</small></div><span class="d">${x.d<1000?Math.round(x.d)+' m':(x.d/1000).toFixed(1)+' km'}</span></li>`).join('');
+  $('gCerca').querySelectorAll('li').forEach(li=>li.onclick=()=>{ const g=CATALOGO.find(x=>x.codigo===li.dataset.k); if(g) elegirGrifo(g); }); }
+function iniciarGPS(){ detenerGPS(); $('gpsTxt').className='gps'; $('gpsTxt').innerHTML='<i></i>Buscando tu ubicación…'; if(!navigator.geolocation){ $('gpsTxt').innerHTML='<i></i>Este teléfono no entrega ubicación.'; return; }
+  watchId=navigator.geolocation.watchPosition(p=>{ if(!GPS||p.coords.accuracy<=GPS.acc||Date.now()-GPS.t>30000){ GPS={lat:p.coords.latitude,lng:p.coords.longitude,acc:Math.round(p.coords.accuracy),t:Date.now()}; $('gpsTxt').className='gps'+(GPS.acc<=25?' ok':''); $('gpsTxt').innerHTML=`<i></i>Ubicación ±${GPS.acc} m`; pintarCercanos(); } }, e=>{ $('gpsTxt').innerHTML='<i></i>Sin ubicación ('+esc(e.message)+'). Puedes escribir el código.'; }, {enableHighAccuracy:true, maximumAge:5000, timeout:20000}); }
+function detenerGPS(){ if(watchId!==null){ navigator.geolocation.clearWatch(watchId); watchId=null; } }
+/* ¿se pudo inspeccionar? */
+document.querySelectorAll('#segReal button').forEach(b=>b.onclick=()=>{ V.realizada=b.dataset.v; document.querySelectorAll('#segReal button').forEach(x=>x.classList.toggle('on',x===b)); $('motivoBox').style.display=V.realizada==='no'?'block':'none'; });
+$('motivo').onchange=()=>{ V.motivo=$('motivo').value; $('motivoOtro').style.display=V.motivo==='otro'?'block':'none'; };
+$('presion').addEventListener('input', ()=>{ const v=parseFloat($('presion').value); $('presionTip').textContent=isNaN(v)?'':(v<15?'⚠ Bajo 15 mca: no cumple presión según PR036.':'✓ Cumple presión (≥ 15 mca).'); });
+/* hallazgos */
+document.querySelectorAll('#segHall button').forEach(b=>b.onclick=()=>{ V.tieneHall=b.dataset.v; document.querySelectorAll('#segHall button').forEach(x=>x.classList.toggle('on',x===b)); $('hallBox').style.display=V.tieneHall==='si'?'block':'none'; });
+function pintarHallazgos(){ const grupo=(c,id)=>{ $(id).innerHTML=CATALOGO_HALLAZGOS.filter(h=>h.criticidad===c).map(h=>`<label class="hz"><input type="checkbox" value="${esc(h.nombre)}" ${V.hall.has(h.nombre)?'checked':''}><i style="background:${COLC[c]}"></i><span>${esc(h.nombre)}<small>${h.tipo_elemento==='camara'?'Cámara':'Grifo'}</small></span></label>`).join('');
+    $(id).querySelectorAll('input').forEach(i=>i.onchange=()=>{ if(i.checked) V.hall.add(i.value); else V.hall.delete(i.value); $('valvBox').style.display=V.hall.has(VALVULA_TIPO)?'block':'none'; }); };
+  grupo('directa','hzDir'); grupo('indirecta','hzInd'); grupo('senaletica','hzSen'); $('valvBox').style.display=V.hall.has(VALVULA_TIPO)?'block':'none'; }
+document.querySelectorAll('#segVA button').forEach(b=>b.onclick=()=>{ V.valvA=b.dataset.v; document.querySelectorAll('#segVA button').forEach(x=>x.classList.toggle('on',x===b)); $('valvCerr').style.display=V.valvA==='si'?'block':'none'; });
+document.querySelectorAll('#segVC button').forEach(b=>b.onclick=()=>{ V.valvC=b.dataset.v; document.querySelectorAll('#segVC button').forEach(x=>x.classList.toggle('on',x===b)); });
+function pintarGaleria(){ const g=$('galHall'); g.innerHTML=(V.fotos.hallazgo||[]).map((b,i)=>`<div><img src="${URL.createObjectURL(b)}" alt="Foto ${i+1}"><button data-i="${i}" aria-label="Quitar">×</button></div>`).join(''); g.querySelectorAll('button').forEach(b=>b.onclick=()=>{ V.fotos.hallazgo.splice(+b.dataset.i,1); pintarGaleria(); }); }
+/* resumen y guardado */
+function detalles(){ return [...V.hall].map(n=>{ const h=CATALOGO_HALLAZGOS.find(x=>x.nombre===n); const d={tipo_elemento:h.tipo_elemento, tipo_hallazgo:n, criticidad:h.criticidad}; if(n===VALVULA_TIPO){ d.valvula_se_pudo_abrir=V.valvA; if(V.valvA==='si') d.valvula_quedo_cerrada=V.valvC; } return d; }); }
+function peor(lista){ let p=null; lista.forEach(d=>{ const i=ORDEN_CRITICIDAD.indexOf(d.criticidad); if(i>-1&&(p===null||i<ORDEN_CRITICIDAD.indexOf(p))) p=d.criticidad; }); return p||'senaletica'; }
+function pintarResumen(){ const g=V.grifo||{}; const det=V.tieneHall==='si'?detalles():[]; const crit=det.length?peor(det):null;
+  const f=k=>V.fotos[k]?'✓':'✗';
+  $('resumen').innerHTML=`<dt>Grifo</dt><dd>${esc(g.codigo)} · ${esc([g.ubicacion,g.localidad,g.comuna].filter(Boolean).join(', '))}</dd>
+   <dt>Técnico</dt><dd>${esc(PERFIL.nombre)} · ${new Date().toLocaleString('es-CL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</dd>
+   <dt>Ubicación</dt><dd>${GPS?`±${GPS.acc} m (GPS del teléfono)`:'Sin GPS: se usará la ubicación del catastro'}</dd>
+   ${V.realizada==='no'?`<dt>Inspección</dt><dd>No realizada · ${esc(MOTIVO_LABEL[V.motivo])}${V.motivo==='otro'?': '+esc(V.motivoOtro):''}</dd>`:
+   `<dt>Fotos</dt><dd>Llegada ${f('llegada')} · Presión ${f('presion')} · Funcionamiento ${f('funcionamiento')} · Cámara ${f('camara')} · Hallazgo: ${V.fotos.hallazgo.length}</dd>
+    <dt>Medición</dt><dd>Presión ${esc(V.presion)} mca${V.caudal?' · caudal '+esc(V.caudal)+' l/s':''}</dd>
+    <dt>Hallazgos</dt><dd>${det.length?det.map(d=>`<span class="pill" style="background:${COLC[d.criticidad]}">${esc(d.tipo_hallazgo)}</span>`).join(' ')+`<div class="tip" style="margin-top:6px">Criticidad del registro: <b>${{directa:'Operatividad directa (48 h)',indirecta:'Operatividad indirecta',senaletica:'Señalética'}[crit]}</b></div>`:'Sin novedad'}</dd>`}
+   ${V.desc?`<dt>Observaciones</dt><dd>${esc(V.desc)}</dd>`:''}`; }
+async function guardarVisita(){
+  $('bSig').disabled=true; $('bSig').textContent='Guardando…';
+  try{
+    const g=V.grifo, ahora=new Date(), iso=ahora.toISOString(); const det=V.tieneHall==='si'?detalles():[]; const realizada=V.realizada==='si'; const conHall=realizada&&V.tieneHall==='si';
+    const datos={
+      origen:'inspeccion', fecha_creacion:iso, creado_por:'Singemelec', app:'terreno', tecnico_nombre:PERFIL.nombre, tecnico_email:PERFIL.email,
+      codigo_grifo:g.codigo, comuna:g.comuna||null, localidad:g.localidad||null, modelo_grifo:g.modelo||null, diametro_conexion:g.diametro_conexion||null, ano_instalacion:g.ano_instalacion||null,
+      fecha_ejecucion:iso.slice(0,10), horario_ejecucion:ahora.toTimeString().slice(0,5),
+      inspeccion_realizada:V.realizada, motivo_no_realizada:realizada?null:V.motivo, motivo_no_realizada_detalle:(!realizada&&V.motivo==='otro')?V.motivoOtro:null,
+      presion_grifo:realizada?V.presion:null, caudal_grifo:(realizada&&V.caudal!=='')?V.caudal:null, tiene_hallazgo:realizada?V.tieneHall:null, hallazgos_detalle:conHall?det:[],
+      direccion:[g.ubicacion,g.localidad,g.comuna].filter(Boolean).join(', ')||'Sin dirección registrada',
+      lat:GPS?GPS.lat:(g.lat??null), lng:GPS?GPS.lng:(g.lng??null), gps_precision_m:GPS?GPS.acc:null, ideal_lat:g.lat??null, ideal_lng:g.lng??null,
+      foto_grifo:null, foto_hallazgo:null, fotos_hallazgo:[], foto_grifo_operativo:null, foto_presion:null, foto_camara:null, foto_respaldo:null,
+      descripcion:V.desc||'', prioridad:conHall?peor(det):null, estado:conHall?'pendiente':null,
+      comentarios:conHall?[{autor:PERFIL.nombre||'Singemelec', fecha:iso, texto:'Hallazgo detectado en terreno (app Terreno).', estado_anterior:null, estado_nuevo:'pendiente', foto_antes:null, foto_despues:null}]:[]
+    };
+    const visita={id:V.id, creado:Date.now(), estado:'pendiente', error:'', datos, fotos:realizada?{llegada:V.fotos.llegada,presion:V.fotos.presion,funcionamiento:V.fotos.funcionamiento,camara:V.fotos.camara,hallazgo:V.fotos.hallazgo.slice()}:{}};
+    await IDB.put('visitas', visita); COLA.unshift(visita); detenerGPS();
+    toast(navigator.onLine===false?'Guardada en el teléfono: se enviará cuando haya señal':'Guardada: enviando al tablero…');
+    ver('vInicio'); pintarCola(); pintarEstado(); sincronizar();
+  }catch(e){ console.error(e); $('vErr').textContent='No se pudo guardar en el teléfono: '+(e.message||e); $('vErr').classList.add('on'); }
+  $('bSig').disabled=false; $('bSig').textContent='Guardar visita';
+}
+
+/* ---------- arranque ---------- */
+pintarEstado();
+if(!auth){ $('lErr').textContent='No se pudo iniciar Firebase. Revisa la conexión y recarga.'; $('lErr').classList.add('on'); ver('vLogin'); }
+if('serviceWorker' in navigator){ window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(err=>console.warn('SW', err)); }); }
+</script>
+</body>
+</html>

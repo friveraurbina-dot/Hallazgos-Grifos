@@ -513,7 +513,9 @@ nav.rail .rr-st.sen{grid-column:1/-1;flex-direction:row;align-items:baseline;gap
 /* Normativa ejecutiva (02/11): dos columnas, cifras grandes */
 .nv-exec .nv-tabla td{padding:12px 14px;}
 .nv-exec .nv-cat{font-size:13.5px;}
-.nv-exec .nv-cat small{display:block;font-size:11px;color:var(--text-soft);font-weight:500;margin-top:2px;}
+.nv-exec .nv-cat{max-width:520px;}
+.nv-exec .nv-cat .nv-que{display:block;font-style:normal;font-size:12px;color:var(--text);font-weight:500;line-height:1.45;margin-top:3px;}
+.nv-exec .nv-cat small{display:block;font-size:11px;color:var(--text-soft);font-weight:600;margin-top:4px;}
 .nv-exec .nv-hoy{min-width:260px;}
 .nv-exec .nv-n{font:800 22px/1 'Montserrat',sans-serif;color:var(--ink,#002359);margin-right:4px;}
 .nv-exec .nv-hoy .nv-venc,.nv-exec .nv-hoy .nv-aviso,.nv-exec .nv-hoy .nv-ok{display:inline-block;margin-left:10px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;}
@@ -2045,21 +2047,27 @@ function actualizarChromeApp(){
     const d = document.getElementById('tbDate');
     if(d){ const f = new Date().toLocaleDateString('es-CL',{weekday:'short',day:'numeric',month:'short'}).replace('.',''); d.textContent = f.charAt(0).toUpperCase()+f.slice(1); }
     const dl = document.getElementById('listaCodigosTop');
-    if(dl){ const cods = Array.from(new Set(HALLAZGOS.filter(tieneHallazgoReal).map(h=>h.codigo_grifo).filter(Boolean))).sort(); const clave = cods.join('|'); if(dl.dataset.k!==clave){ dl.dataset.k = clave; dl.innerHTML = cods.map(c=>`<option value="${c}">`).join(''); } }
+    if(dl){ const cods = Array.from(new Set(HALLAZGOS.filter(tieneHallazgoReal).map(h=>h.codigo_grifo).filter(Boolean).concat(Object.keys(CATALOGO_GRIFOS||{})))).sort(); const clave = cods.join('|'); if(dl.dataset.k!==clave){ dl.dataset.k = clave; dl.innerHTML = cods.map(c=>`<option value="${c}">`).join(''); } }
   }catch(e){ console.error(e); }
 }
 function buscarGrifoTop(ev){
   if(ev && ev.key && ev.key!=='Enter') return;
   const inp = document.getElementById('topSearch'); if(!inp) return;
   const q = (inp.value||'').trim().toUpperCase(); if(!q) return;
+  // (02/11) Se busca en todo el parque (catastro + hallazgos), no sólo en los grifos con
+  // hallazgo, y el resultado se marca en el mapa del tablero con un anillo pulsante + ficha.
   const reales = HALLAZGOS.filter(tieneHallazgoReal);
-  const h = reales.find(x=>(x.codigo_grifo||'').toUpperCase()===q) || reales.find(x=>(x.codigo_grifo||'').toUpperCase().includes(q));
-  if(!h){ toast(`No hay hallazgos registrados para el grifo ${q}`, {error:true}); return; }
-  const cod = h.codigo_grifo;
+  const cat = Object.keys(CATALOGO_GRIFOS||{});
+  const cod = cat.find(c=>c.toUpperCase()===q)
+    || (reales.find(x=>(x.codigo_grifo||'').toUpperCase()===q)||{}).codigo_grifo
+    || cat.find(c=>c.toUpperCase().startsWith(q))
+    || (reales.find(x=>(x.codigo_grifo||'').toUpperCase().includes(q))||{}).codigo_grifo;
+  if(!cod){ toast(`No encontré el grifo ${q} en el parque`, {error:true}); return; }
   inp.value = ''; inp.blur();
-  if(FILTRO_SECTOR_DASHBOARD!=='todos' && h.comuna!==FILTRO_SECTOR_DASHBOARD){ FILTRO_SECTOR_DASHBOARD='todos'; MAPA_VISTA=null; }
-  const ir = ()=>{ const el = document.querySelector('.mapa-card'); if(el) el.scrollIntoView({behavior:'smooth', block:'start'}); setTimeout(()=>mapaBuscar(cod), 300); };
-  if(currentPage!=='dashboard'){ goPage('dashboard'); setTimeout(ir, 350); } else { renderDashboard(); setTimeout(ir, 60); }
+  const comuna = (CATALOGO_GRIFOS[cod]||{}).comuna || (reales.find(x=>x.codigo_grifo===cod)||{}).comuna || '';
+  if(FILTRO_SECTOR_DASHBOARD!=='todos' && comuna && comuna!==FILTRO_SECTOR_DASHBOARD){ FILTRO_SECTOR_DASHBOARD='todos'; MAPA_VISTA=null; }
+  const ir = ()=>{ const el = document.querySelector('.mapa-card'); if(el) el.scrollIntoView({behavior:'smooth', block:'start'}); setTimeout(()=>ccEnviar({accion:'grifo', codigo:cod}), 350); toast(`Grifo ${cod} marcado en el mapa`); };
+  if(currentPage!=='dashboard'){ goPage('dashboard'); setTimeout(ir, 400); } else { renderDashboard(); setTimeout(ir, 80); }
 }
 function cerrarSesion(){
   localStorage.removeItem('grifos_access_ok');
@@ -2514,8 +2522,8 @@ function renderDashboard(){
       /* (02/11) Versión ejecutiva: sólo la categoría SISS (con su plazo) y cómo está hoy el parque.
          Los campos de inspección, las reglas y los puntos por validar se quitaron del tablero. */
       const hoyTxt = FILTRO_SECTOR_DASHBOARD==='todos' ? 'el parque' : escHtml(FILTRO_SECTOR_DASHBOARD);
-      const fila = (col, cat, plazo, n, lbl, venc, vencTxt, aviso, avisoTxt) => `<tr>
-        <td><span class="nv-cat"><i style="background:${col}"></i>${cat}<small>plazo SISS: ${plazo}</small></span></td>
+      const fila = (col, cat, que, plazo, n, lbl, venc, vencTxt, aviso, avisoTxt) => `<tr>
+        <td><span class="nv-cat"><i style="background:${col}"></i>${cat}<em class="nv-que">${que}</em><small>Plazo SISS: ${plazo}</small></span></td>
         <td class="nv-hoy"><b class="nv-n">${n}</b> ${lbl}${venc?`<span class="nv-venc">${venc} ${vencTxt}</span>`:(n?`<span class="nv-ok">todos dentro de plazo</span>`:'')}${aviso?`<span class="nv-aviso">${aviso} ${avisoTxt}</span>`:''}</td></tr>`;
       return `<div class="panel normativa nv-exec">
       <div class="nv-head">
@@ -2526,9 +2534,9 @@ function renderDashboard(){
       <div class="nv-tabla-wrap"><table class="nv-tabla">
         <thead><tr><th>Categoría SISS</th><th>Hoy en ${hoyTxt}</th></tr></thead>
         <tbody>
-        ${fila(PRIORIDAD_COLOR.directa,'<b>1 · Operatividad directa</b>','máx. 48 h',dir.length,'abiertos',dirV,'con más de 48 h',0,'')}
-        ${fila(PRIORIDAD_COLOR.indirecta,'<b>2 · Operatividad indirecta</b>','1 semana a 3 meses',ind.length,'abiertos',indV,'con más de 3 meses',indA,'entre 1 semana y 3 meses')}
-        ${fila(PRIORIDAD_COLOR.senaletica,'<b>3 · Señalética</b>','1 semana a 3 meses',sen.length,'pendientes',senV,'con más de 3 meses',senA,'entre 1 semana y 3 meses')}
+        ${fila(PRIORIDAD_COLOR.directa,'<b>1 · Operatividad directa</b>','El grifo no se puede operar: vástago que no abre, rodado o torcido, boca de admisión con el hilo dañado o tapa de boca faltante o trabada. Bomberos no podría conectarse.','máx. 48 h desde que se conoce la falla',dir.length,'abiertos',dirV,'con más de 48 h',0,'')}
+        ${fila(PRIORIDAD_COLOR.indirecta,'<b>2 · Operatividad indirecta</b>','El grifo opera, pero con una falla mecánica o de cámara: fuga de agua, válvula de pie inoperativa o cerrada, cámara o tapa de la cámara en mal estado.','1 semana a 3 meses, según la magnitud',ind.length,'abiertos',indV,'con más de 3 meses',indA,'entre 1 semana y 3 meses')}
+        ${fila(PRIORIDAD_COLOR.senaletica,'<b>3 · Señalética</b>','Visibilidad e identificación: pintura amarillo rey deteriorada, línea negra, número sobre la línea o anillo verde faltantes (NCh 1646). No afecta la operación.','1 semana a 3 meses',sen.length,'pendientes',senV,'con más de 3 meses',senA,'entre 1 semana y 3 meses')}
         </tbody></table></div>
     </div>`;})()}
 
@@ -2750,6 +2758,7 @@ window.addEventListener('message', e=>{
   const m = e.data || {};
   if(m.accion==='listo') ccEnviar({accion:'sector', comuna:FILTRO_SECTOR_DASHBOARD||'todos', cifras:CC_CIFRAS});   // el mapa terminó de cargar: le mandamos sector y cifras
   if(m.accion==='ruta' && Array.isArray(m.rutas)){ CC_RUTA = m.rutas; pintarRutaTablero(); }
+  if(m.accion==='grifoNoEncontrado') toast(`El grifo ${m.codigo} no tiene coordenadas en el mapa`, {error:true});
   if(m.accion==='detalle' && m.id && HALLAZGOS.some(h=>h.id===m.id)) openDetail(m.id);
 });
 function ccProgramar(){ if(CC_RAF) return; CC_RAF = requestAnimationFrame(()=>{ CC_RAF = 0; ccPosicionar(); }); }

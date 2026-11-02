@@ -20,8 +20,19 @@
    servidor; el caché solo se usa si la red falla (sin conexión). Así nunca
    se sirve una versión vieja de la app por delante de la red. */
 
-const CACHE_NAME = 'gestionsacyr-shell-v1';
-const APP_SHELL = ['./', './index.html', './manifest.json'];
+const CACHE_NAME = 'gestionsacyr-shell-v2';
+const APP_SHELL = ['./', './index.html', './manifest.json', './terreno.html', './manifest-terreno.json', './icon-192.png', './icon-512.png'];
+
+/* (02/11/2026) La app de terreno (terreno.html) debe abrir SIN señal en el celular. Para eso,
+   además del shell propio, se guardan en caché los scripts de Firebase que usa (versión fija
+   10.13.1 en gstatic). Es la ÚNICA excepción a la regla "no tocar otros dominios": son
+   archivos estáticos versionados, nunca datos. Firestore/Storage/mapas siguen sin tocarse. */
+const CDN_PERMITIDOS = [
+  'https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js',
+  'https://www.gstatic.com/firebasejs/10.13.1/firebase-auth-compat.js',
+  'https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore-compat.js',
+  'https://www.gstatic.com/firebasejs/10.13.1/firebase-storage-compat.js'
+];
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -50,7 +61,18 @@ self.addEventListener('fetch', (event) => {
   // 2) Solo peticiones del propio sitio. Todo lo demás (Firestore, Storage,
   //    mapas, CDN, fuentes) se deja pasar sin intervenir.
   const url = new URL(req.url);
-  if (url.origin !== self.location.origin) return;
+  if (url.origin !== self.location.origin) {
+    // Excepción única: los scripts de Firebase de la app de terreno (caché primero, red si faltan).
+    if (CDN_PERMITIDOS.includes(req.url)) {
+      event.respondWith(
+        caches.match(req).then((cached) => cached || fetch(req).then((response) => {
+          if (response && response.ok) { const copy = response.clone(); caches.open(CACHE_NAME).then((cache) => cache.put(req, copy)).catch(() => {}); }
+          return response;
+        }))
+      );
+    }
+    return;
+  }
 
   event.respondWith(
     fetch(req)
@@ -65,7 +87,7 @@ self.addEventListener('fetch', (event) => {
       })
       .catch(() =>
         // Sin conexión: se cae al caché (última versión que sí cargó bien).
-        caches.match(req).then((cached) => cached || caches.match('./index.html'))
+        caches.match(req).then((cached) => cached || caches.match(url.pathname.endsWith('terreno.html') ? './terreno.html' : './index.html'))
       )
   );
 });
