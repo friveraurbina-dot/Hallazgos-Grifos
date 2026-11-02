@@ -2580,31 +2580,12 @@ function renderDashboard(){
           return `<div class="at-row" onclick="verEnMapaDesdeLista('${h.id}')">
             <div class="at-main"><span class="at-cod">${escHtml(h.codigo_grifo||'—')}</span><span class="at-tipo">${escHtml(nombres[0]||'Hallazgo')}${nombres.length>1?` <em>+${nombres.length-1}</em>`:''}</span><span class="at-com">${escHtml(h.comuna||'')}</span></div>
             <span class="at-dias ${dias>90?'crit':dias>30?'warn':''}">${dias} d</span></div>`; }).join('')
-          + (directasAbiertas.length>atencion.length ? `<div class="at-mas">y ${directasAbiertas.length-atencion.length} más en la tabla de abajo</div>` : '')
+          + (directasAbiertas.length>atencion.length ? `<div class="at-mas" style="cursor:pointer" onclick="irAListaConFiltro('prioridad','directa')">y ${directasAbiertas.length-atencion.length} más · ver todos en Hallazgos ↗</div>` : '')
           : '<div class="at-vacio">✅ No hay hallazgos de operatividad directa abiertos.</div>'}
       </div>
     </div>
 
-    <div class="panel">
-      <h3>⚠️ Hallazgos pendientes por resolver, ordenados por riesgo</h3>
-      <p class="sub">Todos los hallazgos aún no resueltos (no solo un "top") — primero los de operatividad directa, ya que todos deben resolverse; dentro de cada criticidad, los pendientes desde hace más tiempo primero.</p>
-      <div class="estado-table-wrap">
-        <table class="estado-table">
-          <thead><tr><th>Código</th><th>Comuna</th><th>Dirección</th><th>Criticidad</th><th>Estado</th><th>Pendiente hace</th><th></th></tr></thead>
-          <tbody>${pendientesPorRiesgo.length ? pendientesPorRiesgo.map(h=>{
-            const dias = diasTranscurridos(h.fecha_creacion);
-            return `<tr>
-            <td class="mono" style="font-weight:700;color:var(--ink);">${h.codigo_grifo || '—'} ${zpBadge(h.codigo_grifo)}</td>
-            <td>${h.comuna || '—'}</td>
-            <td class="faddr-cell">${h.direccion || 'Sin dirección registrada'}</td>
-            <td><span class="badge ${criticidadDeRegistro(h)}">${PRIORIDAD_LABEL[criticidadDeRegistro(h)]}</span></td>
-            <td><span class="badge ${h.estado}">${ESTADO_LABEL[h.estado]}</span></td>
-            <td>${dias} día${dias===1?'':'s'}</td>
-            <td><button class="btn btn-ghost btn-sm" onclick="openDetail('${h.id}')">Ver</button></td>
-          </tr>`;}).join('') : `<tr class="empty-row"><td colspan="7">Sin hallazgos pendientes${FILTRO_SECTOR_DASHBOARD!=='todos' ? ` en ${FILTRO_SECTOR_DASHBOARD}` : ''}.</td></tr>`}</tbody>
-        </table>
-      </div>
-    </div>
+    <!-- (02/11) La tabla "Hallazgos pendientes por resolver, ordenados por riesgo" se quitó del tablero: el detalle está en la pestaña Hallazgos; aquí sólo decisiones. -->
   </div>`;
 
   // Resumen y comunas en el menú lateral (31/10): las cifras y las tarjetas de comuna
