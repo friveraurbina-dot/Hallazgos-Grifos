@@ -222,7 +222,7 @@ body.tablero .maplibregl-ctrl-bottom-right{bottom:10px;right:10px}
 /* Ficha del grifo como panel lateral fijo (modo tablero): siempre se ve completa, con
    scroll propio, en vez de un popup que se corta contra el borde del mapa */
 .ficha{display:none}
-body.tablero .ficha{display:block;position:fixed;top:12px;right:12px;bottom:12px;width:350px;max-width:calc(100% - 24px);z-index:23;background:var(--glass);backdrop-filter:blur(14px);border:1px solid var(--borde);border-radius:14px;box-shadow:var(--sombra);overflow:auto;scrollbar-width:thin;animation:sube .25s ease-out}
+body.tablero .ficha{display:block;position:fixed;top:12px;right:12px;bottom:12px;width:350px;max-width:calc(100% - 24px);z-index:23;background:var(--glass);backdrop-filter:blur(14px);border:1px solid var(--borde);border-radius:14px;box-shadow:var(--sombra);overflow:auto;overflow-x:hidden;scrollbar-width:thin;animation:sube .25s ease-out}
 body.tablero .ficha[hidden]{display:none}
 .ficha .fx-x{all:unset;position:absolute;right:8px;top:8px;z-index:2;cursor:pointer;width:28px;height:28px;border-radius:50%;background:rgba(3,14,36,.75);color:#fff;font-size:17px;line-height:28px;text-align:center;border:1px solid var(--borde)}
 .ficha .fx-x:hover{background:rgba(1,179,215,.4)}
@@ -242,13 +242,13 @@ body.tablero.conficha .maplibregl-ctrl-bottom-right{right:374px}
 .rt .co{margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.1)}
 .rt .co .tt{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font:800 10.5px Montserrat,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--cy2);margin-bottom:6px}
 .rt .co .tt span{font:600 10px Inter,sans-serif;letter-spacing:0;text-transform:none;color:var(--soft)}
-.rp{all:unset;cursor:pointer;display:grid;grid-template-columns:24px 1fr auto;gap:8px;align-items:center;padding:5px 6px;border-radius:8px;width:calc(100% - 12px)}
+.rp{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:24px minmax(0,1fr) 92px;gap:8px;align-items:center;padding:5px 6px;border-radius:8px;width:100%}
 .rp:hover{background:rgba(255,255,255,.07)}
 .rp .n{width:22px;height:22px;border-radius:50%;background:#fff;color:#001640;font:800 10.5px Montserrat,sans-serif;display:flex;align-items:center;justify-content:center;border:2.5px solid var(--c)}
 .rp .k{color:#fff;font-weight:700;line-height:1.2}
-.rp .k small{display:block;color:var(--soft);font-weight:500;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:210px}
+.rp .k small{display:block;color:var(--soft);font-weight:500;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rp .k em{font-style:normal;color:var(--cy2)}
-.rp .z{font-size:10px;color:var(--soft);text-align:right;white-space:nowrap}
+.rp .z{font-size:9.5px;color:var(--soft);text-align:right;white-space:normal;line-height:1.2}
 .rp .z b{display:block;color:#FFC3CB;font-weight:700}
 .rt .mas{color:var(--mute);font-size:11px;margin:4px 0 0 32px}
 @media(max-width:720px){.chip small{display:none}.chip{height:30px;padding:0 9px 0 8px}}
