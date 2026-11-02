@@ -229,6 +229,28 @@ body.tablero .ficha[hidden]{display:none}
 .ficha .fx-foto{height:200px;border-radius:14px 14px 0 0;overflow:hidden}
 body.tablero.conficha .maplibregl-ctrl-bottom-right{right:374px}
 @media(max-width:720px){body.tablero .ficha{top:auto;bottom:8px;left:8px;right:8px;width:auto;max-height:70vh}}
+/* Ruta de trabajo priorizada (protocolo SISS + zona prioritaria) */
+.chip.ruta i{border-radius:2px;transform:rotate(45deg);width:8px;height:8px}
+.rt{padding:14px 15px 16px;font:500 12px Inter,sans-serif}
+.rt h3{margin:0 0 2px;font:800 15px Montserrat,sans-serif;color:#fff;padding-right:30px}
+.rt .sub{color:var(--soft);font-size:11px;margin-bottom:10px;line-height:1.4}
+.rt .acc{display:flex;gap:6px;margin:0 0 10px}
+.rt .acc button{all:unset;cursor:pointer;flex:1;text-align:center;padding:6px 8px;border-radius:8px;background:rgba(1,179,215,.16);border:1px solid var(--borde);font:700 10.5px Inter,sans-serif;color:#fff}
+.rt .acc button:hover{background:rgba(1,179,215,.3)}
+.rt .niv{display:flex;flex-wrap:wrap;gap:4px 10px;margin:0 0 10px;font-size:10.5px;color:var(--soft)}
+.rt .niv i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:-1px}
+.rt .co{margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.1)}
+.rt .co .tt{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font:800 10.5px Montserrat,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--cy2);margin-bottom:6px}
+.rt .co .tt span{font:600 10px Inter,sans-serif;letter-spacing:0;text-transform:none;color:var(--soft)}
+.rp{all:unset;cursor:pointer;display:grid;grid-template-columns:24px 1fr auto;gap:8px;align-items:center;padding:5px 6px;border-radius:8px;width:calc(100% - 12px)}
+.rp:hover{background:rgba(255,255,255,.07)}
+.rp .n{width:22px;height:22px;border-radius:50%;background:#fff;color:#001640;font:800 10.5px Montserrat,sans-serif;display:flex;align-items:center;justify-content:center;border:2.5px solid var(--c)}
+.rp .k{color:#fff;font-weight:700;line-height:1.2}
+.rp .k small{display:block;color:var(--soft);font-weight:500;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:210px}
+.rp .k em{font-style:normal;color:var(--cy2)}
+.rp .z{font-size:10px;color:var(--soft);text-align:right;white-space:nowrap}
+.rp .z b{display:block;color:#FFC3CB;font-weight:700}
+.rt .mas{color:var(--mute);font-size:11px;margin:4px 0 0 32px}
 @media(max-width:720px){.chip small{display:none}.chip{height:30px;padding:0 9px 0 8px}}
 /* ---- móvil ---- */
 @media(max-width:1000px){
@@ -276,6 +298,7 @@ body.tablero.conficha .maplibregl-ctrl-bottom-right{right:374px}
 <button class="btn mov" id="bmov" aria-label="Mostrar capas">Capas</button>
 <button class="btn bher" id="bher" title="Mostrar u ocultar las herramientas del mapa (capas, 3D, satélite, recorrido, buscador)" aria-pressed="false"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M2 4.5h12M2 8h12M2 11.5h12"/><circle cx="5" cy="4.5" r="1.4" fill="#001640"/><circle cx="11" cy="8" r="1.4" fill="#001640"/><circle cx="7" cy="11.5" r="1.4" fill="#001640"/></svg><span class="tx">Herramientas</span></button>
 <div class="simple" id="simple" role="group" aria-label="Qué mostrar en el mapa"></div>
+<aside class="ficha" id="rutaPan" hidden aria-label="Ruta de trabajo priorizada"><button class="fx-x" id="rutaX" title="Cerrar la ruta" aria-label="Cerrar la ruta">×</button><div id="rutaBody" class="rt"></div></aside>
 <aside class="ficha" id="ficha" hidden aria-label="Ficha del grifo"><button class="fx-x" id="fichaX" title="Cerrar ficha" aria-label="Cerrar ficha">×</button><div id="fichaBody"></div></aside>
 <div class="cap" id="cap" role="status"></div>
 <div class="aviso" id="aviso"></div>
@@ -337,7 +360,7 @@ const fmt=n=>Number(n||0).toLocaleString('es-CL');
 const PLAZO={directa:{h:48,txt:'48 h'},indirecta:{h:24*90,aviso:24*7,txt:'1 semana a 3 meses'},senaletica:{h:24*90,aviso:24*7,txt:'1 semana a 3 meses'}};
 const PARAMS=new URLSearchParams(location.search);
 const MODO_TABLERO=PARAMS.get('modo')==='tablero';
-const S={vista:'hall',filtro:'todos',radio:150,cats:new Set(Object.keys(CATS)),comuna:'todos',
+const S={ruta:false,rutas:[],vista:'hall',filtro:'todos',radio:150,cats:new Set(Object.keys(CATS)),comuna:'todos',
  capas:{sect:true,pobl:true,com:true,relieve:false,edif:false,calor:false,hex:false},
  tres:false,sat:false,tour:null,listo:false,geo:null};
 let datos=null,map=null,popup=null,tip=null;
@@ -488,6 +511,11 @@ function capasBase(){
  map.addLayer({id:'lug-ico',type:'symbol',source:'lug',layout:{'icon-image':['concat','ico-',['get','c']],'icon-size':['interpolate',['linear'],['zoom'],9,.45,13,.8,16,1],'icon-allow-overlap':false,'symbol-sort-key':['get','pri'],
   'text-field':['step',['zoom'],'',13.5,['get','n']],'text-font':['Noto Sans Bold'],'text-size':11,'text-offset':[0,1.3],'text-anchor':'top','text-optional':true,'text-max-width':12},
   paint:{'text-color':'#EAF4FF','text-halo-color':'rgba(2,10,28,.95)','text-halo-width':1.4,'icon-opacity':.95}});
+ map.addSource('ruta-l',{type:'geojson',data:{type:'FeatureCollection',features:[]}});map.addSource('ruta-p',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+ map.addLayer({id:'ruta-line',type:'line',source:'ruta-l',layout:{visibility:'none','line-cap':'round','line-join':'round'},paint:{'line-color':['get','col'],'line-width':['interpolate',['linear'],['zoom'],10,2,15,4],'line-opacity':.9,'line-dasharray':[2,1.6]}});
+ map.addLayer({id:'ruta-pt',type:'circle',source:'ruta-p',layout:{visibility:'none'},paint:{'circle-color':'#fff','circle-radius':['interpolate',['linear'],['zoom'],9,6,12,9,15,12],'circle-stroke-color':['get','col'],'circle-stroke-width':['interpolate',['linear'],['zoom'],9,1.5,13,3],'circle-pitch-alignment':'viewport'}});
+ map.addLayer({id:'ruta-num',type:'symbol',source:'ruta-p',minzoom:11.5,layout:{visibility:'none','text-field':['to-string',['get','n']],'text-font':['Noto Sans Bold'],'text-size':['interpolate',['linear'],['zoom'],11.5,8,15,11],'text-allow-overlap':true,'text-ignore-placement':true},paint:{'text-color':'#001640'}});
+ map.on('click','ruta-pt',e=>{e.preventDefault();fichaGrifo(e.features[0].properties.k);});map.on('mouseenter','ruta-pt',()=>map.getCanvas().style.cursor='pointer');map.on('mouseleave','ruta-pt',()=>map.getCanvas().style.cursor='');
  map.addLayer({id:'grifo-txt',type:'symbol',source:'grifos',minzoom:15.5,layout:{'text-field':['get','k'],'text-font':['Noto Sans Bold'],'text-size':10.5,'text-offset':[0.9,0],'text-anchor':'left','text-optional':true},paint:{'text-color':'#fff','text-halo-color':'rgba(2,10,28,.95)','text-halo-width':1.3}});
  map.addLayer({id:'sect-t',type:'symbol',source:'sectl',minzoom:11,maxzoom:15.5,layout:{'text-field':['format',['get','n'],{'font-scale':1},'\n',{},['get','t'],{'font-scale':.8,'text-color':'#9FE3F2'}],'text-font':['Noto Sans Bold'],'text-size':12,'text-letter-spacing':.08,'text-anchor':'bottom'},paint:{'text-color':'#C8F3FF','text-halo-color':'rgba(2,10,28,.9)','text-halo-width':1.5}});
  map.addLayer({id:'pobl-t',type:'symbol',source:'places',minzoom:11.5,filter:['==',['get','g'],1],layout:{'text-field':['get','n'],'text-font':['Noto Sans Bold'],'text-size':12,'text-letter-spacing':.12,'text-transform':'uppercase'},
@@ -500,7 +528,7 @@ function capasBase(){
  map.on('mousemove','lug-ico',e=>{const p=e.features[0].properties;mostrarTip(e.lngLat,'<b>'+esc(p.n)+'</b> · '+esc(p.nom));});
  map.on('click','grifo-core',e=>{e.preventDefault();fichaGrifo(e.features[0].properties.k);});
  map.on('click','lug-ico',e=>{if(e.defaultPrevented)return;fichaLugar(+e.features[0].properties.i);});
- map.on('click',e=>{if(!MODO_TABLERO)return;if(map.queryRenderedFeatures(e.point,{layers:['grifo-core','lug-ico']}).length)return;cerrarFicha();});
+ map.on('click',e=>{if(!MODO_TABLERO)return;if(map.queryRenderedFeatures(e.point,{layers:['grifo-core','lug-ico','ruta-pt']}).length)return;cerrarFicha();});
  map.on('click','sect-f',e=>{if(e.defaultPrevented||map.queryRenderedFeatures(e.point,{layers:['grifo-core','lug-ico']}).length)return;const p=e.features[0].properties;mostrarTip(e.lngLat,'<b>Sector '+esc(p.n)+'</b> · '+p.total+' grifos',true);});
 }
 function mostrarTip(ll,html,fijo){if(tip)tip.remove();tip=new maplibregl.Popup({closeButton:false,closeOnClick:true,className:'tip',offset:12,maxWidth:'300px'}).setLngLat(ll).setHTML(html).addTo(map);if(!fijo)return;}
@@ -551,6 +579,8 @@ function aplicarVista(){
  map.setLayoutProperty('hill','visibility',S.capas.relieve?'visible':'none');
  map.setLayoutProperty('edif','visibility',S.capas.edif?'visible':'none');
  map.setLayoutProperty('sat','visibility',S.sat?'visible':'none');
+ if(S.ruta){map.setPaintProperty('grifo-core','circle-opacity',.22);map.setPaintProperty('grifo-core','circle-stroke-opacity',.15);map.setPaintProperty('grifo-glow','circle-opacity',0);map.setLayoutProperty('grifo-pulso','visibility','none');}
+ else map.setLayoutProperty('grifo-pulso','visibility','visible');
  kpis();panelDer();leyenda();chips();}
 /* Chips del modo simple (tablero): parque completo · con falla (rojo/naranjo) · grifos
    buenos · sólo señalética. Mismas unidades que el tablero: "falla" = operatividad
@@ -571,9 +601,65 @@ function chips(){const el=document.getElementById('simple');if(!el||!MODO_TABLER
  el.innerHTML=ch('todos','',total,'Parque de grifos',S.comuna==='todos'?'':titulo(S.comuna))
   +ch('oper',pt(COL.directa)+pt(COL.indirecta),oper,'Con falla',fmt(dir)+' directa · '+fmt(oper-dir)+' indirecta')
   +ch('senal',pt(COL.senaletica,1),sen,'Sólo señalética','en ejecución · atenuados')
-  +ch('bueno',pt(COL.sin),bue,'Grifos buenos','sin hallazgos pendientes');
- el.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{const f=b.dataset.f;S.filtro=(S.filtro===f||f==='todos')?'todos':f;aplicarVista();if(S.filtro==='todos')encuadrarComuna();else encuadrarFiltro();});}
-function recalcular(fit){S.geo=construirGeo();['grifos','lug','radios','sect','sectl','calor','hex'].forEach(k=>{const src=map.getSource(k);if(!src)return;src.setData({grifos:S.geo.fG,lug:S.geo.fL,radios:S.geo.fR,sect:S.geo.fS,sectl:S.geo.fSl,calor:S.geo.fC,hex:S.geo.fH}[k]);});aplicarVista();if(fit)encuadrar();}
+  +ch('bueno',pt(COL.sin),bue,'Grifos buenos','sin hallazgos pendientes')
+  +'<button class="chip ruta'+(S.ruta?' on':'')+'" data-f="ruta" aria-pressed="'+S.ruta+'" title="Orden sugerido para empezar los trabajos: protocolo SISS + zona prioritaria, una ruta por comuna"><i style="--c:#63D1E0"></i><b>'+fmt(S.rutas.filter(r=>S.comuna==='todos'||r.co===S.comuna).reduce((a,r)=>a+r.paradas.length,0))+'</b><span>Ruta de trabajo</span><small>· por dónde empezar</small></button>';
+ el.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{const f=b.dataset.f;if(f==='ruta'){rutaVisible(!S.ruta);if(S.ruta)encuadrarRuta();return;}S.filtro=(S.filtro===f||f==='todos')?'todos':f;aplicarVista();if(S.filtro==='todos')encuadrarComuna();else encuadrarFiltro();});}
+/* ---------- Ruta de trabajo priorizada ----------
+   Orden según el protocolo SISS (PR036) con la zona prioritaria como desempate de arriba:
+   1 directa fuera de plazo (48 h) junto a un lugar sensible o en zona prioritaria del catastro
+   2 directa fuera de plazo · 3 directa en plazo · 4 indirecta vencida (3 meses) · 5 indirecta
+   6 sólo señalética (no entra en la ruta: Singemelec la está ejecutando aparte).
+   Una ruta por comuna: parte en el grifo más crítico y más antiguo y, sin bajar de nivel,
+   sigue por el vecino más cercano (distancia en línea recta). */
+const NIVEL={1:{t:'Directa fuera de plazo · zona prioritaria',c:'#FF4D63'},2:{t:'Directa fuera de plazo (48 h)',c:'#FF6F82'},3:{t:'Directa en plazo',c:'#FF9AA8'},4:{t:'Indirecta vencida (3 meses)',c:'#FF9A3C'},5:{t:'Indirecta en plazo',c:'#FFC07A'},6:{t:'Sólo señalética',c:'#FFD83D'}};
+const COL_RUTA=['#63D1E0','#C78BFF','#7FE0A5','#FFC06E','#FF8FD1','#9AB4FF'];
+function nivelDe(g){const s=g.s;if(!s||!s.abiertos)return 0;const z=g.cer.length>0||!!(g.cat&&g.cat.zp);const v=!!(s.plazo&&s.plazo.estado==='vencido');
+ if(s.crit==='directa')return v?(z?1:2):3;if(s.crit==='indirecta')return v?4:5;return 6;}
+function calcularRuta(){
+ const porCo={};S.geo.grifos.forEach(g=>{g.nivel=nivelDe(g);if(!g.nivel||g.nivel>5)return;const co=g.co||'SIN COMUNA';(porCo[co]=porCo[co]||[]).push(g);});
+ const out=[];Object.keys(porCo).sort().forEach((co,i)=>{const orden=[];let cur=null,m=0;
+  for(let n=1;n<=5;n++){const bloque=porCo[co].filter(g=>g.nivel===n);
+   while(bloque.length){let i=0;
+    if(!cur){let best=-1;bloque.forEach((g,j)=>{const h=(g.s.plazo&&g.s.plazo.h)||0;if(h>best){best=h;i=j;}});}   // el más antiguo abre la ruta
+    else{let best=Infinity;bloque.forEach((g,j)=>{const d=metros(cur.la,cur.ln,g.la,g.ln);if(d<best){best=d;i=j;}});}
+    const g=bloque.splice(i,1)[0];if(cur)m+=metros(cur.la,cur.ln,g.la,g.ln);cur=g;g.orden=orden.length+1;orden.push(g);}}
+  const porNivel={1:0,2:0,3:0,4:0,5:0};orden.forEach(g=>porNivel[g.nivel]++);
+  out.push({co,col:COL_RUTA[i%COL_RUTA.length],paradas:orden,km:m/1000,porNivel,sen:S.geo.grifos.filter(g=>(g.co||'SIN COMUNA')===co&&g.nivel===6).length});});
+ S.rutas=out;
+ /* geometría */
+ const fl={type:'FeatureCollection',features:out.filter(r=>r.paradas.length>1).map(r=>({type:'Feature',geometry:{type:'LineString',coordinates:r.paradas.map(g=>[g.ln,g.la])},properties:{co:r.co,col:r.col}}))};
+ const fp={type:'FeatureCollection',features:out.flatMap(r=>r.paradas.map(g=>({type:'Feature',geometry:{type:'Point',coordinates:[g.ln,g.la]},properties:{k:g.k,n:g.orden,co:r.co,col:NIVEL[g.nivel].c,nivel:g.nivel}})))};
+ const sl=map.getSource('ruta-l'),sp=map.getSource('ruta-p');if(sl)sl.setData(fl);if(sp)sp.setData(fp);
+ if(MODO_TABLERO)try{parent.postMessage({accion:'ruta',rutas:resumenRuta()},location.origin);}catch(e){}
+}
+function resumenRuta(){return S.rutas.map(r=>({co:r.co,col:r.col,km:Math.round(r.km*10)/10,n:r.paradas.length,sen:r.sen,porNivel:r.porNivel,
+ paradas:r.paradas.map(g=>({orden:g.orden,k:g.k,di:(g.rs.find(x=>x.di)||{}).di||'',loc:g.loc||'',nivel:g.nivel,txt:NIVEL[g.nivel].t,dias:g.s.plazo&&g.s.plazo.h?Math.round(g.s.plazo.h/24):null,venc:!!(g.s.plazo&&g.s.plazo.estado==='vencido'),exceso:g.s.plazo&&g.s.plazo.exceso?Math.round(g.s.plazo.exceso/24):0,sens:g.cer.length?g.cer[0].o.n:'',zp:!!(g.cat&&g.cat.zp),tipos:(g.s.tipos||[]).slice(0,3).join(', '),la:g.la,ln:g.ln}))}));}
+function rutaVisible(on){S.ruta=on;const pan=document.getElementById('rutaPan');
+ ['ruta-line','ruta-pt','ruta-num'].forEach(id=>{if(map.getLayer(id))map.setLayoutProperty(id,'visibility',on?'visible':'none');});
+ const f=S.comuna==='todos'?null:['==',['get','co'],S.comuna];['ruta-line','ruta-pt','ruta-num'].forEach(id=>{if(map.getLayer(id))map.setFilter(id,f);});
+ if(on){cerrarFicha();pintarRuta();pan.hidden=false;pan.scrollTop=0;document.body.classList.add('conficha');}
+ else{pan.hidden=true;document.body.classList.remove('conficha');}
+ aplicarVista();}
+function encuadrarRuta(){const rs=S.rutas.filter(r=>S.comuna==='todos'||r.co===S.comuna);const b=new maplibregl.LngLatBounds();rs.forEach(r=>r.paradas.forEach(g=>b.extend([g.ln,g.la])));if(!b.isEmpty())map.fitBounds(b,{padding:padding(),duration:1400,maxZoom:15});}
+function pintarRuta(){const el=document.getElementById('rutaBody');if(!el)return;
+ const rs=S.rutas.filter(r=>S.comuna==='todos'||r.co===S.comuna);const tot=rs.reduce((a,r)=>a+r.paradas.length,0),km=rs.reduce((a,r)=>a+r.km,0);
+ let h='<h3>Ruta de trabajo priorizada</h3><div class="sub">Protocolo SISS + zona prioritaria · '+tot+' grifos con falla de operatividad · '+(Math.round(km*10)/10).toLocaleString('es-CL')+' km en línea recta · una ruta por comuna, del más crítico al menos, encadenando el más cercano.</div>';
+ h+='<div class="acc"><button data-a="csv">Descargar ruta (CSV)</button><button data-a="enc">Encuadrar</button></div>';
+ h+='<div class="niv">'+[1,2,3,4,5].map(n=>'<span><i style="background:'+NIVEL[n].c+'"></i>'+n+' · '+NIVEL[n].t+'</span>').join('')+'</div>';
+ rs.forEach(r=>{h+='<div class="co"><div class="tt"><b style="color:'+r.col+'">'+esc(titulo(r.co))+'</b><span>'+r.paradas.length+' paradas · '+(Math.round(r.km*10)/10).toLocaleString('es-CL')+' km'+(r.sen?' · +'+r.sen+' sólo señalética':'')+'</span></div>';
+  r.paradas.slice(0,40).forEach(g=>{const z=g.s.plazo||{};const dir=(g.rs.find(x=>x.di)||{}).di||(g.loc?'Sector '+titulo(g.loc):'');
+   h+='<button class="rp" data-k="'+esc(g.k)+'" style="--c:'+NIVEL[g.nivel].c+'"><span class="n">'+g.orden+'</span><span class="k">'+esc(g.k)+(g.cer.length?' <em title="'+esc(g.cer[0].o.n)+'">· '+esc(CATS[g.cer[0].o.c].nom)+' a '+Math.round(g.cer[0].d)+' m</em>':(g.cat&&g.cat.zp?' <em>· zona prioritaria</em>':''))+'<small>'+esc(dir)+'</small></span><span class="z">'+NIVEL[g.nivel].t.split(' ·')[0]+(z.estado==='vencido'?'<b>vencido hace '+Math.round(z.exceso/24)+' d</b>':z.h?'<b style="color:var(--soft)">abierto '+Math.round(z.h/24)+' d</b>':'')+'</span></button>';});
+  if(r.paradas.length>40)h+='<div class="mas">y '+(r.paradas.length-40)+' paradas más (en el CSV van todas)</div>';
+  if(!r.paradas.length)h+='<div class="mas">Sin fallas de operatividad abiertas.</div>';});
+ if(!rs.length)h+='<div class="mas">Sin fallas de operatividad abiertas.</div>';
+ el.innerHTML=h;
+ el.querySelectorAll('.rp').forEach(b=>b.onclick=()=>{const g=S.geo.grifos.find(x=>x.k===b.dataset.k);if(!g)return;map.flyTo({center:[g.ln,g.la],zoom:16.5,duration:1400});fichaGrifo(g.k);});
+ el.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{if(b.dataset.a==='enc')encuadrarRuta();else descargarRutaCsv(rs);});}
+function descargarRutaCsv(rs){const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+ const filas=[['Comuna','Orden','Grifo','Nivel','Prioridad','Criticidad','Estado','Dias abierto','Fuera de plazo','Lugar sensible','Zona prioritaria catastro','Direccion','Sector','Lat','Lng','Google Maps']];
+ rs.forEach(r=>r.paradas.forEach(g=>{const z=g.s.plazo||{};filas.push([titulo(r.co),g.orden,g.k,g.nivel,NIVEL[g.nivel].t,NOMC[g.s.crit],ESTN[g.s.est]||g.s.est,z.h?Math.round(z.h/24):'',z.estado==='vencido'?'SI':'no',g.cer.length?g.cer[0].o.n+' ('+Math.round(g.cer[0].d)+' m)':'',g.cat&&g.cat.zp?'SI':'no',(g.rs.find(x=>x.di)||{}).di||'',g.loc||'',g.la,g.ln,'https://www.google.com/maps?q='+g.la+','+g.ln]);}));
+ const csv='\ufeff'+filas.map(f=>f.map(q).join(';')).join('\r\n');const bl=new Blob([csv],{type:'text/csv;charset=utf-8'});const u=URL.createObjectURL(bl);const a=document.createElement('a');a.href=u;a.download='ruta-trabajo-grifos-'+new Date().toISOString().slice(0,10)+'.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);}
+function recalcular(fit){S.geo=construirGeo();['grifos','lug','radios','sect','sectl','calor','hex'].forEach(k=>{const src=map.getSource(k);if(!src)return;src.setData({grifos:S.geo.fG,lug:S.geo.fL,radios:S.geo.fR,sect:S.geo.fS,sectl:S.geo.fSl,calor:S.geo.fC,hex:S.geo.fH}[k]);});calcularRuta();if(S.ruta)pintarRuta();aplicarVista();if(fit)encuadrar();}
 function limitesParque(pad){const b=new maplibregl.LngLatBounds();datos.grifos.forEach(g=>b.extend([g.ln,g.la]));datos.hall.forEach(h=>b.extend([h.ln,h.la]));return b;}
 function padding(){const w=innerWidth,der=MODO_TABLERO?30:340,izq=document.body.classList.contains('sinpanel')?30:310,top=(MODO_TABLERO&&!document.body.classList.contains('herr'))?36:100;return w>1000?{top,bottom:40,left:izq,right:der}:w>720?{top,bottom:40,left:izq-10,right:30}:{top:120,bottom:60,left:20,right:20};}
 function encuadrar(anim){map.fitBounds(limitesParque(),{padding:padding(),pitch:S.tres?52:0,bearing:S.tres?-14:0,duration:anim?1800:0,maxZoom:14});}
@@ -690,7 +776,7 @@ function fichaGrifo(k){
  h+='<div class="pacc">'+(MODO_TABLERO&&ppal?'<button data-a="det" class="pri-b">Detalle completo</button>':'')+'<button data-a="zoom">Acercar</button><button data-a="sat">Satélite</button></div></div>';
  let el;
  if(MODO_TABLERO){
-  const pan=document.getElementById('ficha'),body=document.getElementById('fichaBody');body.innerHTML=h;pan.hidden=false;pan.scrollTop=0;document.body.classList.add('conficha');el=body;
+  const pan=document.getElementById('ficha'),body=document.getElementById('fichaBody');body.innerHTML=h;pan.hidden=false;pan.scrollTop=0;document.body.classList.add('conficha');el=body;document.getElementById('rutaPan').hidden=true;
   /* si el grifo queda tapado por el panel, se corre el mapa lo justo para dejarlo a la vista */
   const pt=map.project([g.ln,g.la]),lim=map.getContainer().clientWidth-pan.offsetWidth-40;
   if(pt.x>lim)map.panBy([pt.x-lim+60,0],{duration:500});
@@ -714,7 +800,7 @@ function fichaGrifo(k){
    else{const f=el.querySelector('.fx-foto');if(f){f.innerHTML='<div class="fx-nofoto">Foto no disponible<small>El archivo subido no se puede mostrar en el navegador ('+fotos.length+' foto'+(fotos.length===1?'':'s')+' registrada'+(fotos.length===1?'':'s')+')</small></div>'+(f.querySelector('.fx-tag')?f.querySelector('.fx-tag').outerHTML:'');}}}};
  el.querySelectorAll('.fx-foto img,.fx-th img').forEach(im=>{im.onerror=()=>malas(im.src);if(FOTO_MALA.has(im.src))malas(im.src);else if(im.complete&&im.naturalWidth===0&&im.src)malas(im.src);});
 }
-function cerrarFicha(){const pan=document.getElementById('ficha');if(!pan||pan.hidden)return;pan.hidden=true;document.body.classList.remove('conficha');}
+function cerrarFicha(){const pan=document.getElementById('ficha');if(!pan||pan.hidden)return;pan.hidden=true;if(S.ruta){document.getElementById('rutaPan').hidden=false;}else document.body.classList.remove('conficha');}
 function fichaLugar(i){
  const l=S.geo.lug[i];if(!l)return;if(popup)popup.remove();if(tip)tip.remove();
  const cer=l.cer;
@@ -767,7 +853,7 @@ function detenerTour(){S.tour=null;S.pausa=false;document.getElementById('btour'
 function pausarTour(){if(!S.tour)return;S.pausa=!S.pausa;document.body.classList.toggle('pausa',S.pausa);}
 
 /* ---------- carga ---------- */
-const CLAVE='ccCache.v3';
+const CLAVE='ccCache.v4';
 function procesar(h,c){
  const LEG={inmediato:'directa',corto:'indirecta',mediano:'senaletica'};const hall=[];
  h.forEach(d=>{const x=d.data();const det=Array.isArray(x.hallazgos_detalle)?x.hallazgos_detalle:[];
@@ -779,12 +865,12 @@ function procesar(h,c){
   const lista=v=>Array.isArray(v)?v.filter(u=>typeof u==='string'&&u):(typeof v==='string'&&v?[v]:[]);
   const fotos=[];[...(x.fotos_hallazgo&&x.fotos_hallazgo.length?x.fotos_hallazgo:lista(x.foto_hallazgo)),...(x.fotos_grifo&&x.fotos_grifo.length?x.fotos_grifo:lista(x.foto_grifo))].forEach(u=>{if(typeof u==='string'&&u&&!fotos.includes(u)&&fotos.length<4)fotos.push(u);});
   hall.push({id:d.id,c:(x.codigo_grifo||'').toUpperCase(),co:x.comuna||'',cr,e:x.estado||'pendiente',la:x.lat,ln:x.lng,t,f:fc,fo:fotos,di:x.direccion||'',de:String(x.descripcion||'').slice(0,160)});});
- const grifos=[];c.forEach(d=>{const x=d.data();if(typeof x.lat==='number'&&typeof x.lng==='number')grifos.push({k:String(x.codigo||d.id).toUpperCase(),la:x.lat,ln:x.lng,co:x.comuna||'',loc:x.localidad||'',mod:x.modelo||'',dia:x.diametro_conexion||'',ano:x.ano_instalacion||''});});
+ const grifos=[];c.forEach(d=>{const x=d.data();if(typeof x.lat==='number'&&typeof x.lng==='number')grifos.push({k:String(x.codigo||d.id).toUpperCase(),la:x.lat,ln:x.lng,co:x.comuna||'',loc:x.localidad||'',mod:x.modelo||'',dia:x.diametro_conexion||'',ano:x.ano_instalacion||'',zp:!!x.zona_prioritaria,zpt:Array.isArray(x.zona_prioritaria_tipos)?x.zona_prioritaria_tipos.slice(0,4):[]});});
  return{hall,parque:c.size,grifos};}
 function estado(t){document.getElementById('estado').textContent=t;}
 function iniciar(desdeCache){
  document.getElementById('cst').textContent='Preparando el mapa…';
- S.geo=construirGeo();capasBase();panelIzq();aplicarVista();
+ S.geo=construirGeo();capasBase();panelIzq();calcularRuta();aplicarVista();
  estado(desdeCache?'Datos guardados · actualizando con el catastro…':'Catastro al día · '+new Date().toLocaleString('es-CL',{dateStyle:'medium',timeStyle:'short'}));
  document.getElementById('carga').classList.add('off');S.listo=true;
  if(MODO_TABLERO){try{parent.postMessage({accion:'listo'},location.origin);}catch(e){}}   // el tablero responde con el sector y sus cifras
@@ -820,9 +906,11 @@ function modoTablero(){
  NOMC.sin='Grifo bueno (sin hallazgos)';NOMC.resuelto='Grifo bueno (hallazgos resueltos)';NOMC.senaletica='Sólo señalética (pintura)';NOMC.directa='Falla directa';NOMC.indirecta='Falla indirecta';
  const c=PARAMS.get('sector');if(c&&c!=='todos')S.comuna=c.toUpperCase();
  window.addEventListener('message',e=>{if(e.origin!==location.origin)return;const m=e.data||{};if(!S.listo)return;
-  if(m.accion==='sector'){const c=(m.comuna&&m.comuna!=='todos')?String(m.comuna).toUpperCase():'todos';const igual=c===S.comuna;S.comuna=c;if(m.cifras)S.cifras=m.cifras;if(!igual)S.filtro='todos';aplicarVista();if(!igual)encuadrarComuna();}
+  if(m.accion==='sector'){const c=(m.comuna&&m.comuna!=='todos')?String(m.comuna).toUpperCase():'todos';const igual=c===S.comuna;S.comuna=c;if(m.cifras)S.cifras=m.cifras;if(!igual)S.filtro='todos';if(S.ruta&&!igual){rutaVisible(true);}else aplicarVista();if(!igual){if(S.ruta)encuadrarRuta();else encuadrarComuna();}}
   if(m.accion==='grifo'&&m.codigo)irAGrifo(String(m.codigo).toUpperCase());
   if(m.accion==='filtro'&&m.filtro){S.filtro=m.filtro;aplicarVista();encuadrarFiltro();}
+  if(m.accion==='ruta'){if(m.comuna!==undefined){S.comuna=(m.comuna&&m.comuna!=='todos')?String(m.comuna).toUpperCase():'todos';}rutaVisible(m.on!==false);if(S.ruta)encuadrarRuta();}
+  if(m.accion==='rutaResumen')try{parent.postMessage({accion:'ruta',rutas:resumenRuta()},location.origin);}catch(e){}
   if(m.accion==='captura')capturarMapa().then(png=>{try{parent.postMessage({accion:'captura',png},location.origin);}catch(e){}});});}
 /* Captura del mapa para el informe ejecutivo del tablero: se lee el canvas de WebGL dentro
    del mismo cuadro en que MapLibre lo dibuja (sin preserveDrawingBuffer). JPEG para que el
@@ -836,7 +924,7 @@ function enlazar(){modoTablero();
  let abierto=!MODO_TABLERO;try{const v=localStorage.getItem('ccPanel');if(v!==null)abierto=v==='1';}catch(e){}
  panelVisible(abierto);
  document.getElementById('bpan').onclick=()=>{panelVisible(document.body.classList.contains('sinpanel'));if(S.listo)encuadrar(true);};
- document.getElementById('fichaX').onclick=cerrarFicha;
+ document.getElementById('fichaX').onclick=cerrarFicha;document.getElementById('rutaX').onclick=()=>rutaVisible(false);
  document.getElementById('bher').onclick=()=>{const on=document.body.classList.toggle('herr');const b=document.getElementById('bher');b.classList.toggle('on',on);b.setAttribute('aria-pressed',on);};
  document.getElementById('b3d').onclick=toggle3D;document.getElementById('bsat').onclick=toggleSat;document.getElementById('btour').onclick=tour;document.getElementById('bfull').onclick=pantalla;
  document.getElementById('bmov').onclick=()=>{document.getElementById('pizq').classList.toggle('on');panelVisible(true);};

@@ -469,6 +469,32 @@ nav.rail .rr-st.sen{grid-column:1/-1;flex-direction:row;align-items:baseline;gap
 .cc-foot .ccl{display:inline-block;width:9px;height:9px;border-radius:50%;margin:0 3px 0 2px;vertical-align:-1px;}
 @media(max-width:720px){.cc-host{height:calc(100vh - 170px);}}
 .normativa .nv-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap;}
+/* Ruta de trabajo priorizada (02/11): una ruta por comuna, protocolo SISS + zona prioritaria */
+.ruta-panel{margin-bottom:14px;}
+.ruta-panel .rt-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap;margin-bottom:12px;}
+.ruta-panel .rt-head h3{margin:0;font:800 16px 'Montserrat',sans-serif;color:var(--ink,#002359);}
+.ruta-panel .rt-head p{margin:3px 0 0;font-size:12px;color:var(--text-soft);max-width:760px;line-height:1.45;}
+.ruta-panel .rt-acc{display:flex;gap:8px;flex-wrap:wrap;}
+.ruta-panel .rt-niv{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11px;color:var(--text-soft);margin-bottom:12px;}
+.ruta-panel .rt-niv i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:-1px;}
+.ruta-panel .rt-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;}
+.ruta-panel .rt-co{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#F8FBFD;}
+.ruta-panel .rt-co .tt{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px;}
+.ruta-panel .rt-co .tt b{font:800 12px 'Montserrat',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--ink,#002359);}
+.ruta-panel .rt-co .tt span{font-size:11px;color:var(--text-soft);}
+.ruta-panel .rt-row{all:unset;cursor:pointer;display:grid;grid-template-columns:26px minmax(0,1fr) 112px;gap:8px;align-items:center;padding:5px 6px;border-radius:8px;width:calc(100% - 12px);}
+.ruta-panel .rt-row:hover{background:rgba(1,179,215,.1);}
+.ruta-panel .rt-row .n{width:22px;height:22px;border-radius:50%;background:#fff;color:#001640;font:800 10.5px 'Montserrat',sans-serif;display:flex;align-items:center;justify-content:center;border:2.5px solid var(--c);}
+.ruta-panel .rt-row .k{font-weight:700;color:var(--text);font-size:12.5px;line-height:1.2;}
+.ruta-panel .rt-row .k small{display:block;font-weight:500;color:var(--text-soft);font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ruta-panel .rt-row .k em{font-style:normal;color:#0B7FA0;font-weight:600;}
+.ruta-panel .rt-row .z{text-align:right;font-size:10px;color:var(--text-soft);white-space:normal;line-height:1.2;}
+.ruta-panel .rt-row .z b{display:block;color:#C8334D;}
+.ruta-panel .rt-mas{font-size:11px;color:var(--text-soft);margin:6px 0 0 34px;}
+.ruta-panel .rt-vacio{font-size:12px;color:var(--text-soft);padding:8px 0;}
+.ruta-panel .btn-rt{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:9px;background:linear-gradient(120deg,#01B3D7,#0b6fa8);color:#fff;font:700 11.5px 'Inter',sans-serif;}
+.ruta-panel .btn-rt.ghost{background:#fff;color:#0B6FA8;border:1px solid rgba(1,179,215,.5);}
+.ruta-panel .btn-rt:hover{filter:brightness(1.08);}
 .normativa .nv-head .sub{max-width:860px;}
 .nv-chip{font:700 10.5px 'Montserrat',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--ink);background:#E9F6FB;border:1px solid #BFE9F3;border-radius:999px;padding:6px 11px;white-space:nowrap;}
 .nv-tabla-wrap{overflow-x:auto;margin-top:12px;}
@@ -2248,6 +2274,7 @@ function renderDashboard(){
       buckets: buckets.map(b=>({l:b.l, n:b.n, op:b.op, s:b.s, c:b.c})),
       zp: {grifos:zpGrifos.length, directa:zpDirecta.size, parque:zpParque, sen:zpSen, porTipo:Object.assign({}, zpPorTipo)},
       atencion: atencion.map(h=>({codigo:h.codigo_grifo||'—', direccion:h.direccion||'', comuna:h.comuna||'', dias:diasTranscurridos(h.fecha_creacion), estado:h.estado, tipos:obtenerDetalleHallazgos(h).map(d=>d.tipo_hallazgo).filter(Boolean).join(', ')})),
+      ruta: CC_RUTA,
       norma: {dir:directasAbiertas.length, dirV:directasAbiertas.filter(h=>hrsN(h)>48).length,
               ind:indN.length, indV:indN.filter(h=>hrsN(h)>24*90).length, indA:indN.filter(h=>hrsN(h)>24*7 && hrsN(h)<=24*90).length,
               sen:senAbiertasArr.length, senV:senAbiertasArr.filter(h=>hrsN(h)>24*90).length, senA:senAbiertasArr.filter(h=>hrsN(h)>24*7 && hrsN(h)<=24*90).length}
@@ -2466,6 +2493,8 @@ function renderDashboard(){
         <div class="xc-legs">${Object.keys(zpPorTipo).map(t=>`<span class="xc-leg st" title="${ZP_TIPO_LABEL[t]}"><span>${ZP_TIPO_ICONO[t]}</span><b>${zpPorTipo[t]}</b></span>`).join('')}</div>
       </div>
     </div>
+
+    <div class="panel ruta-panel" id="rutaPanel">${rutaTableroHtml()}</div>
 
     ${(()=>{
       const hrs = h => (Date.now() - new Date(h.fecha_creacion).getTime())/36e5;
@@ -2706,12 +2735,54 @@ function construirCentroControl(){
 // Cifras del encabezado (unidad "grifos") que el mapa muestra en sus chips, para que
 // tablero y mapa digan exactamente lo mismo aunque algún grifo no tenga coordenada.
 let CC_CIFRAS = null;
+// Ruta de trabajo priorizada: la calcula el mapa (tiene coordenadas, plazos SISS y lugares
+// sensibles) y la manda al tablero; aquí sólo se muestra, se exporta y va al informe.
+let CC_RUTA = null;
+const NIVEL_RUTA = {1:{t:'Directa fuera de plazo · zona prioritaria',c:'#FF4D63'},2:{t:'Directa fuera de plazo (48 h)',c:'#FF6F82'},3:{t:'Directa en plazo',c:'#FF9AA8'},4:{t:'Indirecta vencida (3 meses)',c:'#FF9A3C'},5:{t:'Indirecta en plazo',c:'#FFC07A'}};
+function rutaTableroHtml(){
+  const rs = (CC_RUTA||[]).filter(r=>FILTRO_SECTOR_DASHBOARD==='todos' || r.co===FILTRO_SECTOR_DASHBOARD.toUpperCase());
+  const tot = rs.reduce((a,r)=>a+r.n,0), km = rs.reduce((a,r)=>a+r.km,0);
+  const fila = (r,p) => `<button type="button" class="rt-row" style="--c:${NIVEL_RUTA[p.nivel].c}" onclick="verGrifoEnRuta(${JSON.stringify(r.co).replace(/"/g,'&quot;')},${JSON.stringify(p.k).replace(/"/g,'&quot;')})" title="Ver en el mapa">
+      <span class="n">${p.orden||''}</span>
+      <span class="k">${escHtml(p.k)}${p.sens?` <em>· ${escHtml(p.sens)}</em>`:(p.zp?' <em>· zona prioritaria</em>':'')}<small>${escHtml(p.di||p.loc||'')}${p.tipos?` · ${escHtml(p.tipos)}`:''}</small></span>
+      <span class="z">${escHtml(p.txt.split(' ·')[0])}${p.venc?`<b>vencido hace ${p.exceso} d</b>`:(p.dias!==null?`<b style="color:var(--text-soft)">abierto ${p.dias} d</b>`:'')}</span></button>`;
+  let h = `<div class="rt-head"><div><h3>Ruta de trabajo priorizada · por dónde empezar</h3>
+      <p>Orden sugerido según el <b>protocolo SISS</b> (falla directa antes que indirecta; fuera de plazo antes que en plazo) y la <b>zona prioritaria</b> (grifo junto a hospital, colegio, jardín, cárcel o centro comercial va primero). Una ruta por comuna: parte en el grifo más crítico y más antiguo y, sin bajar de nivel, sigue por el más cercano. La señalética no entra: Singemelec la está ejecutando aparte.</p></div>
+      <div class="rt-acc"><button type="button" class="btn-rt" onclick="verRutaEnMapa()">Ver la ruta en el mapa</button><button type="button" class="btn-rt ghost" onclick="descargarRutaCsvTablero()">Descargar ruta (CSV)</button></div></div>`;
+  if(!CC_RUTA) return h + '<div class="rt-vacio">Calculando la ruta con el mapa…</div>';
+  h += `<div class="rt-niv">${[1,2,3,4,5].map(n=>`<span><i style="background:${NIVEL_RUTA[n].c}"></i>${n} · ${NIVEL_RUTA[n].t}</span>`).join('')}<span>· <b>${tot}</b> grifos · ${km.toFixed(1).replace('.',',')} km en línea recta</span></div>`;
+  h += `<div class="rt-grid">${rs.map(r=>`<div class="rt-co"><div class="tt"><b style="color:${r.col==='#63D1E0'?'#0B7FA0':'#002359'}">${escHtml(r.co)}</b><span>${r.n} paradas · ${r.km.toFixed(1).replace('.',',')} km${r.sen?` · +${r.sen} sólo señalética`:''} · <a href="#" onclick="verRutaEnMapa(${JSON.stringify(r.co).replace(/"/g,'&quot;')});return false;" style="color:var(--accent);font-weight:700">ver en el mapa ↗</a></span></div>
+      ${r.paradas.length ? r.paradas.slice(0,8).map(p=>fila(r,p)).join('') + (r.n>8?`<div class="rt-mas">y ${r.n-8} paradas más · todas en el CSV y en el mapa</div>`:'') : '<div class="rt-vacio">Sin fallas de operatividad abiertas.</div>'}</div>`).join('')}</div>`;
+  if(!rs.length) h += '<div class="rt-vacio">Sin fallas de operatividad abiertas en este sector.</div>';
+  return h;
+}
+function pintarRutaTablero(){ const el = document.getElementById('rutaPanel'); if(el) el.innerHTML = rutaTableroHtml(); if(DASH_RESUMEN) DASH_RESUMEN.ruta = CC_RUTA; }
+function verRutaEnMapa(comuna){
+  const card = document.querySelector('.mapa-card'); if(card) card.scrollIntoView({behavior:'smooth', block:'start'});
+  ccEnviar({accion:'ruta', on:true, comuna: comuna || FILTRO_SECTOR_DASHBOARD || 'todos'});
+}
+function verGrifoEnRuta(comuna, codigo){
+  const card = document.querySelector('.mapa-card'); if(card) card.scrollIntoView({behavior:'smooth', block:'start'});
+  ccEnviar({accion:'ruta', on:true, comuna: comuna});
+  setTimeout(()=>ccEnviar({accion:'grifo', codigo}), 300);
+}
+function descargarRutaCsvTablero(){
+  if(!CC_RUTA){ toast('La ruta todavía se está calculando'); return; }
+  const q = v => '"' + String(v==null?'':v).replace(/"/g,'""') + '"';
+  const filas = [['Comuna','Orden','Grifo','Nivel','Prioridad','Dias abierto','Fuera de plazo','Dias fuera de plazo','Lugar sensible','Zona prioritaria catastro','Direccion','Sector','Hallazgos','Lat','Lng','Google Maps']];
+  CC_RUTA.filter(r=>FILTRO_SECTOR_DASHBOARD==='todos' || r.co===FILTRO_SECTOR_DASHBOARD.toUpperCase()).forEach(r=>r.paradas.forEach((p,i)=>filas.push([r.co, p.orden||i+1, p.k, p.nivel, p.txt, p.dias==null?'':p.dias, p.venc?'SI':'no', p.exceso||'', p.sens||'', p.zp?'SI':'no', p.di||'', p.loc||'', p.tipos||'', p.la, p.ln, 'https://www.google.com/maps?q='+p.la+','+p.ln])));
+  const csv = '\ufeff' + filas.map(f=>f.map(q).join(';')).join('\r\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'}); const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'ruta-trabajo-grifos-' + new Date().toISOString().slice(0,10) + '.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  toast('Ruta de trabajo descargada (CSV)');
+}
 function ccEnviar(m){ try{ if(CC_FRAME && CC_FRAME.contentWindow) CC_FRAME.contentWindow.postMessage(m, location.origin); }catch(e){} }
 // Mensajes que llegan desde el centro de control (mismo origen): abrir el detalle completo de un hallazgo.
 window.addEventListener('message', e=>{
   if(e.origin!==location.origin) return;
   const m = e.data || {};
   if(m.accion==='listo') ccEnviar({accion:'sector', comuna:FILTRO_SECTOR_DASHBOARD||'todos', cifras:CC_CIFRAS});   // el mapa terminó de cargar: le mandamos sector y cifras
+  if(m.accion==='ruta' && Array.isArray(m.rutas)){ CC_RUTA = m.rutas; pintarRutaTablero(); }
   if(m.accion==='detalle' && m.id && HALLAZGOS.some(h=>h.id===m.id)) openDetail(m.id);
 });
 function ccProgramar(){ if(CC_RAF) return; CC_RAF = requestAnimationFrame(()=>{ CC_RAF = 0; ccPosicionar(); }); }
@@ -5607,6 +5678,17 @@ footer{text-align:center;font-size:11px;color:var(--soft);font-family:'IBM Plex 
       <p class="nota">Inspección mínima anual; semestral en zonas de riesgo 1 a 4 (1 = hospital / colegio / cárcel / centro comercial). La zona prioritaria del catastro (≤150 m de colegio, salud, municipalidad o cárcel) es la aproximación disponible a la zona de riesgo 1. El desempeño hidráulico (presión / caudal) no se registra en la plataforma.</p>
     </div>
   </section>
+
+  ${(()=>{ const rs=(R.ruta||[]).filter(r=>R.sector==='todos'||r.co===String(R.sector).toUpperCase()); if(!R.ruta) return '';
+    const tot=rs.reduce((a,r)=>a+r.n,0), km=rs.reduce((a,r)=>a+r.km,0);
+    return `<section>
+    <div class="sec-head"><h2>Ruta de trabajo priorizada · por dónde empezar<small>Protocolo SISS + zona prioritaria · ${n(tot)} grifos con falla de operatividad · ${km.toFixed(1).replace('.',',')} km en línea recta · una ruta por comuna, del más crítico al menos, encadenando el más cercano</small></h2><span class="chip">6 · Ruta</span></div>
+    <div class="leyenda" style="margin:-6px 0 12px">${[1,2,3,4,5].map(k=>`<span><i style="background:${NIVEL_RUTA[k].c}"></i>${k} · ${esc(NIVEL_RUTA[k].t)}</span>`).join('')}<span>· La señalética no entra: Singemelec la ejecuta aparte.</span></div>
+    ${rs.map(r=>`<div class="panel" style="margin-bottom:12px"><h3 style="font:800 13px Montserrat,sans-serif;margin:0 0 8px;color:var(--ink)">${esc(r.co)} <span style="font:500 11.5px Inter,sans-serif;color:var(--soft)">· ${n(r.n)} paradas · ${r.km.toFixed(1).replace('.',',')} km${r.sen?` · +${n(r.sen)} sólo señalética`:''}</span></h3>
+      ${r.paradas.length?`<table><thead><tr><th>#</th><th>Grifo</th><th>Dirección / sector</th><th>Prioridad</th><th>Lugar sensible</th><th>Plazo SISS</th></tr></thead><tbody>
+      ${r.paradas.slice(0,12).map((p,i)=>`<tr><td class="mono">${p.orden||i+1}</td><td><b>${esc(p.k)}</b></td><td>${esc(p.di||'')}${p.loc?`<small>${esc(p.loc)}</small>`:''}</td><td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${NIVEL_RUTA[p.nivel].c};margin-right:6px"></span>${esc(p.txt)}</td><td>${esc(p.sens||(p.zp?'Zona prioritaria (catastro)':'—'))}</td><td>${p.venc?`<span class="venc">vencido hace ${p.exceso} d</span>`:(p.dias!==null?`abierto ${p.dias} d`:'—')}</td></tr>`).join('')}
+      </tbody></table>${r.n>12?`<p class="nota">y ${n(r.n-12)} paradas más en el tablero (botón "Descargar ruta (CSV)").</p>`:''}`:'<p class="nota">Sin fallas de operatividad abiertas.</p>'}</div>`).join('')}
+  </section>`; })()}
 
 </div>
 <footer>Informe estático generado desde el tablero ejecutivo Gestión Sacyr el ${esc(R.fecha)} · no se actualiza automáticamente; vuelve a generarlo para reflejar el estado más reciente.</footer>
