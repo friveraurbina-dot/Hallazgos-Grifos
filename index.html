@@ -2590,14 +2590,7 @@ function renderDashboard(){
       <span class="rr-top">${nom==='todos'?'Todas las comunas':escHtml(nom)}${dot?`<i class="rr-dot" title="${dot} grifos con falla directa pendiente">${dot}</i>`:''}</span>
       <span class="rr-n">${n}</span><span class="rr-s">${sub}</span></button>`;
     rail.innerHTML = `
-      <button type="button" class="nav-group rr-tt ${railSec('parque')?'':'abierto'}" onclick="railPlegar('parque',this)" aria-expanded="${!railSec('parque')}">Parque<i></i></button>
-      <div class="rr-stats" ${railSec('parque')?'hidden':''}>
-        <div class="rr-st"><b ${parqueTotal?`data-count="${parqueTotal}"`:''}>${parqueTotal||'—'}</b><span>Grifos en el parque</span></div>
-        <div class="rr-st ok" title="Sin ningún hallazgo pendiente${parqueTotal?` · ${pct1(gBuenos/parqueTotal*100)}% del parque`:''}"><b data-count="${gBuenos}">${gBuenos}</b><span>Grifos buenos</span></div>
-        <div class="rr-st alert" onclick="irAListaConFiltro('prioridad','directa')" title="Grifos con falla de operatividad directa pendiente"><b data-count="${G.directa}">${G.directa}</b><span>Falla directa · prioridad máxima</span></div>
-        <div class="rr-st ind" onclick="irAListaConFiltro('prioridad','indirecta')" title="Grifos con falla de operatividad indirecta pendiente"><b data-count="${G.indirecta}">${G.indirecta}</b><span>Falla indirecta</span></div>
-        <div class="rr-st sen" onclick="irAListaConFiltro('prioridad','senaletica')" title="Grifos que sólo tienen señalética (pintura) pendiente · ${senPendientes} pinturas pendientes, ${senPct}% ejecutado"><b data-count="${G.senaletica}">${G.senaletica}</b><span>Sólo señalética (pintura) · atenuados</span></div>
-      </div>
+      <!-- (03/11) Las cifras del parque salieron del menú lateral: ya están en el resumen del encabezado. -->
       <button type="button" class="nav-group rr-tt ${railSec('comunas')?'':'abierto'}" onclick="railPlegar('comunas',this)" aria-expanded="${!railSec('comunas')}">Comunas<i></i></button>
       <div class="rr-coms" ${railSec('comunas')?'hidden':''}>
         ${comBtn('todos', FILTRO_SECTOR_DASHBOARD==='todos', GT.pend, `grifos con pendientes de ${parqueTodo} · <b class="rr-d">${GT.directa}</b> directa · <b class="rr-i">${GT.indirecta}</b> indirecta${GT.senaletica?` · <em>${GT.senaletica} señalética</em>`:''}`)}
@@ -2704,7 +2697,7 @@ function construirCentroControl(){
     document.addEventListener('scroll', ccProgramar, true);
     window.addEventListener('resize', ccProgramar);
     if(window.ResizeObserver){ const ro = new ResizeObserver(ccProgramar); ro.observe(document.body); const mn = document.getElementById('main'); if(mn) ro.observe(mn); }
-  } else ccEnviar({accion:'sector', comuna:sector, cifras:CC_CIFRAS});
+  } else ccEnviar({accion:'sector', comuna:sector, cifras:CC_CIFRAS, rol:ROLE});
   ccProgramar();
 }
 // Cifras del encabezado (unidad "grifos") que el mapa muestra en sus chips, para que
@@ -2723,7 +2716,7 @@ function rutaTableroHtml(){
       <span class="z">${escHtml(p.txt.split(' ·')[0])}${p.venc?`<b>vencido hace ${p.exceso} d</b>`:(p.dias!==null?`<b style="color:var(--text-soft)">abierto ${p.dias} d</b>`:'')}</span></button>`;
   let h = `<div class="rt-head"><div><h3>Ruta de trabajo priorizada · por dónde empezar</h3>
       <p>Orden sugerido según el <b>protocolo SISS</b> (falla directa antes que indirecta; fuera de plazo antes que en plazo) y la <b>zona prioritaria</b> (grifo junto a hospital, colegio, jardín, cárcel o centro comercial va primero). Una ruta por comuna: parte en el grifo más crítico y más antiguo y, sin bajar de nivel, sigue por el más cercano. La señalética no entra: Singemelec la está ejecutando aparte.</p></div>
-      <div class="rt-acc"><button type="button" class="btn-rt" onclick="verRutaEnMapa()">Ver la ruta en el mapa</button><button type="button" class="btn-rt ghost" onclick="descargarRutaCsvTablero()">Descargar ruta (CSV)</button></div></div>`;
+      <div class="rt-acc"><button type="button" class="btn-rt" onclick="verRutaEnMapa()">Ver la ruta en el mapa</button>${ROLE==='singemelec' ? `<button type="button" class="btn-rt ghost" onclick="descargarRutaCsvTablero()">Descargar ruta (CSV)</button>` : ''}</div></div>`;
   if(!CC_RUTA) return h + '<div class="rt-vacio">Calculando la ruta con el mapa…</div>';
   h += `<div class="rt-niv">${[1,2,3,4,5].map(n=>`<span><i style="background:${NIVEL_RUTA[n].c}"></i>${n} · ${NIVEL_RUTA[n].t}</span>`).join('')}<span>· <b>${tot}</b> grifos · ${km.toFixed(1).replace('.',',')} km en línea recta</span></div>`;
   h += `<div class="rt-grid">${rs.map(r=>`<div class="rt-co"><div class="tt"><b style="color:${r.col==='#63D1E0'?'#0B7FA0':'#002359'}">${escHtml(r.co)}</b><span>${r.n} paradas · ${r.km.toFixed(1).replace('.',',')} km${r.sen?` · +${r.sen} sólo señalética`:''} · <a href="#" onclick="verRutaEnMapa(${JSON.stringify(r.co).replace(/"/g,'&quot;')});return false;" style="color:var(--accent);font-weight:700">ver en el mapa ↗</a></span></div>
@@ -2734,7 +2727,7 @@ function rutaTableroHtml(){
 function pintarRutaTablero(){ const el = document.getElementById('rutaPanel'); if(el) el.innerHTML = rutaTableroHtml(); if(DASH_RESUMEN) DASH_RESUMEN.ruta = CC_RUTA; }
 function verRutaEnMapa(comuna){
   const card = document.querySelector('.mapa-card'); if(card) card.scrollIntoView({behavior:'smooth', block:'start'});
-  ccEnviar({accion:'ruta', on:true, comuna: comuna || FILTRO_SECTOR_DASHBOARD || 'todos'});
+  ccEnviar({accion:'ruta', on:true, comuna: comuna || FILTRO_SECTOR_DASHBOARD || 'todos', rol:ROLE});
 }
 function verGrifoEnRuta(comuna, codigo){
   const card = document.querySelector('.mapa-card'); if(card) card.scrollIntoView({behavior:'smooth', block:'start'});
@@ -2756,7 +2749,7 @@ function ccEnviar(m){ try{ if(CC_FRAME && CC_FRAME.contentWindow) CC_FRAME.conte
 window.addEventListener('message', e=>{
   if(e.origin!==location.origin) return;
   const m = e.data || {};
-  if(m.accion==='listo') ccEnviar({accion:'sector', comuna:FILTRO_SECTOR_DASHBOARD||'todos', cifras:CC_CIFRAS});   // el mapa terminó de cargar: le mandamos sector y cifras
+  if(m.accion==='listo') ccEnviar({accion:'sector', comuna:FILTRO_SECTOR_DASHBOARD||'todos', cifras:CC_CIFRAS, rol:ROLE});   // el mapa terminó de cargar: le mandamos sector y cifras
   if(m.accion==='ruta' && Array.isArray(m.rutas)){ CC_RUTA = m.rutas; pintarRutaTablero(); }
   if(m.accion==='grifoNoEncontrado') toast(`El grifo ${m.codigo} no tiene coordenadas en el mapa`, {error:true});
   if(m.accion==='detalle' && m.id && HALLAZGOS.some(h=>h.id===m.id)) openDetail(m.id);
@@ -4491,9 +4484,9 @@ function renderLista(){
       <div>
         ${(ROLE==='singemelec' && PENDIENTES_MIGRACION.size>0) ? `<button class="btn btn-danger btn-sm" onclick="abrirMigracionNombres()">🔧 Actualizar nombres de hallazgos (${PENDIENTES_MIGRACION.size})</button>` : ''}
         <button class="btn btn-amber btn-sm" onclick="descargarReporteHallazgos()">📄 Reporte de hallazgos (HTML)</button>
-        <button class="btn btn-amber btn-sm" onclick="exportarExcel()">📊 Exportar a Excel</button>
+        ${ROLE==='singemelec' ? `<button class="btn btn-amber btn-sm" onclick="exportarExcel()">📊 Exportar a Excel</button>
         <button class="btn btn-amber btn-sm" onclick="exportarExcelReducido()">📊 Excel reducido</button>
-        <button class="btn btn-amber btn-sm" onclick="exportarExcelSacyr()">📊 Excel SACYR</button>
+        <button class="btn btn-amber btn-sm" onclick="exportarExcelSacyr()">📊 Excel SACYR</button>` : ''}
       </div>
     </div>
     <div class="zone-tabs">

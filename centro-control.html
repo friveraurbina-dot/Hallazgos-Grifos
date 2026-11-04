@@ -376,7 +376,7 @@ const fmt=n=>Number(n||0).toLocaleString('es-CL');
 const PLAZO={directa:{h:48,txt:'48 h'},indirecta:{h:24*90,aviso:24*7,txt:'1 semana a 3 meses'},senaletica:{h:24*90,aviso:24*7,txt:'1 semana a 3 meses'}};
 const PARAMS=new URLSearchParams(location.search);
 const MODO_TABLERO=PARAMS.get('modo')==='tablero';
-const S={ruta:false,rutas:[],vista:'hall',filtro:'todos',radio:150,cats:new Set(Object.keys(CATS)),comuna:'todos',
+const S={rol:'singemelec',ruta:false,rutas:[],vista:'hall',filtro:'todos',radio:150,cats:new Set(Object.keys(CATS)),comuna:'todos',
  capas:{sect:true,pobl:true,com:true,relieve:false,edif:false,calor:false,hex:false},
  tres:false,sat:false,tour:null,listo:false,geo:null};
 let datos=null,map=null,popup=null,tip=null;
@@ -660,7 +660,7 @@ function encuadrarRuta(){const rs=S.rutas.filter(r=>S.comuna==='todos'||r.co===S
 function pintarRuta(){const el=document.getElementById('rutaBody');if(!el)return;
  const rs=S.rutas.filter(r=>S.comuna==='todos'||r.co===S.comuna);const tot=rs.reduce((a,r)=>a+r.paradas.length,0),km=rs.reduce((a,r)=>a+r.km,0);
  let h='<h3>Ruta de trabajo priorizada</h3><div class="sub">Protocolo SISS + zona prioritaria · '+tot+' grifos con falla de operatividad · '+(Math.round(km*10)/10).toLocaleString('es-CL')+' km en línea recta · una ruta por comuna, del más crítico al menos, encadenando el más cercano.</div>';
- h+='<div class="acc"><button data-a="csv">Descargar ruta (CSV)</button><button data-a="enc">Encuadrar</button></div>';
+ h+='<div class="acc">'+(S.rol==='sacyr'?'':'<button data-a="csv">Descargar ruta (CSV)</button>')+'<button data-a="enc">Encuadrar</button></div>';
  h+='<div class="niv">'+[1,2,3,4,5].map(n=>'<span><i style="background:'+NIVEL[n].c+'"></i>'+n+' · '+NIVEL[n].t+'</span>').join('')+'</div>';
  rs.forEach(r=>{h+='<div class="co"><div class="tt"><b style="color:'+r.col+'">'+esc(titulo(r.co))+'</b><span>'+r.paradas.length+' paradas · '+(Math.round(r.km*10)/10).toLocaleString('es-CL')+' km'+(r.sen?' · +'+r.sen+' sólo señalética':'')+'</span></div>';
   r.paradas.slice(0,40).forEach(g=>{const z=g.s.plazo||{};const dir=(g.rs.find(x=>x.di)||{}).di||(g.loc?'Sector '+titulo(g.loc):'');
@@ -941,10 +941,10 @@ function modoTablero(){
  NOMC.sin='Grifo bueno (sin hallazgos)';NOMC.resuelto='Grifo bueno (hallazgos resueltos)';NOMC.senaletica='Sólo señalética (pintura)';NOMC.directa='Falla directa';NOMC.indirecta='Falla indirecta';
  const c=PARAMS.get('sector');if(c&&c!=='todos')S.comuna=c.toUpperCase();
  window.addEventListener('message',e=>{if(e.origin!==location.origin||e.source===window)return;const m=e.data||{};if(!S.listo)return;
-  if(m.accion==='sector'){const c=(m.comuna&&m.comuna!=='todos')?String(m.comuna).toUpperCase():'todos';const igual=c===S.comuna;S.comuna=c;if(m.cifras)S.cifras=m.cifras;if(!igual)S.filtro='todos';if(S.ruta&&!igual){rutaVisible(true);}else aplicarVista();if(!igual){if(S.ruta)encuadrarRuta();else encuadrarComuna();}}
+  if(m.accion==='sector'){const c=(m.comuna&&m.comuna!=='todos')?String(m.comuna).toUpperCase():'todos';const igual=c===S.comuna;S.comuna=c;if(m.cifras)S.cifras=m.cifras;if(m.rol)S.rol=m.rol;if(!igual)S.filtro='todos';if(S.ruta&&!igual){rutaVisible(true);}else aplicarVista();if(!igual){if(S.ruta)encuadrarRuta();else encuadrarComuna();}}
   if(m.accion==='grifo'&&m.codigo){const k=String(m.codigo).toUpperCase();const g=S.geo.grifos.find(x=>x.k===k)||S.geo.grifos.find(x=>x.k.startsWith(k));if(g)irAGrifo(g.k);else try{parent.postMessage({accion:'grifoNoEncontrado',codigo:k},location.origin);}catch(e){}}
   if(m.accion==='filtro'&&m.filtro){S.filtro=m.filtro;aplicarVista();encuadrarFiltro();}
-  if(m.accion==='ruta'&&!Array.isArray(m.rutas)){if(m.comuna!==undefined){S.comuna=(m.comuna&&m.comuna!=='todos')?String(m.comuna).toUpperCase():'todos';}rutaVisible(m.on!==false);if(S.ruta)encuadrarRuta();}
+  if(m.accion==='ruta'&&!Array.isArray(m.rutas)){if(m.rol)S.rol=m.rol;if(m.comuna!==undefined){S.comuna=(m.comuna&&m.comuna!=='todos')?String(m.comuna).toUpperCase():'todos';}rutaVisible(m.on!==false);if(S.ruta)encuadrarRuta();}
   if(m.accion==='rutaResumen')try{parent.postMessage({accion:'ruta',rutas:resumenRuta()},location.origin);}catch(e){}
   if(m.accion==='captura')capturarMapa().then(png=>{try{parent.postMessage({accion:'captura',png},location.origin);}catch(e){}});});}
 /* Captura del mapa para el informe ejecutivo del tablero: se lee el canvas de WebGL dentro
