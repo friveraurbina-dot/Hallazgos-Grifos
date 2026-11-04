@@ -461,13 +461,14 @@ nav.rail .rr-st.sen{grid-column:1/-1;flex-direction:row;align-items:baseline;gap
   .mapa-card .mapa-head{display:flex !important;}
   .mapa-card .com-cards{display:flex !important;}
 }
-.cc-host{height:max(640px,68vh);border-top:1px solid var(--line);background:#061331;position:relative;}
+.cc-host{height:max(420px,62vh);border-top:1px solid var(--line);background:#061331;position:relative;}
 .cc-host .cc-cargando{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9FB3CC;font-size:13px;}
 #ccCapa{position:fixed;overflow:hidden;pointer-events:none;z-index:3;display:none;}
 #ccCapa iframe{position:absolute;border:0;pointer-events:auto;background:#061331;}
 .cc-foot{display:flex;gap:10px 18px;align-items:center;justify-content:space-between;padding:9px 16px 11px;font-size:11.5px;color:var(--text-soft);flex-wrap:wrap;border-top:1px solid var(--line);}
 .cc-foot .ccl{display:inline-block;width:9px;height:9px;border-radius:50%;margin:0 3px 0 2px;vertical-align:-1px;}
 @media(max-width:720px){.cc-host{height:calc(100vh - 170px);}}
+/* El alto real lo fija ccAltura() en JS: encabezado + mapa = una pantalla, en cualquier equipo. */
 .normativa .nv-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap;}
 /* Ruta de trabajo priorizada (02/11): una ruta por comuna, protocolo SISS + zona prioritaria */
 .ruta-panel{margin-bottom:14px;}
@@ -916,7 +917,7 @@ main{padding:20px 22px 56px;}
 @media(min-width:761px){
   .hero-resumen{display:flex;flex-direction:column;justify-content:center;gap:5px;align-self:center;min-width:0;}
   .hr-tt{font:700 9px 'Montserrat',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-2);white-space:nowrap;}
-  .hr-row{display:grid;grid-template-columns:repeat(4,minmax(92px,1fr)) minmax(78px,auto);gap:5px;align-items:stretch;}
+  .hr-row{display:grid;grid-template-columns:repeat(4,minmax(64px,1fr)) minmax(62px,auto);gap:4px;align-items:stretch;}
   .hr-st{display:flex;flex-direction:column;gap:1px;min-width:0;padding:5px 8px 4px;border-radius:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-left-width:3px;border-left-color:rgba(255,255,255,.25);}
   .hr-st b{font:800 17px/1 'Montserrat',sans-serif;color:#fff;letter-spacing:-.03em;font-variant-numeric:tabular-nums;}
   .hr-st span{font-size:8.5px;font-weight:600;line-height:1.2;color:#B9CBE6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -1064,7 +1065,7 @@ main{padding:14px 22px 56px;}
 .ring-txt .rs{font-size:9.5px;}
 /* Encabezado compacto (31/10, "lo principal es el mapa"): una franja de ~120 px */
 @media(min-width:761px){
-  .hero{grid-template-columns:minmax(650px,1fr) auto 118px 88px !important;padding:8px 16px 9px !important;gap:12px !important;margin-bottom:8px !important;border-radius:14px;}
+  .hero{grid-template-columns:minmax(380px,1fr) auto 118px 88px !important;padding:8px 16px 9px !important;gap:12px !important;margin-bottom:8px !important;border-radius:14px;}
   .hero h1{font-size:16px !important;}
   .hero-sub,.nota-norma{display:none !important;}
   .hero-live{margin-top:1px !important;font-size:10.5px;}
@@ -1086,8 +1087,8 @@ main{padding:14px 22px 56px;}
 /* Con el resumen en grifos (01/11) el operador sólo cabe desde 1500 px; más angosto se
    esconde para que la fila de botones no se parta. Bajo 1200 px el resumen baja a una
    segunda fila del encabezado. */
-@media(max-width:1499px) and (min-width:761px){ .hero{grid-template-columns:minmax(600px,1fr) auto 88px !important;} .hero-hydrant{display:none !important;} }
-@media(max-width:1199px) and (min-width:761px){ .hero{grid-template-columns:1fr 88px !important;} .hero-ring{grid-column:2;grid-row:1;} .hero-resumen{grid-column:1/-1;grid-row:2;align-self:start;} .hr-row{grid-template-columns:repeat(4,minmax(84px,1fr)) minmax(78px,auto);max-width:620px;} }
+@media(max-width:1499px) and (min-width:761px){ .hero{grid-template-columns:minmax(360px,1fr) auto 88px !important;} .hero-hydrant{display:none !important;} }
+@media(max-width:1060px) and (min-width:761px){ .hero{grid-template-columns:1fr 88px !important;} .hero-ring{grid-column:2;grid-row:1;} .hero-resumen{grid-column:1/-1;grid-row:2;align-self:start;} .hr-row{grid-template-columns:repeat(4,minmax(84px,1fr)) minmax(78px,auto);max-width:620px;} }
 
 .mapa-card .com-cards{padding-top:6px;}
 .ccard .cc-n{font-size:18px;}
@@ -2754,7 +2755,17 @@ window.addEventListener('message', e=>{
   if(m.accion==='grifoNoEncontrado') toast(`El grifo ${m.codigo} no tiene coordenadas en el mapa`, {error:true});
   if(m.accion==='detalle' && m.id && HALLAZGOS.some(h=>h.id===m.id)) openDetail(m.id);
 });
-function ccProgramar(){ if(CC_RAF) return; CC_RAF = requestAnimationFrame(()=>{ CC_RAF = 0; ccPosicionar(); }); }
+function ccProgramar(){ if(CC_RAF) return; CC_RAF = requestAnimationFrame(()=>{ CC_RAF = 0; ccAltura(); ccPosicionar(); }); }
+/* (04/11) El mapa ocupa todo lo que queda de pantalla: encabezado + mapa entran en una sola
+   vista en cualquier equipo (notebook 768 px de alto, monitor 4K o celular). Se recalcula al
+   cargar, al cambiar el tamaño de la ventana, al rotar y cada vez que se redibuja el tablero. */
+function ccAltura(){
+  const host = document.getElementById('ccHost'); if(!host || !host.offsetParent) return;
+  if(window.innerWidth <= 720) return;                      // en celular manda el CSS (100vh - 170px)
+  const pie = document.querySelector('.mapa-card .cc-foot');
+  const alto = Math.round(window.innerHeight - host.getBoundingClientRect().top - (pie ? pie.offsetHeight : 40) - 14);
+  host.style.height = Math.max(360, alto) + 'px';
+}
 function ccPosicionar(){
   if(!CC_CAPA) return;
   const host = document.getElementById('ccHost'), main = document.getElementById('main');
