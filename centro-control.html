@@ -635,7 +635,7 @@ function chips(){const el=document.getElementById('simple');if(!el||!MODO_TABLER
   +ch('oper',pt(COL.directa)+pt(COL.indirecta),oper,'Con falla',fmt(dir)+' directa · '+fmt(oper-dir)+' indirecta')
   +ch('senal',pt(COL.senaletica,1),sen,'Sólo señalética','en ejecución · atenuados')
   +ch('bueno',pt(COL.resuelto),bue,'Grifos buenos','inspeccionados, sin pendientes')
-  +ch('nins',pt(COL.sin),nins,'Sin inspección','sin visita registrada')
+  +ch('nins',pt(COL.sin),nins,'Pendientes de inspección','sin visita registrada')
   +'<button class="chip ruta'+(S.ruta?' on':'')+'" data-f="ruta" aria-pressed="'+S.ruta+'" title="Orden sugerido para empezar los trabajos: protocolo SISS + zona prioritaria, una ruta por comuna"><i style="--c:#63D1E0"></i><b>'+fmt(S.rutas.filter(r=>S.comuna==='todos'||r.co===S.comuna).reduce((a,r)=>a+r.paradas.length,0))+'</b><span>Ruta de trabajo</span><small>· por dónde empezar</small></button>';
  el.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{const f=b.dataset.f;if(f==='ruta'){rutaVisible(!S.ruta);if(S.ruta)encuadrarRuta();return;}S.filtro=(S.filtro===f||f==='todos')?'todos':f;aplicarVista();if(S.filtro==='todos')encuadrarComuna();else encuadrarFiltro();});}
 /* ---------- Ruta de trabajo priorizada ----------
