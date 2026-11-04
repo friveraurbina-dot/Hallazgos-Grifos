@@ -2134,7 +2134,8 @@ function renderDashboard(){
   const senPendientes = senaleticaSector.filter(h=>h.estado!=='resuelto').length;
   const senEjecutadas = senaleticaSector.length - senPendientes;
   const total = hallazgosSector.length;
-  const totalInspecciones = HALLAZGOS.filter(h => esInspeccion(h) && (FILTRO_SECTOR_DASHBOARD==='todos' || h.comuna===FILTRO_SECTOR_DASHBOARD)).length;
+  // (04/11) Grifos distintos inspeccionados (no registros): una re-inspección del mismo grifo no suma dos veces
+  const totalInspecciones = new Set(HALLAZGOS.filter(h => esInspeccion(h) && h.inspeccion_realizada!=='no' && h.codigo_grifo && (FILTRO_SECTOR_DASHBOARD==='todos' || h.comuna===FILTRO_SECTOR_DASHBOARD)).map(h => String(h.codigo_grifo).trim().toUpperCase())).size;
   const counts = {directa:0, indirecta:0, senaletica:0};
   const estados = {pendiente:0, en_proceso:0, resuelto:0};
   hallazgosSector.forEach(h=>{ const c=criticidadDeRegistro(h); counts[c]=(counts[c]||0)+1; estados[h.estado]=(estados[h.estado]||0)+1; });
@@ -2307,7 +2308,7 @@ function renderDashboard(){
         <div class="hero-eyebrow">Tablero ejecutivo</div>
         <h1>Gestión Sacyr - Parque Grifos Sacyr</h1>
         <div class="hero-sub">Sacyr - Singemelec</div>
-        <div class="hero-live"><span class="dot"></span>Datos en tiempo real · actualizado ${horaAct} · ${total} hallazgos registrados · ${totalInspecciones} inspecciones${FILTRO_SECTOR_DASHBOARD!=='todos' ? ` · Sector: ${escHtml(FILTRO_SECTOR_DASHBOARD)}` : ''}</div>
+        <div class="hero-live"><span class="dot"></span>Datos en tiempo real · actualizado ${horaAct} · ${total} hallazgos registrados · ${totalInspecciones} grifos inspeccionados${FILTRO_SECTOR_DASHBOARD!=='todos' ? ` · Sector: ${escHtml(FILTRO_SECTOR_DASHBOARD)}` : ''}</div>
         <div class="hero-stats">
           <div class="hs"><div class="hn" ${parqueTotal?`data-count="${parqueTotal}"`:''}>${parqueTotal||'—'}</div><div class="hl">Grifos en el parque</div></div>
           <div class="hs"><div class="hn" data-count="${gBuenos}">${gBuenos}</div><div class="hl">Grifos buenos</div>${parqueTotal?`<div class="hsub">${pct1(gBuenos/parqueTotal*100)}% sin hallazgos pendientes</div>`:''}</div>
@@ -3923,7 +3924,7 @@ function renderInspecciones(){
     ${planHtml}
     ${formHtml}
     <div class="panel" style="margin-top:${ROLE==='singemelec'?'18px':'0'};">
-      <h3 style="margin-top:0;">Historial de inspecciones <span class="mono" style="font-size:12px;color:var(--text-soft);font-weight:400;">(${inspecciones.length})</span></h3>
+      <h3 style="margin-top:0;">Historial de inspecciones <span class="mono" style="font-size:12px;color:var(--text-soft);font-weight:400;">(${inspecciones.length} registros · ${new Set(inspecciones.map(h=>String(h.codigo_grifo||'').trim().toUpperCase()).filter(Boolean)).size} grifos)</span></h3>
       <div class="estado-table-wrap">
         <table class="estado-table">
           <thead><tr><th>Fecha ejecución</th><th>Horario</th><th>Grifo</th><th>Dirección</th><th>Presión</th><th>¿Se realizó?</th><th>¿Hallazgo?</th><th>Creado por</th><th></th></tr></thead>
