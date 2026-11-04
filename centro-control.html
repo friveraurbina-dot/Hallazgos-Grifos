@@ -334,7 +334,11 @@ const SAT='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/Ma
 const COL={directa:'#FF4D63',indirecta:'#FF9A3C',senaletica:'#FFD83D',resuelto:'#6E85A3',sin:'#2FB8D8'};
 /* dentro del tablero el mapa se lee en tres niveles: falla (rojo / naranjo), señalética
    atenuada y grifos buenos como un solo fondo tenue (sin hallazgos y resueltos iguales) */
-if(new URLSearchParams(location.search).get('modo')==='tablero'){COL.sin='#36D399';COL.resuelto='#36D399';}   // buenos = verde bien visible (pedido 02-11)
+/* (04/11) Se separan los dos casos que antes iban juntos en verde: "resuelto" (el grifo fue
+   inspeccionado y no tiene pendientes = grifo bueno verificado) y "sin" (nunca se ha
+   inspeccionado = estado desconocido, gris). Antes el mapa mostraba 437 verdes cuando sólo
+   199 estaban verificados. */
+if(new URLSearchParams(location.search).get('modo')==='tablero'){COL.resuelto='#36D399';COL.sin='#8FA4BF';}
 const NOMC={directa:'Operatividad directa',indirecta:'Operatividad indirecta',senaletica:'Señalética',resuelto:'Todo resuelto',sin:'Sin hallazgos'};
 const ESTN={pendiente:'Pendiente',en_proceso:'En proceso',resuelto:'Resuelto',sin:''};
 const ORD=['directa','indirecta','senaletica'];
@@ -572,7 +576,10 @@ function aplicarVista(){
  if(S.filtro.startsWith('g:'))f.push(['all',['>',['get','ab'],0],['in',S.filtro.slice(2),['get','grp']]]);
  if(S.filtro==='resuelto')f.push(['==',['get','crit'],'resuelto']);
  if(S.filtro==='sin')f.push(['==',['get','crit'],'sin']);
- if(S.filtro==='bueno')f.push(['match',['get','crit'],['sin','resuelto'],true,false]);   // buenos = sin ningún hallazgo pendiente (misma unidad que el tablero)
+ /* (04/11) buenos = inspeccionados sin pendientes ('resuelto'); los nunca inspeccionados
+    ('sin') tienen su propio filtro, para que el mapa diga lo mismo que el encabezado */
+ if(S.filtro==='bueno')f.push(MODO_TABLERO?['==',['get','crit'],'resuelto']:['match',['get','crit'],['sin','resuelto'],true,false]);
+ if(S.filtro==='nins')f.push(['==',['get','crit'],'sin']);
  if(S.filtro==='senal')f.push(['==',['get','crit'],'senaletica']);
  const filtro=f.length?['all',...f]:null;
  ['grifo-glow','grifo-core','grifo-txt'].forEach(id=>map.setFilter(id,filtro));
@@ -586,16 +593,16 @@ function aplicarVista(){
  /* en el tablero el parque bueno queda como fondo tenue, la señalética atenuada y sólo
     resaltan las fallas de operatividad (rojo / naranjo); si se filtra por buenos o por
     señalética, ese grupo sube de intensidad para poder revisarlo */
- const opB=S.filtro==='bueno'?1:.88,opS=S.filtro==='senal'?.85:.3;   // buenos verdes notorios; señalética tenue (Singemelec la está ejecutando)
- map.setPaintProperty('grifo-core','circle-opacity',MODO_TABLERO&&v==='hall'?['match',['get','crit'],'sin',opB,'resuelto',opB,'senaletica',opS,1]:(v==='lug'?.75:1));
- map.setPaintProperty('grifo-core','circle-stroke-opacity',MODO_TABLERO&&v==='hall'?['match',['get','crit'],'sin',opB*.8,'resuelto',opB*.8,'senaletica',opS*.8,1]:1);
+ const opB=S.filtro==='bueno'?1:.88,opS=S.filtro==='senal'?.85:.3,opN=S.filtro==='nins'?.9:.34;   // buenos verdes notorios; señalética y sin inspección tenues
+ map.setPaintProperty('grifo-core','circle-opacity',MODO_TABLERO&&v==='hall'?['match',['get','crit'],'sin',opN,'resuelto',opB,'senaletica',opS,1]:(v==='lug'?.75:1));
+ map.setPaintProperty('grifo-core','circle-stroke-opacity',MODO_TABLERO&&v==='hall'?['match',['get','crit'],'sin',opN*.8,'resuelto',opB*.8,'senaletica',opS*.8,1]:1);
  map.setLayoutProperty('lug-ico','icon-size',['interpolate',['linear'],['zoom'],9,v==='lug'?.6:.42,13,v==='lug'?1:.75,16,v==='lug'?1.15:.95]);
  map.setLayoutProperty('lug-ico','text-field',['step',['zoom'],'',v==='lug'?12.5:13.5,['get','n']]);
  map.setPaintProperty('lug-ico','icon-opacity',v==='hall'?.78:.97);
  /* en el tablero los lugares sensibles sólo aparecen cuando se pide verlos (tarjeta Zona prioritaria o filtro por grupo): el mapa queda limpio, sólo grifos */
  if(MODO_TABLERO)map.setLayoutProperty('lug-ico','visibility',(S.filtro==='sensible'||S.filtro.startsWith('g:')||v==='lug')?'visible':'none');
  ['radios-f','radios-l'].forEach(id=>map.setLayoutProperty(id,'visibility',v==='lug'?'visible':'none'));
- map.setPaintProperty('grifo-glow','circle-opacity',['match',['get','crit'],'sin',MODO_TABLERO?.22:(v==='parque'?.25:0),'resuelto',MODO_TABLERO?.22:.18,'senaletica',MODO_TABLERO?0:(v==='lug'?.3:.5),v==='lug'?.3:.5]);
+ map.setPaintProperty('grifo-glow','circle-opacity',['match',['get','crit'],'sin',MODO_TABLERO?0:(v==='parque'?.25:0),'resuelto',MODO_TABLERO?.22:.18,'senaletica',MODO_TABLERO?0:(v==='lug'?.3:.5),v==='lug'?.3:.5]);
  ['sect-f','sect-l','sect-t'].forEach(id=>map.setLayoutProperty(id,'visibility',S.capas.sect?'visible':'none'));
  ['pobl-f','pobl-l','pobl-t','pobl-t2'].forEach(id=>map.setLayoutProperty(id,'visibility',S.capas.pobl?'visible':'none'));
  map.setLayoutProperty('com-l','visibility',S.capas.com?'visible':'none');
@@ -620,13 +627,15 @@ function chips(){const el=document.getElementById('simple');if(!el||!MODO_TABLER
  let oper=gs.filter(x=>ab(x)&&x.s.crit!=='senaletica').length,dir=gs.filter(x=>ab(x)&&x.s.crit==='directa').length,sen=gs.filter(x=>ab(x)&&x.s.crit==='senaletica').length,bue=tot-oper-sen,total=tot;
  /* si el tablero mandó sus cifras (mismo sector), se usan tal cual: así los chips y el
     encabezado coinciden aunque algún grifo con hallazgo no tenga coordenada en el mapa */
- const cf=S.cifras;if(cf&&cf.tot){total=cf.tot;dir=cf.dir;oper=cf.dir+cf.ind;sen=cf.sen;bue=cf.bue;}
+ let nins=gs.filter(x=>!x.s).length;
+ const cf=S.cifras;if(cf&&cf.tot){total=cf.tot;dir=cf.dir;oper=cf.dir+cf.ind;sen=cf.sen;bue=cf.bue;if(cf.nins!==undefined)nins=cf.nins;}
  const ch=(id,dots,n,l,s)=>'<button class="chip'+(S.filtro===id?' on':'')+'" data-f="'+id+'" aria-pressed="'+(S.filtro===id)+'">'+dots+'<b>'+fmt(n)+'</b><span>'+l+'</span>'+(s?'<small>· '+s+'</small>':'')+'</button>';
  const pt=(c,lv)=>'<i style="--c:'+c+'"'+(lv?' class="lv"':'')+'></i>';
  el.innerHTML=ch('todos','',total,'Parque de grifos',S.comuna==='todos'?'':titulo(S.comuna))
   +ch('oper',pt(COL.directa)+pt(COL.indirecta),oper,'Con falla',fmt(dir)+' directa · '+fmt(oper-dir)+' indirecta')
   +ch('senal',pt(COL.senaletica,1),sen,'Sólo señalética','en ejecución · atenuados')
-  +ch('bueno',pt(COL.sin),bue,'Grifos buenos','sin hallazgos pendientes')
+  +ch('bueno',pt(COL.resuelto),bue,'Grifos buenos','inspeccionados, sin pendientes')
+  +ch('nins',pt(COL.sin),nins,'Sin inspección','sin visita registrada')
   +'<button class="chip ruta'+(S.ruta?' on':'')+'" data-f="ruta" aria-pressed="'+S.ruta+'" title="Orden sugerido para empezar los trabajos: protocolo SISS + zona prioritaria, una ruta por comuna"><i style="--c:#63D1E0"></i><b>'+fmt(S.rutas.filter(r=>S.comuna==='todos'||r.co===S.comuna).reduce((a,r)=>a+r.paradas.length,0))+'</b><span>Ruta de trabajo</span><small>· por dónde empezar</small></button>';
  el.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{const f=b.dataset.f;if(f==='ruta'){rutaVisible(!S.ruta);if(S.ruta)encuadrarRuta();return;}S.filtro=(S.filtro===f||f==='todos')?'todos':f;aplicarVista();if(S.filtro==='todos')encuadrarComuna();else encuadrarFiltro();});}
 /* ---------- Ruta de trabajo priorizada ----------
@@ -948,7 +957,7 @@ async function cargar(){
 function modoTablero(){
  if(!MODO_TABLERO)return;document.body.classList.add('tablero');
  const t=document.querySelector('.carga h2');if(t)t.textContent='Parque de grifos';
- NOMC.sin='Grifo bueno (sin hallazgos)';NOMC.resuelto='Grifo bueno (hallazgos resueltos)';NOMC.senaletica='Sólo señalética (pintura)';NOMC.directa='Falla directa';NOMC.indirecta='Falla indirecta';
+ NOMC.sin='Sin inspección registrada';NOMC.resuelto='Grifo bueno (inspeccionado, sin pendientes)';NOMC.senaletica='Sólo señalética (pintura)';NOMC.directa='Falla directa';NOMC.indirecta='Falla indirecta';
  const c=PARAMS.get('sector');if(c&&c!=='todos')S.comuna=c.toUpperCase();
  window.addEventListener('message',e=>{if(e.origin!==location.origin||e.source===window)return;const m=e.data||{};if(!S.listo)return;
   if(m.accion==='sector'){const c=(m.comuna&&m.comuna!=='todos')?String(m.comuna).toUpperCase():'todos';const igual=c===S.comuna;S.comuna=c;if(m.cifras)S.cifras=m.cifras;if(m.rol)S.rol=m.rol;if(!igual)S.filtro='todos';if(S.ruta&&!igual){rutaVisible(true);}else aplicarVista();if(!igual){if(S.ruta)encuadrarRuta();else encuadrarComuna();}}
