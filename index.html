@@ -686,6 +686,9 @@ nav.rail .rr-st.sen{grid-column:1/-1;flex-direction:row;align-items:baseline;gap
 .hs .hsub{font-size:11px;color:var(--accent-2);margin-top:3px;font-weight:600;}
 .hs-alert{background:rgba(200,51,77,.28);border-color:rgba(255,140,160,.45);}
 .hs-alert .hsub{color:#FFC2CD;}
+.hs-nins{opacity:.78;}
+.hs-mant{background:rgba(226,163,61,.16);border-color:rgba(255,216,61,.3);}
+.hs-mant .hsub{color:#FFE07A;}
 .hero-actions{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-top:20px;}
 .hero-sector{display:flex;align-items:center;gap:8px;margin-right:4px;}
 .hero-sector label{font:700 10.5px 'Montserrat',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.75);}
@@ -961,6 +964,7 @@ main{padding:20px 22px 56px;}
   .mant-linea em b{color:#FFE07A;font-weight:800;}
   .mant-linea button{margin-left:auto;background:none;border:0;color:#63D1E0;font:600 10px 'Inter',sans-serif;cursor:pointer;padding:1px 2px;flex:none;}
   .mant-linea button:hover{text-decoration:underline;}
+  .ver-app{font-weight:700;color:#63D1E0;}
   .hr-ley{font:600 8px 'Inter',sans-serif;font-style:normal;text-transform:none;letter-spacing:0;color:#7E97B8;}
   .hr-sum{display:block;margin-top:2px;font:600 9px/1.3 'Inter',sans-serif;letter-spacing:0;text-transform:none;color:#9FB6D4;font-style:normal;}
   .hr-st[onclick]:hover{background:rgba(255,255,255,.14);}
@@ -2148,6 +2152,7 @@ let DASH_ANIMADO = false;
 // Foto de las cifras del tablero (unidad "grifos" + tarjetas de gestión). La llena
 // renderDashboard y la usa el informe ejecutivo del perfil Sacyr, para que el informe
 // diga exactamente lo mismo que la pantalla.
+const APP_VERSION = 'v04-11 · 6';   // marcador de publicación: sirve para saber si el navegador está sirviendo una copia vieja
 let DASH_RESUMEN = null;
 function renderDashboard(){
   const main = document.getElementById('main');
@@ -2396,14 +2401,22 @@ function renderDashboard(){
         <div class="hero-eyebrow">Tablero ejecutivo</div>
         <h1>Gestión Sacyr - Parque Grifos Sacyr</h1>
         <div class="hero-sub">Sacyr - Singemelec</div>
-        <div class="hero-live"><span class="dot"></span>Datos en tiempo real · actualizado ${horaAct} · ${total} hallazgos registrados · ${gInspeccionados} grifos inspeccionados de ${parqueTotal}${gVisitadosJul?` · ${gVisitadosJul} con visita desde jul-2026`:''}${FILTRO_SECTOR_DASHBOARD!=='todos' ? ` · Sector: ${escHtml(FILTRO_SECTOR_DASHBOARD)}` : ''}</div>
-        <div class="hero-stats">
-          <div class="hs"><div class="hn" ${parqueTotal?`data-count="${parqueTotal}"`:''}>${parqueTotal||'—'}</div><div class="hl">Grifos en el parque</div></div>
-          <div class="hs"><div class="hn" data-count="${gInspeccionados}">${gInspeccionados}</div><div class="hl">Inspeccionados</div>${pctInsp!==null?`<div class="hsub">${pct1(pctInsp)}% del parque · ${gVisitadosJul} con visita desde jul-2026</div>`:''}</div>
-          <div class="hs"><div class="hn" data-count="${gBuenosVerif}">${gBuenosVerif}</div><div class="hl">Grifos buenos</div>${parqueTotal?`<div class="hsub">verificados, sin hallazgos pendientes · ${gSinInsp} sin inspección</div>`:''}</div>
-          <div class="hs hs-alert"><div class="hn" data-count="${G.directa}">${G.directa}</div><div class="hl">Con falla directa</div><div class="hsub">${G.indirecta} con falla indirecta</div></div>
-          <div class="hs" style="cursor:pointer" onclick="irAListaConFiltro('prioridad','senaletica')" title="Señalética (pintura): categoría propia, no afecta la operatividad del grifo"><div class="hn" data-count="${G.senaletica}">${G.senaletica}</div><div class="hl">Sólo señalética</div><div class="hsub">${senPendientes} pinturas pendientes · ${senPct}% ejecutado</div></div>
-        </div>
+        <div class="hero-live"><span class="dot"></span>Datos en tiempo real · actualizado ${horaAct} · ${total} hallazgos registrados · ${gInspeccionados} grifos inspeccionados de ${parqueTotal}${gVisitadosJul?` · ${gVisitadosJul} con visita desde jul-2026`:''} · <span class="ver-app" title="Versión del tablero publicada. Si no coincide con la última, recarga con Ctrl+Shift+R.">${APP_VERSION}</span>${FILTRO_SECTOR_DASHBOARD!=='todos' ? ` · Sector: ${escHtml(FILTRO_SECTOR_DASHBOARD)}` : ''}</div>
+        ${(()=>{ /* (04/11) El bloque móvil muestra las MISMAS 7 cifras del resumen de escritorio,
+             cada una con % del parque y % de lo inspeccionado. */
+          const pP = n => parqueTotal ? pct1(n/parqueTotal*100)+'% del parque' : '';
+          const pI = n => gInspeccionados ? pct1(n/gInspeccionados*100)+'% de lo inspeccionado' : '';
+          const dos = n => `<div class="hsub">${pP(n)}<br>${pI(n)}</div>`;
+          return `<div class="hero-stats">
+          <div class="hs"><div class="hn" ${parqueTotal?`data-count="${parqueTotal}"`:''}>${parqueTotal||'—'}</div><div class="hl">Parque total</div><div class="hsub">grifos del catastro</div></div>
+          <div class="hs"><div class="hn" data-count="${gInspeccionados}">${gInspeccionados}</div><div class="hl">Inspeccionados</div>${pctInsp!==null?`<div class="hsub">${pct1(pctInsp)}% del parque<br>${gVisitadosJul} con visita desde jul-2026</div>`:''}</div>
+          <div class="hs"><div class="hn" data-count="${gBuenosVerif}">${gBuenosVerif}</div><div class="hl">Grifos buenos</div>${dos(gBuenosVerif)}</div>
+          <div class="hs hs-alert" style="cursor:pointer" onclick="irAListaConFiltro('prioridad','directa')"><div class="hn" data-count="${G.directa}">${G.directa}</div><div class="hl">Falla directa</div>${dos(G.directa)}</div>
+          <div class="hs" style="cursor:pointer" onclick="irAListaConFiltro('prioridad','indirecta')"><div class="hn" data-count="${G.indirecta}">${G.indirecta}</div><div class="hl">Falla indirecta</div>${dos(G.indirecta)}</div>
+          <div class="hs" style="cursor:pointer" onclick="irAListaConFiltro('prioridad','senaletica')" title="Señalética (pintura): categoría propia, no afecta la operatividad del grifo"><div class="hn" data-count="${G.senaletica}">${G.senaletica}</div><div class="hl">Sólo señalética</div>${dos(G.senaletica)}</div>
+          <div class="hs hs-nins"><div class="hn" data-count="${gSinInsp}">${gSinInsp}</div><div class="hl">Pendientes de inspección</div><div class="hsub">${pP(gSinInsp)}<br>sin visita registrada</div></div>
+          ${pintTotal?`<div class="hs hs-mant" style="cursor:pointer" onclick="document.querySelector('.panel.pintura').scrollIntoView({behavior:'smooth',block:'center'})"><div class="hn" data-count="${pintTotal}">${pintTotal}</div><div class="hl">Mantención ${ANIO_ACT}</div><div class="hsub">grifos pintados · ${parqueTotal?pct1(pintTotal/parqueTotal*100)+'% del parque':''}<br>ver por comuna ↓</div></div>`:''}
+        </div>`;})()}
         <div class="nota-norma">* ${NOTA_NORMA_PINTURA}</div>
         ${parqueTotal ? (()=>{ const w = n => (Math.min(n,parqueTotal)/parqueTotal*100);
           return `<div class="park-bar">

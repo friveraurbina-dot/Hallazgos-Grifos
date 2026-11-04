@@ -20,7 +20,13 @@
    servidor; el caché solo se usa si la red falla (sin conexión). Así nunca
    se sirve una versión vieja de la app por delante de la red. */
 
-const CACHE_NAME = 'gestionsacyr-shell-v2';
+/* (04/11/2026) Dos ajustes porque el tablero seguía mostrando una versión vieja aunque el
+   service worker ya era "red primero": (1) el nombre del caché sube a v3, así se borra el
+   contenido guardado por la versión anterior; (2) para los documentos del propio sitio
+   (index.html, terreno.html, la raíz) se pide la red con cache:'no-cache', porque el
+   fetch() normal respeta el caché HTTP del navegador y GitHub Pages manda max-age=600:
+   durante 10 minutos el navegador devolvía la copia guardada sin consultar al servidor. */
+const CACHE_NAME = 'gestionsacyr-shell-v3';
 const APP_SHELL = ['./', './index.html', './manifest.json', './terreno.html', './manifest-terreno.json', './icon-192.png', './icon-512.png'];
 
 /* (02/11/2026) La app de terreno (terreno.html) debe abrir SIN señal en el celular. Para eso,
@@ -74,8 +80,15 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Documentos del propio sitio: se revalidan siempre contra el servidor (ETag), para que
+  // una publicación nueva se vea en la siguiente carga sin tener que hacer Ctrl+Shift+R.
+  const esDocumento = req.mode === 'navigate' || url.pathname.endsWith('/') || /\.html?$/i.test(url.pathname);
+  const pedido = esDocumento
+    ? fetch(url.href, { cache: 'no-cache', credentials: 'same-origin' })
+    : fetch(req);
+
   event.respondWith(
-    fetch(req)
+    pedido
       .then((response) => {
         // Red primero: si funcionó, se guarda una copia fresca (solo
         // respuestas correctas) y se devuelve la respuesta real de la red.
