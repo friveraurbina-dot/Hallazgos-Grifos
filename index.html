@@ -2157,7 +2157,7 @@ let DASH_ANIMADO = false;
 // Foto de las cifras del tablero (unidad "grifos" + tarjetas de gestión). La llena
 // renderDashboard y la usa el informe ejecutivo del perfil Sacyr, para que el informe
 // diga exactamente lo mismo que la pantalla.
-const APP_VERSION = 'v04-11 · 7';   // marcador de publicación: sirve para saber si el navegador está sirviendo una copia vieja
+const APP_VERSION = 'v10-11 · 8';   // marcador de publicación: sirve para saber si el navegador está sirviendo una copia vieja
 let DASH_RESUMEN = null;
 function renderDashboard(){
   const main = document.getElementById('main');
@@ -2924,8 +2924,16 @@ function ccAltura(){
   const host = document.getElementById('ccHost'); if(!host || !host.offsetParent) return;
   if(window.innerWidth <= 720) return;                      // en celular manda el CSS (100vh - 170px)
   const pie = document.querySelector('.mapa-card .cc-foot');
-  const alto = Math.round(window.innerHeight - host.getBoundingClientRect().top - (pie ? pie.offsetHeight : 40) - 14);
-  host.style.height = Math.max(360, alto) + 'px';
+  /* (10/11) BUG corregido: antes se usaba `host.getBoundingClientRect().top`, que es relativo
+     a la ventana. Al bajar en la página ese valor se vuelve negativo, el alto calculado
+     crecía en cada scroll, el mapa se agrandaba solo y nunca se llegaba a los paneles de
+     abajo. Ahora se suma el scroll de <main> (el contenedor que scrollea) para usar SIEMPRE
+     la posición del mapa con la página arriba: el resultado es el mismo en cualquier
+     posición de scroll. */
+  const main = document.getElementById('main');
+  const topEstable = host.getBoundingClientRect().top + (main ? main.scrollTop : 0);
+  const alto = Math.round(window.innerHeight - topEstable - (pie ? pie.offsetHeight : 40) - 14);
+  host.style.height = Math.max(360, Math.min(alto, Math.round(window.innerHeight * 0.78))) + 'px';
 }
 function ccPosicionar(){
   if(!CC_CAPA) return;
