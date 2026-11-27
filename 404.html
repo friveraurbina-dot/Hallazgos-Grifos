@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Gestión Sacyr · nueva dirección</title>
+<script>
+/* La app se trasladó a https://gestionsacyr-dot.github.io/ (27-11-2026).
+   Esta página conserva la ruta y los parámetros (p. ej. centro-control.html?modo=emergencia),
+   quita la versión guardada de la app antigua y redirige. */
+(function(){
+  var base = 'https://gestionsacyr-dot.github.io/';
+  var resto = location.pathname.replace(/^\/Hallazgos-Grifos\/?/i, '');
+  var destino = base + resto + location.search + location.hash;
+  function ir(){ location.replace(destino); }
+  var tareas = [];
+  try {
+    if ('serviceWorker' in navigator) {
+      tareas.push(navigator.serviceWorker.getRegistrations().then(function(rs){
+        return Promise.all(rs.filter(function(r){ return r.scope.indexOf('/Hallazgos-Grifos/') > -1; })
+                             .map(function(r){ return r.unregister(); }));
+      }));
+    }
+  } catch (e) {}
+  try {
+    if (window.caches) {
+      tareas.push(caches.keys().then(function(ks){
+        return Promise.all(ks.filter(function(k){ return /^(gestionsacyr|hallazgos)/i.test(k); })
+                             .map(function(k){ return caches.delete(k); }));
+      }));
+    }
+  } catch (e) {}
+  window.__destino = destino;
+  Promise.race([Promise.all(tareas), new Promise(function(r){ setTimeout(r, 1500); })]).then(ir, ir);
+})();
+</script>
+<style>
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+       font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:#F4F6F9;color:#1B2A3A}
+  .c{max-width:420px;margin:16px;padding:28px;background:#fff;border-radius:14px;
+     box-shadow:0 4px 18px rgba(0,0,0,.08);text-align:center}
+  h1{font-size:20px;margin:0 0 10px}
+  p{margin:0 0 18px;line-height:1.45;color:#4A5A6A}
+  a{display:inline-block;padding:11px 18px;border-radius:9px;background:#0A5EA8;color:#fff;
+    text-decoration:none;font-weight:600}
+</style>
+</head>
+<body>
+  <div class="c">
+    <h1>La app cambió de dirección</h1>
+    <p>Gestión Sacyr ahora está en <b>gestionsacyr-dot.github.io</b>. Te estamos llevando automáticamente.</p>
+    <a id="ir" href="https://gestionsacyr-dot.github.io/">Ir a la nueva dirección</a>
+  </div>
+  <script>try{document.getElementById('ir').href = window.__destino || document.getElementById('ir').href;}catch(e){}</script>
+</body>
+</html>
